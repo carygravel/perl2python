@@ -1,0 +1,10 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use Transcriber::perl2python qw(parse_element);
+
+for my $file (@ARGV) {
+    my $doc = PPI::Document->new($file);
+    parse_element($doc);
+}
