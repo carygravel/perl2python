@@ -1,6 +1,6 @@
-# perl2python
+# NAME
 
-Tool to transcribe Perl 5 to Python 3
+Perl2Python - Tool to transcribe Perl 5 to Python 3
 
 # VERSION
 

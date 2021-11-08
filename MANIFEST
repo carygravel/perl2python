@@ -1,5 +1,6 @@
+MANIFEST
 Makefile.PL
 README.md
 bin/perl2python
-lib/perl2python.pm
+lib/Perl2Python.pm
 t/01_data.t

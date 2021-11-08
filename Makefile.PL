@@ -16,7 +16,7 @@ our %runtime_reqs = ();
 # the contents of the Makefile that is written.
 WriteMakefile(
     NAME         => 'perl2python',
-    VERSION_FROM => 'lib/perl2python.pm',    # finds $VERSION
+    VERSION_FROM => 'lib/Perl2Python.pm',    # finds $VERSION
     PREREQ_PM    => {
         Readonly => 0,
     },
@@ -50,7 +50,7 @@ WriteMakefile(
         ?    ## Add these new keywords supported since 5.005
           (
             ABSTRACT_FROM =>
-              'lib/perl2python.pm',    # retrieve abstract from module
+              'lib/Perl2Python.pm',    # retrieve abstract from module
             AUTHOR => 'Jeffrey Ratcliffe'
           )
         : ()
@@ -78,10 +78,10 @@ MANIFEST : $(SOURCE)
 
 tardist : README.md
 
-README.md : lib/perl2python.pm
+README.md : lib/Perl2Python.pm
 	pod2markdown $< > $@
 
-tidy : MANIFEST $(SOURCE_TIDY) README
+tidy : MANIFEST $(SOURCE_TIDY) README.md
 
 %.tdy : %
 	perltidy $* && if ! diff -q $@ $* > /dev/null; then cp $@ $*; fi
