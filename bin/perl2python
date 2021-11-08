@@ -8,11 +8,16 @@ use Carp;
 our $VERSION = 1;
 
 for my $infile (@ARGV) {
+    print "Reading from $infile\n" or croak 'Error printing to STDOUT';
     my $out = parse_file($infile);
     my $outfile;
     if ( $infile =~ /(.+?)(:?[.]p[lm])$/xsm ) {
         $outfile = "$1.py";
     }
+    else {
+        $outfile = "$infile.py";
+    }
+    print "Writing to $outfile\n" or croak 'Error printing to STDOUT';
     open my $fh, '>', $outfile or croak "Error opening $outfile";
     print {$fh} $out or croak "Error writing to $outfile";
     close $fh        or croak "Error closing $outfile";

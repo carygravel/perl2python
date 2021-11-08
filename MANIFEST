@@ -3,4 +3,8 @@ Makefile.PL
 README.md
 bin/perl2python
 lib/Perl2Python.pm
-t/01_data.t
+t/01_basics.t
+t/90_MANIFEST.t
+t/91_critic.t
+t/99_pod.t
+t/perlcriticrc

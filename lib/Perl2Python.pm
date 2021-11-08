@@ -39,16 +39,20 @@ sub parse_element {
             my @imports;
             for my $child ( @{ $element->{children} } ) {
                 if ( $child->isa('PPI::Token::Word') ) {
-                    if ( $child->{content} =~ /(use|warnings|strict)/xsm ) {
+                    if ( $child->{content} =~
+                        /(use|warnings|strict|no|feature|if)/xsm )
+                    {
                         next;
                     }
                     else {
-                        push @imports, $child->{content};
+                        my $module = $child->{content};
+                        $module =~ s/::/./gsm;
+                        push @imports, $module;
                     }
                 }
             }
             if (@imports) {
-                $out .= 'import ' . join q{ }, @imports . "\n";
+                $out .= 'import ' . join( q{ }, @imports ) . "\n";
             }
             return $out;
         }

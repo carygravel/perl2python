@@ -1,8 +1,8 @@
 use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
-use perl2python qw(parse_document);
-use Test::More tests => 2;
+use Perl2Python qw(parse_document);
+use Test::More tests => 3;
 
 sub slurp {
     my ($file) = @_;
@@ -12,6 +12,8 @@ sub slurp {
     close $fh;
     return $text;
 }
+
+#########################
 
 my $script = <<'EOS';
 #!/usr/bin/perl
@@ -25,7 +27,7 @@ my $expected = <<'EOS';
 print( "Hello world!" )
 EOS
 
-is parse_document( \$script ), $expected, "Hello world";
+is parse_document( \$script ), $expected, "print()";
 
 my $in  = 'test.pl';
 my $out = 'test.py';
@@ -34,6 +36,20 @@ print $fh $script;
 close $fh;
 system("perl bin/perl2python $in");
 is slurp($out), $expected, "Hello world";
+
+#########################
+
+$script = <<'EOS';
+use feature 'switch';
+no if $] >= 5.018, warnings => 'experimental::smartmatch';
+use MyModule::MySubModule::MySubSubModule;
+EOS
+
+$expected = <<'EOS';
+import MyModule.MySubModule.MySubSubModule
+EOS
+
+is parse_document( \$script ), $expected, "import";
 
 #########################
 
