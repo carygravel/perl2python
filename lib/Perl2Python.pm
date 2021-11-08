@@ -8,14 +8,18 @@ use PPI;
 use Exporter ();
 use base qw(Exporter);
 
-our @EXPORT_OK = qw(parse_document);    # symbols to export on request
+our @EXPORT_OK = qw(parse_document parse_file);   # symbols to export on request
 
 our $VERSION = 1;
 
 sub parse_document {
-    my ($string_or_file) = @_;
-    my $doc = PPI::Document->new($string_or_file);
-    return parse_element($doc);
+    my ($string) = @_;
+    return parse_element( PPI::Document->new($string) );
+}
+
+sub parse_file {
+    my ($file) = @_;
+    return parse_element( PPI::Document::File->new($file) );
 }
 
 sub parse_element {

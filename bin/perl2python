@@ -2,11 +2,18 @@
 
 use warnings;
 use strict;
-use Perl2Python qw(parse_document);
+use Perl2Python qw(parse_document parse_file);
+use Carp;
 
 our $VERSION = 1;
 
-for my $file (@ARGV) {
-    my $doc = PPI::Document->new($file);
-    parse_document($doc);
+for my $infile (@ARGV) {
+    my $out = parse_file($infile);
+    my $outfile;
+    if ( $infile =~ /(.+?)(:?[.]p[lm])$/xsm ) {
+        $outfile = "$1.py";
+    }
+    open my $fh, '>', $outfile or croak "Error opening $outfile";
+    print {$fh} $out or croak "Error writing to $outfile";
+    close $fh        or croak "Error closing $outfile";
 }

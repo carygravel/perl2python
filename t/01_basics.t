@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use perl2python qw(parse_document);
-use Test::More tests => 1;
+use Test::More tests => 2;
 
 sub slurp {
     my ($file) = @_;
@@ -25,16 +25,18 @@ my $expected = <<'EOS';
 print( "Hello world!" )
 EOS
 
-#my $in = 'test.pl';
-#my $out = 'test.py';
-#open my $fh, '>', $in;
-#print $fh $script;
-#close $fh;
-#system("perl bin/perl2python $in");
 is parse_document( \$script ), $expected, "Hello world";
+
+my $in  = 'test.pl';
+my $out = 'test.py';
+open my $fh, '>', $in;
+print $fh $script;
+close $fh;
+system("perl bin/perl2python $in");
+is slurp($out), $expected, "Hello world";
 
 #########################
 
-#unlink $in, $out;
+unlink $in, $out;
 
 __END__
