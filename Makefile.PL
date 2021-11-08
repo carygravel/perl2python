@@ -76,10 +76,10 @@ SOURCE_TIDY = $(foreach file,$(SOURCE),$(file).tdy)
 MANIFEST : $(SOURCE)
 	git ls-files | egrep -v '^\.(git|be)' > $@
 
-tardist : README
+tardist : README.md
 
-README : lib/perl2python.pm
-	pod2readme $< $@
+README.md : lib/perl2python.pm
+	pod2markdown $< > $@
 
 tidy : MANIFEST $(SOURCE_TIDY) README
 

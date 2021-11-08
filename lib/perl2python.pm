@@ -7,6 +7,8 @@ use Exporter ();
 use base qw(Exporter);
 our @EXPORT_OK = qw(parse_document);    # symbols to export on request
 
+our $VERSION = 1;
+
 sub parse_document {
     my ($string_or_file) = @_;
     my $doc = PPI::Document->new($string_or_file);
@@ -82,3 +84,56 @@ sub parse_element {
 }
 
 1;
+__END__
+
+=head1 perl2python
+
+Tool to transcribe Perl 5 to Python 3
+
+=head1 VERSION
+
+1
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+=for readme stop
+
+=head1 SUBROUTINES/METHODS
+
+=head2 parse_document
+
+=for readme continue
+
+=head1 DIAGNOSTICS
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+=head1 DEPENDENCIES
+
+=head2 Runtime
+
+=head2 Build
+
+=head2 Test
+
+=head1 INCOMPATIBILITIES
+
+=head1 BUGS AND LIMITATIONS
+
+=head1 SEE ALSO
+
+=head1 AUTHOR
+
+Jeffrey Ratcliffe, E<lt>jffry@posteo.netE<gt>
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2021 by Jeffrey Ratcliffe
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.8.5 or,
+at your option, any later version of Perl 5 you may have available.
+
+=cut
