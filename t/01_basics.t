@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(parse_document);
-use Test::More tests => 3;
+use Test::More tests => 4;
 
 sub slurp {
     my ($file) = @_;
@@ -50,6 +50,22 @@ import MyModule.MySubModule.MySubSubModule
 EOS
 
 is parse_document( \$script ), $expected, "import";
+
+#########################
+
+$script = <<'EOS';
+sub function {
+    my ( $x, $y, $t ) = @_;
+    return $x, $y, $t;
+}
+EOS
+
+$expected = <<'EOS';
+def function($x, $y, $t):
+    return($x, $y, $t)
+EOS
+
+is parse_document( \$script ), $expected, "sub";
 
 #########################
 
