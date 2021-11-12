@@ -24,7 +24,7 @@ EOS
 
 my $expected = <<'EOS';
 #!/usr/bin/python3
-print( "Hello world!" )
+print("Hello world!")
 EOS
 
 is parse_document( \$script ), $expected, "print()";

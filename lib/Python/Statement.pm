@@ -157,21 +157,21 @@ use Python::Singletons '%_PARENT';
 
 our @ISA = "Python::Node";
 
-use Python::Statement::Break          ();
-use Python::Statement::Compound       ();
-use Python::Statement::Data           ();
-use Python::Statement::End            ();
-use Python::Statement::Expression     ();
-use Python::Statement::Include        ();
-use Python::Statement::Null           ();
-use Python::Statement::Package        ();
-use Python::Statement::Scheduled      ();
-use Python::Statement::Sub            ();
-use Python::Statement::Given         ();
-use Python::Statement::UnmatchedBrace ();
-use Python::Statement::Unknown        ();
-use Python::Statement::Variable       ();
-use Python::Statement::When           ();
+#use Python::Statement::Break          ();
+#use Python::Statement::Compound       ();
+#use Python::Statement::Data           ();
+#use Python::Statement::End            ();
+#use Python::Statement::Expression     ();
+#use Python::Statement::Include        ();
+#use Python::Statement::Null           ();
+#use Python::Statement::Package        ();
+#use Python::Statement::Scheduled      ();
+#use Python::Statement::Sub            ();
+#use Python::Statement::Given         ();
+#use Python::Statement::UnmatchedBrace ();
+#use Python::Statement::Unknown        ();
+#use Python::Statement::Variable       ();
+#use Python::Statement::When           ();
 
 # "Normal" statements end at a statement terminator ;
 # Some are not, and need the more rigorous _continues to see

@@ -69,7 +69,7 @@ use List::Util 1.33               ();
 use Params::Util 1.00             qw{_SCALAR0 _ARRAY0 _INSTANCE};
 use Digest::MD5                   ();
 use Python::Util                     ();
-use Python                           ();
+#use Python                           ();
 use Python::Node                     ();
 
 use overload 'bool' => \&Python::Util::TRUE;

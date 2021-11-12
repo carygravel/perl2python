@@ -46,7 +46,6 @@ L<Python::Statement>, L<Python::Node> and L<Python::Element> methods.
 
 use strict;
 use Python::Statement                 ();
-use Python::Statement::Include::Perl6 ();
 
 # VERSION
 
