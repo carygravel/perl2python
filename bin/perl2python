@@ -20,5 +20,5 @@ for my $infile (@ARGV) {
     print "Writing to $outfile\n" or croak 'Error printing to STDOUT';
     open my $fh, '>', $outfile or croak "Error opening $outfile";
     print {$fh} $out or croak "Error writing to $outfile";
-    close $fh        or croak "Error closing $outfile";
+    close $fh or croak "Error closing $outfile";
 }

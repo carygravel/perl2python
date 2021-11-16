@@ -24,7 +24,7 @@ EOS
 
 my $expected = <<'EOS';
 #!/usr/bin/python3
-print("Hello world!")
+print( "Hello world!")
 EOS
 
 is parse_document( \$script ), $expected, "print()";
@@ -61,8 +61,10 @@ sub function {
 EOS
 
 $expected = <<'EOS';
-def function($x, $y, $t):
-    return($x, $y, $t)
+def function( x, y, t ) :
+    
+    return x, y, t
+
 EOS
 
 is parse_document( \$script ), $expected, "sub";

@@ -5,16 +5,11 @@ use strict;
 use feature 'switch';
 no if $] >= 5.018, warnings => 'experimental::smartmatch';
 use PPI;
-use Python::Document;
-use Python::Statement::Include;
-use Python::Statement::Def;
-use Python::Structure::Block;
-use Python::Token::Comment;
-use Python::Token::Word;
-use Python::Token::Quote;
 use Exporter ();
 use base qw(Exporter);
 use Carp;
+use Readonly;
+Readonly my $LAST => -1;
 
 our @EXPORT_OK = qw(parse_document parse_file);   # symbols to export on request
 
@@ -22,216 +17,162 @@ our $VERSION = 1;
 
 sub parse_document {
     my ($string) = @_;
-    return map_element( PPI::Document->new($string) );
+    my $doc = PPI::Document->new($string);
+    map_element($doc);
+    return $doc;
 }
 
 sub parse_file {
     my ($file) = @_;
-    return map_element( PPI::Document::File->new($file) );
+    my $doc = PPI::Document::File->new($file);
+    map_element($doc);
+    return $doc;
 }
 
 sub map_element {
-    my ( $pl_element ) = @_;
-    given ( ref $pl_element ) {
+    my ($element) = @_;
+    given ( ref $element ) {
         when (/PPI::Document/xsm) {
-            my $doc = Python::Document->new;
-            for my $child ($pl_element->children) {
-                my $py_element = map_element( $child );
-                if (defined $py_element) {
-                    $doc->add_element( $py_element );
-                }
-            }
-            return $doc
+
+            #            use Data::Dumper;
+            #            print STDERR Dumper($element);
         }
         when (/PPI::Token::Comment/xsm) {
-            my $comment = $pl_element->content;
-            if ( $pl_element->line and $comment =~ /^([#]!.*)perl/xsm ) {
-                $comment = $1 . "python3\n";
+            my $comment = $element->content;
+            if ( $element->line and $comment =~ /^([#]!.*)perl/xsm ) {
+                $element->{content} = $1 . "python3\n";
             }
-            return Python::Token::Comment->new($comment)
-        }
-        when (/PPI::Token::Word/xsm) {
-            my $word = $pl_element->content;
-            return Python::Token::Word->new($word)
-        }
-        when (/PPI::Token::Quote/xsm) {
-            my $quote = $pl_element->content;
-            return Python::Token::Quote->new($quote)
         }
         when (/PPI::Statement::Include/xsm) {
-            my $module = $pl_element->module;
-            if ( $module =~ /^(warnings|strict|feature|if)$/xsm )              {return}
+            my $module = $element->module;
+            if ( $module =~ /^(warnings|strict|feature|if)$/xsm ) {
+                my $whitespace = $element->next_sibling;
+                if (    defined $whitespace
+                    and $whitespace->isa('PPI::Token::Whitespace')
+                    and $whitespace =~ /\n/xsm )
+                {
+                    $whitespace->delete;
+                }
+                $element->delete;
+                return;
+            }
             $module =~ s/::/./gsm;
-            my $include = Python::Statement::Include->new();
-            $include->add_element( Python::Token::Word->new('import') );
-            $include->add_element( Python::Token::Whitespace->new(q{ }) );
-            $include->add_element( Python::Token::Word->new($module) );
-            $include->add_element( Python::Token::Whitespace->new("\n") );
-            return $include;
+            my $import = $element->schild(0);
+            if ( $import ne 'use' ) {
+                croak "Unrecognised include $element\n";
+            }
+            $import->{content} = 'import';
+            $import            = $import->snext_sibling;
+            $import->{content} = $module;
+            remove_trailing_semicolon($element);
         }
         when (/PPI::Statement::Sub/xsm) {
-            use Data::Dumper;
-            print STDERR Dumper($pl_element);
-            my $name = $pl_element->name;
-            if (not defined $name or $name eq q{}) {
+            my $name = $element->name;
+            if ( not defined $name or $name eq q{} ) {
                 croak "Anonymous subs not yet supported\n";
             }
-            my $def = Python::Statement::Def->new();
-            $def->add_element( Python::Token::Word->new('def') );
-            $def->add_element( Python::Token::Whitespace->new(q{ }) );
-            $def->add_element( Python::Token::Word->new($name) );
-            my $list = Python::Structure::List->new;
-            $list->{start} = Python::Token::Structure->new('(');
-            $list->{finish} = Python::Token::Structure->new(')');
-            $def->add_element( $list );
-
-            my $pl_block = $pl_element->find_first('PPI::Structure::Block');
-            if (not defined $pl_block) {
+            my $child = $element->schild(0);
+            if ( $child ne 'sub' ) {
+                croak "Unknown sub: $element\n";
+            }
+            $child->{content} = 'def';
+            $child = $child->snext_sibling;
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list->{finish} = PPI::Token::Structure->new(')');
+            $element->__insert_after_child( $child, $list );
+            my $block = $element->find_first('PPI::Structure::Block');
+            if ( not defined $block ) {
                 croak "sub without block not supported\n";
             }
-            $def->add_element( Python::Token::Structure->new(':') );
-            $def->add_element( Python::Token::Whitespace->new("\n") );
-            my $block = Python::Structure::Block->new;
-            $def->add_element($block);
-            for my $child ($pl_block->children) {
-                my $py_element = map_element( $child );
-                if (defined $py_element) {
-                    $block->add_element( $py_element );
+            $block->{start}->{content}  = q{:};
+            $block->{finish}->{content} = q{};
+        }
+        when (/PPI::Statement::Variable/xsm) {
+            my $magic = $element->find_first('PPI::Token::Magic');
+            if ($magic) {
+                my $source_list = $element->find_first('PPI::Structure::List');
+                my $dest_list =
+                  $element->parent->parent->find_first('PPI::Structure::List');
+                for my $child ( $source_list->children ) {
+                    $dest_list->add_element( $child->remove );
                 }
+                $element->delete;
+                map_element($dest_list);
             }
-            return $def;
-
-
-            my $iter  = next_non_whitespace($pl_element);
-            my $child = $iter->();
-            if ( $child->{content} ne 'sub' ) {
-                croak "Error parsing sub statement: $pl_element";
-            }
-            $child = $iter->();
-            #$out .= "def $child->{content}(";
-            #my $block = $iter->();
-            $iter  = next_non_whitespace($block);
-            $child = $iter->();
-            if ( $child->isa('PPI::Statement::Variable')
-                and last_non_whitespace($child)->{content} eq '@_' )
-            {
-                print STDERR "Looking for variables\n";
-                my @variables;
-                my $variter = next_non_whitespace($child);
-                while ( my $var = $variter->() ) {
-                    print STDERR "var $var\n";
-                    if ( $var->isa('PPI::Token::Word') ) {
-                        next;
-                    }
-                    if (   $var->isa('PPI::Structure::List')
-                        or $var->isa('PPI::Statement::Expression') )
-                    {
-                        print STDERR "list $var\n";
-                        $variter = next_non_whitespace($var);
-                        next;
-                    }
-                    if ( $var->isa('PPI::Token::Symbol') ) {
-                        my $varname = $var->{content};
-                        $varname =~ s/^[$@%]//sm;
-                        push @variables, $varname;
-                    }
-                }
-                #$out .= join ', ', @variables;
-            }
-            #$out .= "):\n";
-            #$out .= map_element( $block, $nest_level + 1 );
-            #return $out;
         }
         when (/PPI::Statement/xsm) {
-            my $statement = Python::Statement->new;
-            my $nest_level = nest_level($pl_element);
-            if ($nest_level > 0) {
-                $statement->add_element( Python::Token::Whitespace->new('    'x$nest_level) );
-            }
-
-            my $container = $statement;
-            for my $child ($pl_element->children) {
-                my $py_element = map_element( $child );
-                if (defined $py_element) {
-                    $container->add_element( $py_element );
-                }
-                if ($child eq 'print' and $child->snext_sibling ne '(') {
-                    $container = Python::Structure::List->new;
-                    $container->{start} = Python::Token::Structure->new('(');
-                    $container->{finish} = Python::Token::Structure->new(')');
-                    $statement->add_element( $container );
-                }
-            }
-            if ($pl_element->schild(0) eq 'print') {
-                my $pl_quote = $pl_element->schild(-2);
-                if ($pl_quote->isa('PPI::Token::Quote::Double') and $pl_quote =~ /\\n"$/xsm) {
-                    my $py_quote = $container->child(-1);
-                    $py_quote->{content} =~ s/\\n"$/"/gsm;
-                }
-            }
-            $statement->add_element( Python::Token::Whitespace->new("\n") );
-            return $statement;
+            map_statement($element)
         }
-        when (/PPI::Token::Whitespace/xsm) {
+        when (/PPI::Token::Symbol/xsm) {
+            $element->{content} =~ s/^[\$@%]//smx;
         }
     }
-    if ( exists $pl_element->{children} ) {
-        my $iter = next_non_whitespace($pl_element);
-        while ( my $child = $iter->() ) {
-            #$out .= map_element( $child, $nest_level );
+    if ( exists $element->{children} ) {
+        for my $child ( $element->children ) {
+            map_element($child);
         }
     }
-    #return $out;
+    return;
 }
 
-  sub nest_level {
-      my ($element) = @_;
-      my $level = 0;
-      while (my $parent = $element->parent) {
-          if ($element eq $parent) {
-              return $level
-          }
-          if ($element->isa('PPI::Structure::Block')) {
-              $level++
-          }
-          elsif ($element->isa('PPI::Document')) {
-              return $level
-          }
-          $element = $parent
-      }
-      return $level
-  }
-
-  
-# an iterator for parsing PPI tree
-# iterator returns the next element that is not whitespace
-# my $iter = next_non_whitespace($parent);
-# while (my $element = $iter->()) {}
-
-sub next_non_whitespace {
-    my ($parent) = @_;
-    my $iter = 0;
-    return sub {
-        my $next;
-        while ( exists $parent->{children}[$iter]
-            and $parent->{children}[$iter]->isa('PPI::Token::Whitespace') )
-        {
-            $iter++;
+sub map_statement {
+    my ($element) = @_;
+    my $child = $element->schild(0);
+    if ( $child eq 'print' ) {
+        my $list = $child->snext_sibling;
+        if ( $list ne '(' ) {
+            $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list->{finish} = PPI::Token::Structure->new(')');
+            my $print = $child;
+            my @children;
+            $child = $child->next_sibling;
+            while ( $child
+                and not $child->isa('PPI::Token::Structure') )
+            {
+                push @children, $child;
+                $child = $child->next_sibling;
+            }
+            for my $child (@children) {
+                $list->add_element( $child->remove );
+            }
+            $element->__insert_after_child( $print, $list );
         }
-        return $parent->{children}[ $iter++ ];
-    };
+        my $quote = $list->schild($LAST);
+        if ( $quote->isa('PPI::Token::Quote::Double') ) {
+            $quote->{content} =~ s/\\n"$/"/gsmx;
+        }
+    }
+    remove_trailing_semicolon($element);
+    return;
 }
 
-sub last_non_whitespace {
-    my ($parent) = @_;
-    my $iter = $#{ $parent->{children} };
-    while ($parent->{children}[$iter]->isa('PPI::Token::Whitespace')
-        or $parent->{children}[$iter]->isa('PPI::Token::Structure') )
-    {
-        $iter--;
+sub nest_level {
+    my ($element) = @_;
+    my $level = 0;
+    while ( my $parent = $element->parent ) {
+        if ( $element eq $parent ) {
+            return $level;
+        }
+        if ( $element->isa('PPI::Structure::Block') ) {
+            $level++;
+        }
+        elsif ( $element->isa('PPI::Document') ) {
+            return $level;
+        }
+        $element = $parent;
     }
-    print STDERR "last_non_whitespace returning $parent->{children}[$iter]\n";
-    return $parent->{children}[$iter];
+    return $level;
+}
+
+sub remove_trailing_semicolon {
+    my ($parent) = @_;
+    my $child = $parent->schild($LAST);
+    if ( $child eq q{;} ) {
+        $child->delete;
+    }
+    return;
 }
 
 1;
