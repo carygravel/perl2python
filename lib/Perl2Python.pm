@@ -99,6 +99,25 @@ sub map_element {
                 }
                 $element->delete;
                 map_element($dest_list);
+                return;
+            }
+            my $shift = $element->find_first(
+                sub {
+                    $_[1]->isa('PPI::Token::Word')
+                      and $_[1]->content eq 'shift';
+                }
+            );
+            if ($shift) {
+                my $source = $element->find_first('PPI::Token::Symbol');
+                my $dest_list =
+                  $element->parent->parent->find_first('PPI::Structure::List');
+                if ( $dest_list->children ) {
+                    $dest_list->add_element( PPI::Token::Operator->new(q{,}) );
+                }
+                $dest_list->add_element( $source->remove );
+                $element->delete;
+                map_element($dest_list);
+                return;
             }
         }
         when (/PPI::Statement/xsm) {
