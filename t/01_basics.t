@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(parse_document);
-use Test::More tests => 5;
+use Test::More tests => 6;
 
 sub slurp {
     my ($file) = @_;
@@ -88,6 +88,24 @@ def function(x,y,t) :
 EOS
 
 is parse_document( \$script ), $expected, "sub + shift";
+
+#########################
+
+$script = <<'EOS';
+if ( $line =~ /(\d+)\n/xsm ) {
+    my $maxval = $1;
+}
+EOS
+
+$expected = <<'EOS';
+import re
+regex=re.search(r'(\d+)\n',line)
+if   regex :
+    maxval = regex.group(1)
+
+EOS
+
+is parse_document( \$script ), $expected, "if + capture from regex";
 
 #########################
 

@@ -81,47 +81,81 @@ sub map_element {
               PPI::Structure::List->new( PPI::Token::Structure->new('(') );
             $list->{finish} = PPI::Token::Structure->new(')');
             $element->__insert_after_child( $child, $list );
-            my $block = $element->find_first('PPI::Structure::Block');
-            if ( not defined $block ) {
-                croak "sub without block not supported\n";
+        }
+        when (/PPI::Statement::Compound/xsm) {
+            if ( $element->child(0) eq 'if' ) {
+                my $condition =
+                  $element->find_first('PPI::Structure::Condition');
+                $element->__insert_after_child( $condition,
+                    $element->find_first('PPI::Statement::Expression')
+                      ->remove );
+                $condition->delete;
             }
-            $block->{start}->{content}  = q{:};
-            $block->{finish}->{content} = q{};
         }
         when (/PPI::Statement::Variable/xsm) {
-            my $magic = $element->find_first('PPI::Token::Magic');
-            if ($magic) {
-                my $source_list = $element->find_first('PPI::Structure::List');
-                my $dest_list =
-                  $element->parent->parent->find_first('PPI::Structure::List');
-                for my $child ( $source_list->children ) {
-                    $dest_list->add_element( $child->remove );
-                }
-                $element->delete;
-                map_element($dest_list);
-                return;
-            }
-            my $shift = $element->find_first(
-                sub {
-                    $_[1]->isa('PPI::Token::Word')
-                      and $_[1]->content eq 'shift';
-                }
-            );
-            if ($shift) {
-                my $source = $element->find_first('PPI::Token::Symbol');
-                my $dest_list =
-                  $element->parent->parent->find_first('PPI::Structure::List');
-                if ( $dest_list->children ) {
-                    $dest_list->add_element( PPI::Token::Operator->new(q{,}) );
-                }
-                $dest_list->add_element( $source->remove );
-                $element->delete;
-                map_element($dest_list);
-                return;
-            }
+            map_variable($element);
         }
         when (/PPI::Statement/xsm) {
             map_statement($element)
+        }
+        when (/PPI::Structure::Block/xsm) {
+            $element->{start}->{content}  = q{:};
+            $element->{finish}->{content} = q{};
+        }
+        when (/PPI::Token::Regexp::Match/xsm) {
+
+            # in perl, the parent is a PPI::Statement::Expression, which we now
+            # turn into re.search(regex, string)
+            my $expression = $element->parent;
+            $expression->add_element( PPI::Token::Word->new('re.search') );
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list->{finish} = PPI::Token::Structure->new(')');
+            $expression->add_element($list);
+            my $string   = $expression->find_first('PPI::Token::Symbol');
+            my $operator = $expression->find_first('PPI::Token::Operator');
+            $list->add_element( $element->remove );
+
+            if ( $operator eq q{=~} ) {
+            }
+            elsif ( $operator eq q{!~} ) {
+                $expression->__insert_before_child( $element,
+                    PPI::Token::Word->new('not') );
+                $expression->__insert_before_child( $element,
+                    PPI::Token::Whitespace->new(q{ }) );
+            }
+            else {
+                croak "Unknown operator '$operator'\n";
+            }
+            $operator->delete;
+            $list->add_element( PPI::Token::Operator->new(q{,}) );
+            $list->add_element( $string->remove );
+
+           # remove the flags convert the separator to Python string terminators
+            my $separator = $element->{separator};
+            $element->{content} =~ s{^$separator}{r'}xsm;
+            $element->{content} =~ s{$separator[xsmg]+$}{'}xsm;
+
+            # ensure we have import re
+            my $document = $element->top;
+            if (
+                not $document->find_first(
+                    sub {
+                        $_[1]->isa('PPI::Statement::Include')
+                          and $_[1]->content eq 'import re';
+                    }
+                )
+              )
+            {
+                my $statement = PPI::Statement::Include->new;
+                $statement->add_element( PPI::Token::Word->new('import') );
+                $statement->add_element( PPI::Token::Whitespace->new(q{ }) );
+                $statement->add_element( PPI::Token::Word->new('re') );
+                $document->__insert_before_child( $document->child(0),
+                    PPI::Token::Whitespace->new("\n") );
+                $document->__insert_before_child( $document->child(0),
+                    $statement );
+            }
         }
         when (/PPI::Token::Symbol/xsm) {
             $element->{content} =~ s/^[\$@%]//smx;
@@ -162,6 +196,79 @@ sub map_statement {
         if ( $quote->isa('PPI::Token::Quote::Double') ) {
             $quote->{content} =~ s/\\n"$/"/gsmx;
         }
+    }
+    remove_trailing_semicolon($element);
+    return;
+}
+
+sub map_variable {
+    my ($element) = @_;
+    if ( $element->child(0) eq 'my' ) {
+        $element->child(0)->delete;    # my
+        $element->child(0)->delete;    # whitespace
+    }
+
+    # magic defined in sub
+    my $magic = $element->find_first('PPI::Token::Magic');
+    if ( $magic eq '@_' ) {    ## no critic (RequireInterpolationOfMetachars)
+        my $source_list = $element->find_first('PPI::Structure::List');
+        my $dest_list =
+          $element->parent->parent->find_first('PPI::Structure::List');
+        for my $child ( $source_list->children ) {
+            $dest_list->add_element( $child->remove );
+        }
+        $element->delete;
+        map_element($dest_list);
+        return;
+    }
+
+    # magic defined in regex capture, move capture out of condition
+    # and use it to fetch group
+    elsif ( $magic =~ /^\$(\d+)$/xsm ) {
+        my $block     = $element->parent;
+        my $compound  = $block->parent;
+        my $parent    = $compound->parent;
+        my $condition = $block->sprevious_sibling;
+        my $search    = $condition->find_first(
+            sub {
+                $_[1]->isa('PPI::Token::Word')
+                  and $_[1]->content eq 're.search';
+            }
+        );
+        my $list      = $search->snext_sibling;
+        my $regex_var = PPI::Statement::Variable->new;
+        $regex_var->add_element( PPI::Token::Symbol->new('regex') );
+        $regex_var->add_element( PPI::Token::Operator->new(q{=}) );
+        $parent->__insert_before_child( $compound, $regex_var );
+        $condition->__insert_before_child( $search,
+            PPI::Token::Symbol->new('regex') );
+        $regex_var->add_element( $search->remove );
+        $regex_var->add_element( $list->remove );
+        $compound->__insert_before_child( $compound->child(0),
+            PPI::Token::Whitespace->new("\n") );
+
+        # replace the magic with the regex group
+        $element->__insert_before_child( $magic,
+            PPI::Token::Word->new("regex.group($1)") );
+        $magic->delete;
+    }
+    my $shift = $element->find_first(
+        sub {
+            $_[1]->isa('PPI::Token::Word')
+              and $_[1]->content eq 'shift';
+        }
+    );
+    if ($shift) {
+        my $source = $element->find_first('PPI::Token::Symbol');
+        my $dest_list =
+          $element->parent->parent->find_first('PPI::Structure::List');
+        if ( $dest_list->children ) {
+            $dest_list->add_element( PPI::Token::Operator->new(q{,}) );
+        }
+        $dest_list->add_element( $source->remove );
+        $element->delete;
+        map_element($dest_list);
+        return;
     }
     remove_trailing_semicolon($element);
     return;
