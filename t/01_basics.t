@@ -74,6 +74,7 @@ sub function {
     my $x = shift;
     my $y = shift;
     my $t = shift;
+    my $f = shift @d;
     return $x, $y, $t;
 }
 EOS
@@ -83,6 +84,7 @@ def function(x,y,t) :
     
     
     
+    f =  d.pop(0)
     return x, y, t
 
 EOS

@@ -160,6 +160,14 @@ sub map_element {
         when (/PPI::Token::Symbol/xsm) {
             $element->{content} =~ s/^[\$@%]//smx;
         }
+        when (/PPI::Token::Word/xsm) {
+            if ( $element eq 'shift' ) {
+                my $parent = $element->parent;
+                $element->{content} = '.pop(0)';
+                $parent->__insert_after_child( $element->snext_sibling,
+                    $element->remove );
+            }
+        }
     }
     if ( exists $element->{children} ) {
         for my $child ( $element->children ) {
@@ -255,7 +263,8 @@ sub map_variable {
     my $shift = $element->find_first(
         sub {
             $_[1]->isa('PPI::Token::Word')
-              and $_[1]->content eq 'shift';
+              and $_[1]->content eq 'shift'
+              and $_[1]->snext_sibling->isa('PPI::Token::Structure');
         }
     );
     if ($shift) {
