@@ -103,65 +103,26 @@ sub map_element {
             $element->{finish}->{content} = q{};
         }
         when (/PPI::Token::Regexp::Match/xsm) {
-
-            # in perl, the parent is a PPI::Statement::Expression, which we now
-            # turn into re.search(regex, string)
-            my $expression = $element->parent;
-            $expression->add_element( PPI::Token::Word->new('re.search') );
-            my $list =
-              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-            $list->{finish} = PPI::Token::Structure->new(')');
-            $expression->add_element($list);
-            my $string   = $expression->find_first('PPI::Token::Symbol');
-            my $operator = $expression->find_first('PPI::Token::Operator');
-            $list->add_element( $element->remove );
-
-            if ( $operator eq q{=~} ) {
-            }
-            elsif ( $operator eq q{!~} ) {
-                $expression->__insert_before_child( $element,
-                    PPI::Token::Word->new('not') );
-                $expression->__insert_before_child( $element,
-                    PPI::Token::Whitespace->new(q{ }) );
-            }
-            else {
-                croak "Unknown operator '$operator'\n";
-            }
-            $operator->delete;
-            $list->add_element( PPI::Token::Operator->new(q{,}) );
-            $list->add_element( $string->remove );
-
-           # remove the flags convert the separator to Python string terminators
-            my $separator = $element->{separator};
-            $element->{content} =~ s{^$separator}{r'}xsm;
-            $element->{content} =~ s{$separator[xsmg]+$}{'}xsm;
-
-            # ensure we have import re
-            my $document = $element->top;
-            if (
-                not $document->find_first(
-                    sub {
-                        $_[1]->isa('PPI::Statement::Include')
-                          and $_[1]->content eq 'import re';
-                    }
-                )
-              )
-            {
-                my $statement = PPI::Statement::Include->new;
-                $statement->add_element( PPI::Token::Word->new('import') );
-                $statement->add_element( PPI::Token::Whitespace->new(q{ }) );
-                $statement->add_element( PPI::Token::Word->new('re') );
-                $document->__insert_before_child( $document->child(0),
-                    PPI::Token::Whitespace->new("\n") );
-                $document->__insert_before_child( $document->child(0),
-                    $statement );
-            }
+            map_regex_match($element)
         }
         when (/PPI::Token::Symbol/xsm) {
             $element->{content} =~ s/^[\$@%]//smx;
         }
         when (/PPI::Token::Word/xsm) {
-            if ( $element eq 'shift' ) {
+            if ( $element eq 'defined' ) {
+                my $parent = $element->parent;
+                $element->{content} = 'is';
+                $parent->__insert_after_child(
+                    $element->snext_sibling,
+                    PPI::Token::Whitespace->new(q{ }),
+                    $element->remove,
+                    PPI::Token::Whitespace->new(q{ }),
+                    PPI::Token::Word->new('not'),
+                    PPI::Token::Whitespace->new(q{ }),
+                    PPI::Token::Word->new('None')
+                );
+            }
+            elsif ( $element eq 'shift' ) {
                 my $parent = $element->parent;
                 $element->{content} = '.pop(0)';
                 $parent->__insert_after_child( $element->snext_sibling,
@@ -280,6 +241,68 @@ sub map_variable {
         return;
     }
     remove_trailing_semicolon($element);
+    return;
+}
+
+sub map_regex_match {
+    my ($element) = @_;
+
+    # in perl, the parent is a PPI::Statement::Expression, which we now
+    # turn into re.search(regex, string)
+    my $expression = $element->parent;
+    $expression->add_element( PPI::Token::Word->new('re.search') );
+    my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+    $list->{finish} = PPI::Token::Structure->new(')');
+    $expression->add_element($list);
+    my $operator = $element->sprevious_sibling;
+    if ( not $operator->isa('PPI::Token::Operator') ) {
+        croak "Expected operator before regex match. Found '$operator'\n";
+    }
+    my $string = $operator->sprevious_sibling;
+    if ( not $string->isa('PPI::Token::Symbol') ) {
+        croak "Expected symbol before operator. Found '$string'\n";
+    }
+    $list->add_element( $element->remove );
+
+    if ( $operator eq q{=~} ) {
+    }
+    elsif ( $operator eq q{!~} ) {
+        $expression->__insert_before_child( $element,
+            PPI::Token::Word->new('not') );
+        $expression->__insert_before_child( $element,
+            PPI::Token::Whitespace->new(q{ }) );
+    }
+    else {
+        croak "Unknown operator '$operator'\n";
+    }
+    $operator->delete;
+    $list->add_element( PPI::Token::Operator->new(q{,}) );
+    $list->add_element( $string->remove );
+
+    # remove the flags convert the separator to Python string terminators
+    my $separator = $element->{separator};
+    $element->{content} =~ s{^$separator}{r'}xsm;
+    $element->{content} =~ s{$separator[xsmg]+$}{'}xsm;
+
+    # ensure we have import re
+    my $document = $element->top;
+    if (
+        not $document->find_first(
+            sub {
+                $_[1]->isa('PPI::Statement::Include')
+                  and $_[1]->content eq 'import re';
+            }
+        )
+      )
+    {
+        my $statement = PPI::Statement::Include->new;
+        $statement->add_element( PPI::Token::Word->new('import') );
+        $statement->add_element( PPI::Token::Whitespace->new(q{ }) );
+        $statement->add_element( PPI::Token::Word->new('re') );
+        $document->__insert_before_child( $document->child(0),
+            PPI::Token::Whitespace->new("\n") );
+        $document->__insert_before_child( $document->child(0), $statement );
+    }
     return;
 }
 

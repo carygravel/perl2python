@@ -97,12 +97,19 @@ $script = <<'EOS';
 if ( $line =~ /(\d+)\n/xsm ) {
     my $maxval = $1;
 }
+if ( defined $line and $line =~ /(\d+)\n/xsm ) {
+    my $maxval = $1;
+}
 EOS
 
 $expected = <<'EOS';
 import re
 regex=re.search(r'(\d+)\n',line)
 if   regex :
+    maxval = regex.group(1)
+
+regex=re.search(r'(\d+)\n',line)
+if  line is not None and   regex :
     maxval = regex.group(1)
 
 EOS
