@@ -45,7 +45,7 @@ sub map_element {
         }
         when (/PPI::Statement::Include/xsm) {
             my $module = $element->module;
-            if ( $module =~ /^(warnings|strict|feature|if)$/xsm ) {
+            if ( $module =~ /^(warnings|strict|feature|if|Readonly)$/xsm ) {
                 my $whitespace = $element->next_sibling;
                 if (    defined $whitespace
                     and $whitespace->isa('PPI::Token::Whitespace')
@@ -109,30 +109,24 @@ sub map_element {
             $element->{content} =~ s/^[\$@%]//smx;
         }
         when (/PPI::Token::Word/xsm) {
-            if ( $element eq 'defined' ) {
-                my $parent = $element->parent;
-                $element->{content} = 'is';
-                $parent->__insert_after_child(
-                    $element->snext_sibling,
-                    PPI::Token::Whitespace->new(q{ }),
-                    $element->remove,
-                    PPI::Token::Whitespace->new(q{ }),
-                    PPI::Token::Word->new('not'),
-                    PPI::Token::Whitespace->new(q{ }),
-                    PPI::Token::Word->new('None')
-                );
-            }
-            elsif ( $element eq 'shift' ) {
-                my $parent = $element->parent;
-                $element->{content} = '.pop(0)';
-                $parent->__insert_after_child( $element->snext_sibling,
-                    $element->remove );
-            }
+            map_word($element);
         }
     }
     if ( exists $element->{children} ) {
         for my $child ( $element->children ) {
             map_element($child);
+        }
+    }
+
+    # Having mapped the code structure, clean up the whitespace enough so that
+    # Python can parse it.
+    if ( $element->isa('PPI::Statement') ) {
+
+        # trim leading whitespace
+        my $child = $element->child(0);
+        while ( defined $child and $child->isa('PPI::Token::Whitespace') ) {
+            $child->delete;
+            $child = $element->child(0);
         }
     }
     return;
@@ -213,7 +207,7 @@ sub map_variable {
             PPI::Token::Symbol->new('regex') );
         $regex_var->add_element( $search->remove );
         $regex_var->add_element( $list->remove );
-        $compound->__insert_before_child( $compound->child(0),
+        $parent->__insert_before_child( $compound,
             PPI::Token::Whitespace->new("\n") );
 
         # replace the magic with the regex group
@@ -302,6 +296,40 @@ sub map_regex_match {
         $document->__insert_before_child( $document->child(0),
             PPI::Token::Whitespace->new("\n") );
         $document->__insert_before_child( $document->child(0), $statement );
+    }
+    return;
+}
+
+sub map_word {
+    my ($element) = @_;
+    if ( $element eq 'Readonly' ) {
+        my $scope = $element->snext_sibling;
+        if ( $scope !~ /(?:my|our)/xsm ) {
+            croak "Unexpected scope '$scope'\n";
+        }
+        my $operator = $scope->snext_sibling->snext_sibling;
+        if ( $operator ne '=>' ) {
+            croak "Unexpected operator '$operator'\n";
+        }
+        $operator->{content} = q{=};
+        $element->delete;
+        $scope->delete;
+    }
+    elsif ( $element eq 'defined' ) {
+        my $parent = $element->parent;
+        $element->{content} = 'is';
+        $parent->__insert_after_child(
+            $element->snext_sibling,      PPI::Token::Whitespace->new(q{ }),
+            $element->remove,             PPI::Token::Whitespace->new(q{ }),
+            PPI::Token::Word->new('not'), PPI::Token::Whitespace->new(q{ }),
+            PPI::Token::Word->new('None')
+        );
+    }
+    elsif ( $element eq 'shift' ) {
+        my $parent = $element->parent;
+        $element->{content} = '.pop(0)';
+        $parent->__insert_after_child( $element->snext_sibling,
+            $element->remove );
     }
     return;
 }

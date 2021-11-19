@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(parse_document);
-use Test::More tests => 6;
+use Test::More tests => 7;
 
 sub slurp {
     my ($file) = @_;
@@ -50,6 +50,19 @@ import MyModule.MySubModule.MySubSubModule
 EOS
 
 is parse_document( \$script ), $expected, "import";
+
+#########################
+
+$script = <<'EOS';
+use Readonly;
+Readonly my $VARIABLE          => 4;
+EOS
+
+$expected = <<'EOS';
+VARIABLE          = 4
+EOS
+
+is parse_document( \$script ), $expected, "readonly";
 
 #########################
 
@@ -105,11 +118,11 @@ EOS
 $expected = <<'EOS';
 import re
 regex=re.search(r'(\d+)\n',line)
-if   regex :
+if regex :
     maxval = regex.group(1)
 
 regex=re.search(r'(\d+)\n',line)
-if  line is not None and   regex :
+if line is not None and   regex :
     maxval = regex.group(1)
 
 EOS
