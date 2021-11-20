@@ -66,6 +66,36 @@ sub map_element {
             $import            = $import->snext_sibling;
             $import->{content} = $module;
         }
+        when (/PPI::Statement::Package/xsm) {
+            my $package = $element->schild(0);
+            $package->{content} = 'class';
+            my $name = $element->schild(1);
+            $name->{content} =~ s/.*:://xsm;
+
+            # convert to a sub, which is similar and has a block
+            my $class = PPI::Statement::Sub->new;
+            for my $child ( $element->children ) {
+                $class->add_element( $child->remove );
+            }
+            $element->insert_after($class);
+            $element->delete;
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list->{finish} = PPI::Token::Structure->new(')');
+            $name->insert_after($list);
+
+            # Add a block to scope and indent things properly
+            my $block =
+              PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+            $block->{start}->{content} = q{:};
+            $class->add_element($block);
+            my $next;
+            while ( ( $next = $element->next_sibling )
+                and not $next->isa('PPI::Statement::Package') )
+            {
+                $block->add_element( $next->remove );
+            }
+        }
         when (/PPI::Statement::Sub/xsm) {
             my $name = $element->name;
             if ( not defined $name or $name eq q{} ) {
