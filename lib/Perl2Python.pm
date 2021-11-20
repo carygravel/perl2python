@@ -80,7 +80,7 @@ sub map_element {
             my $list =
               PPI::Structure::List->new( PPI::Token::Structure->new('(') );
             $list->{finish} = PPI::Token::Structure->new(')');
-            $element->__insert_after_child( $child, $list );
+            $child->insert_after($list);
         }
         when (/PPI::Statement::Compound/xsm) {
             if ( $element->child(0) eq 'if' ) {
@@ -153,7 +153,7 @@ sub map_statement {
             for my $child (@children) {
                 $list->add_element( $child->remove );
             }
-            $element->__insert_after_child( $print, $list );
+            $print->insert_after($list);
         }
         my $quote = $list->schild($LAST);
         if ( $quote->isa('PPI::Token::Quote::Double') ) {
@@ -201,17 +201,14 @@ sub map_variable {
         my $regex_var = PPI::Statement::Variable->new;
         $regex_var->add_element( PPI::Token::Symbol->new('regex') );
         $regex_var->add_element( PPI::Token::Operator->new(q{=}) );
-        $parent->__insert_before_child( $compound, $regex_var );
-        $condition->__insert_before_child( $search,
-            PPI::Token::Symbol->new('regex') );
+        $compound->insert_before($regex_var);
+        $search->insert_before( PPI::Token::Symbol->new('regex') );
         $regex_var->add_element( $search->remove );
         $regex_var->add_element( $list->remove );
-        $parent->__insert_before_child( $compound,
-            PPI::Token::Whitespace->new("\n") );
+        $compound->insert_before( PPI::Token::Whitespace->new("\n") );
 
         # replace the magic with the regex group
-        $element->__insert_before_child( $magic,
-            PPI::Token::Word->new("regex.group($1)") );
+        $magic->insert_before( PPI::Token::Word->new("regex.group($1)") );
         $magic->delete;
     }
     my $shift = $element->find_first(
@@ -259,10 +256,8 @@ sub map_regex_match {
     if ( $operator eq q{=~} ) {
     }
     elsif ( $operator eq q{!~} ) {
-        $expression->__insert_before_child( $element,
-            PPI::Token::Word->new('not') );
-        $expression->__insert_before_child( $element,
-            PPI::Token::Whitespace->new(q{ }) );
+        $element->insert_before( PPI::Token::Word->new('not') );
+        $element->insert_before( PPI::Token::Whitespace->new(q{ }) );
     }
     else {
         croak "Unknown operator '$operator'\n";
@@ -291,9 +286,8 @@ sub map_regex_match {
         $statement->add_element( PPI::Token::Word->new('import') );
         $statement->add_element( PPI::Token::Whitespace->new(q{ }) );
         $statement->add_element( PPI::Token::Word->new('re') );
-        $document->__insert_before_child( $document->child(0),
-            PPI::Token::Whitespace->new("\n") );
-        $document->__insert_before_child( $document->child(0), $statement );
+        $document->child(0)->insert_before($statement);
+        $statement->insert_after( PPI::Token::Whitespace->new("\n") );
     }
     return;
 }
@@ -326,8 +320,7 @@ sub map_word {
     elsif ( $element eq 'shift' ) {
         my $parent = $element->parent;
         $element->{content} = '.pop(0)';
-        $parent->__insert_after_child( $element->snext_sibling,
-            $element->remove );
+        $element->snext_sibling->insert_after( $element->remove );
     }
     return;
 }
