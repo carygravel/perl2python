@@ -31,6 +31,7 @@ sub parse_file {
 
 sub map_element {
     my ($element) = @_;
+    remove_trailing_semicolon($element);
     given ( ref $element ) {
         when (/PPI::Document/xsm) {
 
@@ -64,7 +65,6 @@ sub map_element {
             $import->{content} = 'import';
             $import            = $import->snext_sibling;
             $import->{content} = $module;
-            remove_trailing_semicolon($element);
         }
         when (/PPI::Statement::Sub/xsm) {
             my $name = $element->name;
@@ -160,7 +160,6 @@ sub map_statement {
             $quote->{content} =~ s/\\n"$/"/gsmx;
         }
     }
-    remove_trailing_semicolon($element);
     return;
 }
 
@@ -219,7 +218,7 @@ sub map_variable {
         sub {
             $_[1]->isa('PPI::Token::Word')
               and $_[1]->content eq 'shift'
-              and $_[1]->snext_sibling->isa('PPI::Token::Structure');
+              and not $_[1]->snext_sibling;
         }
     );
     if ($shift) {
@@ -234,7 +233,6 @@ sub map_variable {
         map_element($dest_list);
         return;
     }
-    remove_trailing_semicolon($element);
     return;
 }
 
@@ -354,8 +352,9 @@ sub nest_level {
 
 sub remove_trailing_semicolon {
     my ($parent) = @_;
+    if ( $parent->isa('PPI::Token') ) { return }
     my $child = $parent->schild($LAST);
-    if ( $child eq q{;} ) {
+    if ( $child and $child eq q{;} ) {
         $child->delete;
     }
     return;
