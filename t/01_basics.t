@@ -118,11 +118,11 @@ EOS
 $expected = <<'EOS';
 import re
 regex=re.search(r'(\d+)\n',line)
-if regex :
+if   regex :
     maxval = regex.group(1)
 
 regex=re.search(r'(\d+)\n',line)
-if line is not None and   regex :
+if  line is not None and   regex :
     maxval = regex.group(1)
 
 EOS
@@ -133,10 +133,12 @@ is parse_document( \$script ), $expected, "if + capture from regex";
 
 $script = <<'EOS';
 package MyModule::MyPackage;
+CLASS_VAR          = 4
 EOS
 
 $expected = <<'EOS';
 class MyPackage():
+    CLASS_VAR          = 4
 EOS
 
 is parse_document( \$script ), $expected, "package";

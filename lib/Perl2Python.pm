@@ -9,7 +9,9 @@ use Exporter ();
 use base qw(Exporter);
 use Carp;
 use Readonly;
-Readonly my $LAST => -1;
+Readonly my $LAST          => -1;
+Readonly my $INDENT_LENGTH => 4;
+Readonly my $INDENT        => q{ } x $INDENT_LENGTH;
 
 our @EXPORT_OK = qw(parse_document parse_file);   # symbols to export on request
 
@@ -33,11 +35,6 @@ sub map_element {
     my ($element) = @_;
     remove_trailing_semicolon($element);
     given ( ref $element ) {
-        when (/PPI::Document/xsm) {
-
-            #            use Data::Dumper;
-            #            print STDERR Dumper($element);
-        }
         when (/PPI::Token::Comment/xsm) {
             my $comment = $element->content;
             if ( $element->line and $comment =~ /^([#]!.*)perl/xsm ) {
@@ -90,7 +87,7 @@ sub map_element {
             $block->{start}->{content} = q{:};
             $class->add_element($block);
             my $next;
-            while ( ( $next = $element->next_sibling )
+            while ( ( $next = $class->next_sibling )
                 and not $next->isa('PPI::Statement::Package') )
             {
                 $block->add_element( $next->remove );
@@ -147,18 +144,7 @@ sub map_element {
             map_element($child);
         }
     }
-
-    # Having mapped the code structure, clean up the whitespace enough so that
-    # Python can parse it.
-    if ( $element->isa('PPI::Statement') ) {
-
-        # trim leading whitespace
-        my $child = $element->child(0);
-        while ( defined $child and $child->isa('PPI::Token::Whitespace') ) {
-            $child->delete;
-            $child = $element->child(0);
-        }
-    }
+    ident_element($element);
     return;
 }
 
@@ -379,6 +365,48 @@ sub remove_trailing_semicolon {
     my $child = $parent->schild($LAST);
     if ( $child and $child eq q{;} ) {
         $child->delete;
+    }
+    return;
+}
+
+# Having mapped the code structure, clean up the whitespace enough so that
+# Python can parse it.
+sub ident_element {
+    my ($element) = @_;
+    if ( $element->isa('PPI::Statement')
+        and not $element->isa('PPI::Statement::Expression') )
+    {
+
+        # trim leading whitespace inside statement
+        my $child = $element->child(0);
+        while ( defined $child and $child->isa('PPI::Token::Whitespace') ) {
+            $child->delete;
+            $child = $element->child(0);
+        }
+
+        # fixup whitespace before statement
+        my $nest_level          = nest_level($element);
+        my $required_whitespace = $INDENT x $nest_level;
+        my $whitespace          = $element->previous_sibling;
+        if ( $nest_level > 0 ) {
+            if ( not $whitespace->isa('PPI::Token::Whitespace')
+                or $whitespace eq "\n" )
+            {
+                $whitespace = PPI::Token::Whitespace->new($required_whitespace);
+                $element->insert_before($whitespace);
+            }
+            elsif ( $whitespace->isa('PPI::Token::Whitespace') ) {
+                $whitespace->{content} = $required_whitespace;
+            }
+        }
+        else {
+            if (    $whitespace
+                and $whitespace->isa('PPI::Token::Whitespace')
+                and $whitespace ne "\n" )
+            {
+                $whitespace->delete;
+            }
+        }
     }
     return;
 }
