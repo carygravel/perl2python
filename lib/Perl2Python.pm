@@ -144,7 +144,7 @@ sub map_element {
             map_element($child);
         }
     }
-    ident_element($element);
+    indent_element($element);
     return;
 }
 
@@ -181,7 +181,7 @@ sub map_statement {
 
 sub map_variable {
     my ($element) = @_;
-    if ( $element->child(0) eq 'my' ) {
+    if ( $element->child(0) =~ /^(my|our)$/xsm ) {
         $element->child(0)->delete;    # my
         $element->child(0)->delete;    # whitespace
     }
@@ -371,10 +371,15 @@ sub remove_trailing_semicolon {
 
 # Having mapped the code structure, clean up the whitespace enough so that
 # Python can parse it.
-sub ident_element {
+sub indent_element {
     my ($element) = @_;
-    if ( $element->isa('PPI::Statement')
-        and not $element->isa('PPI::Statement::Expression') )
+    if (
+        (
+            $element->isa('PPI::Statement')
+            and not $element->isa('PPI::Statement::Expression')
+        )
+        or $element->isa('PPI::Statement::Variable')
+      )
     {
 
         # trim leading whitespace inside statement
@@ -389,7 +394,8 @@ sub ident_element {
         my $required_whitespace = $INDENT x $nest_level;
         my $whitespace          = $element->previous_sibling;
         if ( $nest_level > 0 ) {
-            if ( not $whitespace->isa('PPI::Token::Whitespace')
+            if (   not $whitespace
+                or not $whitespace->isa('PPI::Token::Whitespace')
                 or $whitespace eq "\n" )
             {
                 $whitespace = PPI::Token::Whitespace->new($required_whitespace);
