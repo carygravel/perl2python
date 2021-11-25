@@ -389,6 +389,13 @@ sub indent_element {
             $child = $element->child(0);
         }
 
+        # trim newlines inside statement
+        for my $child ( $element->children ) {
+            if ( $child->isa('PPI::Token::Whitespace') and $child =~ /\n/xsm ) {
+                $child->{content} = q{ };
+            }
+        }
+
         # fixup whitespace before statement
         my $nest_level          = nest_level($element);
         my $required_whitespace = $INDENT x $nest_level;
