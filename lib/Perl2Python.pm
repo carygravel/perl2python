@@ -64,34 +64,7 @@ sub map_element {
             $import->{content} = $module;
         }
         when (/PPI::Statement::Package/xsm) {
-            my $package = $element->schild(0);
-            $package->{content} = 'class';
-            my $name = $element->schild(1);
-            $name->{content} =~ s/.*:://xsm;
-
-            # convert to a sub, which is similar and has a block
-            my $class = PPI::Statement::Sub->new;
-            for my $child ( $element->children ) {
-                $class->add_element( $child->remove );
-            }
-            $element->insert_after($class);
-            $element->delete;
-            my $list =
-              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-            $list->{finish} = PPI::Token::Structure->new(')');
-            $name->insert_after($list);
-
-            # Add a block to scope and indent things properly
-            my $block =
-              PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
-            $block->{start}->{content} = q{:};
-            $class->add_element($block);
-            my $next;
-            while ( ( $next = $class->next_sibling )
-                and not $next->isa('PPI::Statement::Package') )
-            {
-                $block->add_element( $next->remove );
-            }
+            map_package($element);
         }
         when (/PPI::Statement::Sub/xsm) {
             my $name = $element->name;
@@ -129,6 +102,26 @@ sub map_element {
             $element->{start}->{content}  = q{:};
             $element->{finish}->{content} = q{};
         }
+        when (/PPI::Token::Operator/xsm) {
+            if ( $element eq q{?} ) {
+                my $conditional = $element->sprevious_sibling;
+                my $true        = $element->snext_sibling;
+                my $operator    = $true->snext_sibling;
+                my $false       = $operator->snext_sibling;
+                if ( $operator ne q{:} or not( $true and $false ) ) {
+                    croak
+"Error parsing conditional operator: '$conditional $element $true $operator $false'\n";
+                }
+                $element->{content}  = 'if';
+                $operator->{content} = 'else';
+                my $parent = $element->parent;
+                $parent->__insert_after_child( $element,
+                    PPI::Token::Whitespace->new(q{ }),
+                    $conditional->remove );
+                $parent->__insert_before_child( $element, $true->remove,
+                    PPI::Token::Whitespace->new(q{ }) );
+            }
+        }
         when (/PPI::Token::Regexp::Match/xsm) {
             map_regex_match($element)
         }
@@ -145,6 +138,37 @@ sub map_element {
         }
     }
     indent_element($element);
+    return;
+}
+
+sub map_package {
+    my ($element) = @_;
+    my $package = $element->schild(0);
+    $package->{content} = 'class';
+    my $name = $element->schild(1);
+    $name->{content} =~ s/.*:://xsm;
+
+    # convert to a sub, which is similar and has a block
+    my $class = PPI::Statement::Sub->new;
+    for my $child ( $element->children ) {
+        $class->add_element( $child->remove );
+    }
+    $element->insert_after($class);
+    $element->delete;
+    my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+    $list->{finish} = PPI::Token::Structure->new(')');
+    $name->insert_after($list);
+
+    # Add a block to scope and indent things properly
+    my $block = PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+    $block->{start}->{content} = q{:};
+    $class->add_element($block);
+    my $next;
+    while ( ( $next = $class->next_sibling )
+        and not $next->isa('PPI::Statement::Package') )
+    {
+        $block->add_element( $next->remove );
+    }
     return;
 }
 
@@ -272,8 +296,8 @@ sub map_regex_match {
     if ( $operator eq q{=~} ) {
     }
     elsif ( $operator eq q{!~} ) {
-        $element->insert_before( PPI::Token::Word->new('not') );
-        $element->insert_before( PPI::Token::Whitespace->new(q{ }) );
+        $element->insert_before( PPI::Token::Word->new('not'),
+            PPI::Token::Whitespace->new(q{ }) );
     }
     else {
         croak "Unknown operator '$operator'\n";

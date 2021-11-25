@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(parse_document);
-use Test::More tests => 9;
+use Test::More tests => 10;
 
 sub slurp {
     my ($file) = @_;
@@ -157,6 +157,18 @@ line =     run_function(filename)
 EOS
 
 is parse_document( \$script ), $expected, "remove linebreaks inside statements";
+
+#########################
+
+$script = <<'EOS';
+$result = $result_of_expression ? $result_if_true : $result_if_false;
+EOS
+
+$expected = <<'EOS';
+result =  result_if_true if result_of_expression  else result_if_false
+EOS
+
+is parse_document( \$script ), $expected, "ternary operator";
 
 #########################
 
