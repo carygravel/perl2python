@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(parse_document);
-use Test::More tests => 10;
+use Test::More tests => 11;
 
 sub slurp {
     my ($file) = @_;
@@ -169,6 +169,18 @@ result =  result_if_true if result_of_expression  else result_if_false
 EOS
 
 is parse_document( \$script ), $expected, "ternary operator";
+
+#########################
+
+$script = <<'EOS';
+open my $fh, '<', $filename;
+EOS
+
+$expected = <<'EOS';
+fh=open(    filename,mode='r')
+EOS
+
+is parse_document( \$script ), $expected, "more built-ins";
 
 #########################
 

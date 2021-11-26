@@ -176,31 +176,63 @@ sub map_statement {
     my ($element) = @_;
     my $child = $element->schild(0);
     if ( $child eq 'print' ) {
-        my $list = $child->snext_sibling;
-        if ( $list ne '(' ) {
-            $list =
-              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-            $list->{finish} = PPI::Token::Structure->new(')');
-            my $print = $child;
-            my @children;
-            $child = $child->next_sibling;
-            while ( $child
-                and not $child->isa('PPI::Token::Structure') )
-            {
-                push @children, $child;
-                $child = $child->next_sibling;
-            }
-            for my $child (@children) {
-                $list->add_element( $child->remove );
-            }
-            $print->insert_after($list);
-        }
+        my $list  = map_built_in($child);
         my $quote = $list->schild($LAST);
         if ( $quote->isa('PPI::Token::Quote::Double') ) {
             $quote->{content} =~ s/\\n"$/"/gsmx;
         }
     }
+    elsif ( $child eq 'open' ) {
+        my $list = map_built_in($child);
+        my $fh   = $list->schild(0);
+        if ( $fh->isa('PPI::Token::Word') ) {    # my|our
+            $fh->delete;
+            $fh = $list->schild(0);
+        }
+        if ( not $fh->isa('PPI::Token::Symbol') ) {
+            croak "Expected symbol, found '$fh'\n";
+        }
+        my $operator = $fh->snext_sibling;
+        if ( not $operator->isa('PPI::Token::Operator') ) {
+            croak "Expected operator, found '$operator'\n";
+        }
+        $operator->{content} = q{=};
+        $child->insert_before( $fh->remove );
+        $child->insert_before( $operator->remove );
+        my $mode = $list->schild(0);
+        if (    $mode->isa('PPI::Token::Quote')
+            and $mode eq "$mode->{separator}<$mode->{separator}" )
+        {
+            $mode->{content} = "mode=$mode->{separator}r$mode->{separator}";
+            $operator = $mode->snext_sibling;
+            my $fname = $operator->snext_sibling;
+            $fname->insert_after( $operator->remove );
+            $operator->insert_after( $mode->remove );
+        }
+    }
     return;
+}
+
+sub map_built_in {
+    my ($element) = @_;
+    my $list = $element->snext_sibling;
+    if ( $list ne '(' ) {
+        $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $list->{finish} = PPI::Token::Structure->new(')');
+        my @children;
+        my $child = $element->next_sibling;
+        while ( $child
+            and not $child->isa('PPI::Token::Structure') )
+        {
+            push @children, $child;
+            $child = $child->next_sibling;
+        }
+        for my $child (@children) {
+            $list->add_element( $child->remove );
+        }
+        $element->insert_after($list);
+    }
+    return $list;
 }
 
 sub map_variable {
