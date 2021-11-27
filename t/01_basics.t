@@ -113,6 +113,9 @@ if ( $line =~ /(\d+)\n/xsm ) {
 if ( defined $line and $line =~ /(\d+)\n/xsm ) {
     my $maxval = $1;
 }
+if ( $line =~ /(\d+)\n/xsm ) {
+    $maxval = $1;
+}
 EOS
 
 $expected = <<'EOS';
@@ -123,6 +126,10 @@ if   regex :
 
 regex=re.search(r'(\d+)\n',line)
 if  line is not None and   regex :
+    maxval = regex.group(1)
+
+regex=re.search(r'(\d+)\n',line)
+if   regex :
     maxval = regex.group(1)
 
 EOS

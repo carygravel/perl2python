@@ -210,6 +210,7 @@ sub map_statement {
             $operator->insert_after( $mode->remove );
         }
     }
+    map_magic($element);
     return;
 }
 
@@ -279,6 +280,12 @@ sub map_variable {
         $element->child(0)->delete;    # my
         $element->child(0)->delete;    # whitespace
     }
+    map_magic($element);
+    return;
+}
+
+sub map_magic {
+    my ($element) = @_;
 
     # magic defined in sub
     my $magic = $element->find_first('PPI::Token::Magic');
