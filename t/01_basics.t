@@ -116,6 +116,9 @@ if ( defined $line and $line =~ /(\d+)\n/xsm ) {
 if ( $line =~ /(\d+)\n/xsm ) {
     $maxval = $1;
 }
+if ( $line =~ /(\d*)[ ](\d*)\n/xsm ) {
+    ( $width, $height ) = ( $1, $2 );
+}
 EOS
 
 $expected = <<'EOS';
@@ -131,6 +134,10 @@ if  line is not None and   regex :
 regex=re.search(r'(\d+)\n',line)
 if   regex :
     maxval = regex.group(1)
+
+regex=re.search(r'(\d*)[ ](\d*)\n',line)
+if   regex :
+    ( width, height ) = ( regex.group(1), regex.group(2) )
 
 EOS
 

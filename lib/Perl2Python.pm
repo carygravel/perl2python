@@ -304,7 +304,10 @@ sub map_magic {
     # magic defined in regex capture, move capture out of condition
     # and use it to fetch group
     elsif ( $magic =~ /^\$(\d+)$/xsm ) {
-        my $block     = $element->parent;
+        my $block = $element->parent;
+        while ( not $block->isa('PPI::Structure::Block') ) {
+            $block = $block->parent;
+        }
         my $compound  = $block->parent;
         my $parent    = $compound->parent;
         my $condition = $block->sprevious_sibling;
@@ -314,15 +317,17 @@ sub map_magic {
                   and $_[1]->content eq 're.search';
             }
         );
-        my $list      = $search->snext_sibling;
-        my $regex_var = PPI::Statement::Variable->new;
-        $regex_var->add_element( PPI::Token::Symbol->new('regex') );
-        $regex_var->add_element( PPI::Token::Operator->new(q{=}) );
-        $compound->insert_before($regex_var);
-        $search->insert_before( PPI::Token::Symbol->new('regex') );
-        $regex_var->add_element( $search->remove );
-        $regex_var->add_element( $list->remove );
-        $compound->insert_before( PPI::Token::Whitespace->new("\n") );
+        if ($search) {
+            my $list      = $search->snext_sibling;
+            my $regex_var = PPI::Statement::Variable->new;
+            $regex_var->add_element( PPI::Token::Symbol->new('regex') );
+            $regex_var->add_element( PPI::Token::Operator->new(q{=}) );
+            $compound->insert_before($regex_var);
+            $search->insert_before( PPI::Token::Symbol->new('regex') );
+            $regex_var->add_element( $search->remove );
+            $regex_var->add_element( $list->remove );
+            $compound->insert_before( PPI::Token::Whitespace->new("\n") );
+        }
 
         # replace the magic with the regex group
         $magic->insert_before( PPI::Token::Word->new("regex.group($1)") );
@@ -524,8 +529,11 @@ sub indent_element {
                 or not $whitespace->isa('PPI::Token::Whitespace')
                 or $whitespace eq "\n" )
             {
-                $whitespace = PPI::Token::Whitespace->new($required_whitespace);
-                $element->insert_before($whitespace);
+                my $indent = PPI::Token::Whitespace->new($required_whitespace);
+                $element->insert_before($indent);
+                if ( $whitespace ne "\n" ) {
+                    $indent->insert_before( PPI::Token::Whitespace->new("\n") );
+                }
             }
             elsif ( $whitespace->isa('PPI::Token::Whitespace') ) {
                 $whitespace->{content} = $required_whitespace;
