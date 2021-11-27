@@ -321,14 +321,18 @@ sub map_variable {
         $magic->insert_before( PPI::Token::Word->new("regex.group($1)") );
         $magic->delete;
     }
-    my $shift = $element->find_first(
-        sub {
-            $_[1]->isa('PPI::Token::Word')
-              and $_[1]->content eq 'shift'
-              and not $_[1]->snext_sibling;
-        }
-    );
-    if ($shift) {
+
+    # deal with implied @_ in shift
+    if (
+        $element->find_first(
+            sub {
+                $_[1]->isa('PPI::Token::Word')
+                  and $_[1]->content eq 'shift'
+                  and not $_[1]->snext_sibling;
+            }
+        )
+      )
+    {
         my $source = $element->find_first('PPI::Token::Symbol');
         my $dest_list =
           $element->parent->parent->find_first('PPI::Structure::List');
@@ -339,6 +343,20 @@ sub map_variable {
         $element->delete;
         map_element($dest_list);
         return;
+    }
+
+    # deal with $line = <$fh>
+    my $readline = $element->find_first('PPI::Token::QuoteLike::Readline');
+    if ($readline) {
+        if ( $readline =~ /<\$(\w+)>/xsm ) {
+            my $parent = $readline->parent;
+            $parent->__insert_before_child( $readline,
+                PPI::Token::Symbol->new("$1.readline()") );
+            $readline->delete;
+        }
+        else {
+            croak "Error parsing '$readline\n";
+        }
     }
     return;
 }

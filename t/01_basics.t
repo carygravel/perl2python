@@ -174,11 +174,13 @@ is parse_document( \$script ), $expected, "ternary operator";
 
 $script = <<'EOS';
 open my $fh, '<', $filename;
+my $line = <$fh>;
 open my $fh, '<', $filename or return;
 EOS
 
 $expected = <<'EOS';
 fh=open(    filename,mode='r')
+line = fh.readline()
 try:
     fh=open(    filename,mode='r' )
 except:
