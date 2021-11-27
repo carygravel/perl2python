@@ -222,7 +222,7 @@ sub map_built_in {
         my @children;
         my $child = $element->next_sibling;
         while ( $child
-            and not $child->isa('PPI::Token::Structure') )
+            and not( $child->isa('PPI::Token::Structure') or $child eq 'or' ) )
         {
             push @children, $child;
             $child = $child->next_sibling;
@@ -231,6 +231,44 @@ sub map_built_in {
             $list->add_element( $child->remove );
         }
         $element->insert_after($list);
+
+        # deal with return value from built-in
+        $child = $list->next_sibling;
+        if ( $child eq 'or' ) {
+            $child->delete;
+            my $statement = $element->parent;
+            my $try       = PPI::Statement::Compound->new;
+            my $parent    = $statement->parent;
+            $parent->__insert_before_child( $statement, $try );
+            $try->add_element( PPI::Token::Word->new('try') );
+            my $block =
+              PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+            $block->{start}->{content} = q{:};
+            $try->add_element($block);
+            $block->add_element( PPI::Token::Whitespace->new("\n") );
+            $block->add_element( $statement->remove );
+
+            my $except = PPI::Statement::Compound->new;
+            $parent->__insert_after_child( $try,
+                PPI::Token::Whitespace->new("\n"), $except );
+            $except->add_element( PPI::Token::Word->new('except') );
+            $block =
+              PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+            $block->{start}->{content} = q{:};
+            $except->add_element($block);
+            $block->add_element( PPI::Token::Whitespace->new("\n") );
+            $statement = PPI::Statement->new;
+            $block->add_element($statement);
+
+            while ( my $rest = $list->next_sibling ) {
+                $statement->add_element( $rest->remove );
+            }
+
+            # indent the added code explicitly
+            indent_element($try);
+            indent_element($except);
+            indent_element($statement);
+        }
     }
     return $list;
 }

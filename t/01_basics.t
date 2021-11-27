@@ -174,10 +174,15 @@ is parse_document( \$script ), $expected, "ternary operator";
 
 $script = <<'EOS';
 open my $fh, '<', $filename;
+open my $fh, '<', $filename or return;
 EOS
 
 $expected = <<'EOS';
 fh=open(    filename,mode='r')
+try:
+    fh=open(    filename,mode='r' )
+except:
+    return
 EOS
 
 is parse_document( \$script ), $expected, "more built-ins";
