@@ -327,6 +327,7 @@ sub map_magic {
             $regex_var->add_element( $search->remove );
             $regex_var->add_element( $list->remove );
             $compound->insert_before( PPI::Token::Whitespace->new("\n") );
+            indent_element($regex_var);
         }
 
         # replace the magic with the regex group
