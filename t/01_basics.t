@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(parse_document);
-use Test::More tests => 11;
+use Test::More tests => 16;
 
 sub slurp {
     my ($file) = @_;
@@ -113,16 +113,6 @@ if ( $line =~ /(\d+)\n/xsm ) {
 if ( defined $line and $line =~ /(\d+)\n/xsm ) {
     my $maxval = $1;
 }
-if ( $line =~ /(\d+)\n/xsm ) {
-    $maxval = $1;
-}
-if ( $line =~ /(\d*)[ ](\d*)\n/xsm ) {
-    ( $width, $height ) = ( $1, $2 );
-}
-if (1) {
-if ( $line =~ /(\d+)\n/xsm ) {
-    my $maxval = $1;
-}}
 EOS
 
 $expected = <<'EOS';
@@ -135,14 +125,51 @@ regex=re.search(r'(\d+)\n',line)
 if  line is not None and   regex :
     maxval = regex.group(1)
 
+EOS
+
+is parse_document( \$script ), $expected, "if + capture from regex";
+
+$script = <<'EOS';
+if ( $line =~ /(\d+)\n/xsm ) {
+    $maxval = $1;
+}
+EOS
+
+$expected = <<'EOS';
+import re
 regex=re.search(r'(\d+)\n',line)
 if   regex :
     maxval = regex.group(1)
 
+EOS
+
+is parse_document( \$script ), $expected, "if + capture from regex - no my/our";
+
+$script = <<'EOS';
+if ( $line =~ /(\d*)[ ](\d*)\n/xsm ) {
+    ( $width, $height ) = ( $1, $2 );
+}
+EOS
+
+$expected = <<'EOS';
+import re
 regex=re.search(r'(\d*)[ ](\d*)\n',line)
 if   regex :
     ( width, height ) = ( regex.group(1), regex.group(2) )
 
+EOS
+
+is parse_document( \$script ), $expected, "multiple capture groups";
+
+$script = <<'EOS';
+if (1) {
+if ( $line =~ /(\d+)\n/xsm ) {
+    my $maxval = $1;
+}}
+EOS
+
+$expected = <<'EOS';
+import re
 if 1 :
     regex=re.search(r'(\d+)\n',line)
     if   regex :
@@ -150,7 +177,7 @@ if 1 :
 
 EOS
 
-is parse_document( \$script ), $expected, "if + capture from regex";
+is parse_document( \$script ), $expected, "indenting of new lines";
 
 #########################
 
@@ -211,6 +238,35 @@ except:
 EOS
 
 is parse_document( \$script ), $expected, "more built-ins";
+
+#########################
+
+$script = <<'EOS';
+if (1) {return} else {return}
+EOS
+
+$expected = <<'EOS';
+if 1 :
+    return
+else :
+    return
+EOS
+
+is parse_document( \$script ), $expected, "indent else";
+
+$script = <<'EOS';
+if (1) {if (1) {return} else {return}}
+EOS
+
+$expected = <<'EOS';
+if 1 :
+    if 1 :
+        return
+    else :
+        return
+EOS
+
+is parse_document( \$script ), $expected, "indent else2";
 
 #########################
 

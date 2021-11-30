@@ -522,30 +522,59 @@ sub indent_element {
         }
 
         # fixup whitespace before statement
-        my $nest_level          = nest_level($element);
-        my $required_whitespace = $INDENT x $nest_level;
-        my $whitespace          = $element->previous_sibling;
-        if ( $nest_level > 0 ) {
-            if (   not $whitespace
-                or not $whitespace->isa('PPI::Token::Whitespace')
-                or $whitespace eq "\n" )
-            {
-                my $indent = PPI::Token::Whitespace->new($required_whitespace);
-                $element->insert_before($indent);
-                if ( $whitespace ne "\n" ) {
-                    $indent->insert_before( PPI::Token::Whitespace->new("\n") );
+        indent_subelement($element);
+
+        # and inside compounds statements
+        if ( $element->isa('PPI::Statement::Compound') ) {
+            my $substatements = $element->find(
+                sub {
+                    $_[1]->isa('PPI::Token::Word')
+                      and $_[1]->content =~ /(?:elsif|else)/xsm;
+                }
+            );
+            if ($substatements) {
+                for my $child ( @{$substatements} ) {
+                    indent_subelement($child);
                 }
             }
-            elsif ( $whitespace->isa('PPI::Token::Whitespace') ) {
-                $whitespace->{content} = $required_whitespace;
+        }
+    }
+    return;
+}
+
+sub indent_subelement {
+    my ($element)           = @_;
+    my $nest_level          = nest_level($element);
+    my $required_whitespace = $INDENT x $nest_level;
+    my $whitespace          = $element->previous_sibling;
+    if ( $nest_level > 0 ) {
+        if (   not $whitespace
+            or not $whitespace->isa('PPI::Token::Whitespace')
+            or $whitespace eq "\n" )
+        {
+            my $indent = PPI::Token::Whitespace->new($required_whitespace);
+            $element->insert_before($indent);
+            if ( $whitespace ne "\n" ) {
+                $indent->insert_before( PPI::Token::Whitespace->new("\n") );
             }
         }
-        else {
-            if (    $whitespace
-                and $whitespace->isa('PPI::Token::Whitespace')
-                and $whitespace ne "\n" )
-            {
-                $whitespace->delete;
+        elsif ( $whitespace->isa('PPI::Token::Whitespace') ) {
+            $whitespace->{content} = $required_whitespace;
+            $whitespace = $whitespace->previous_sibling;
+            if ( $whitespace and $whitespace ne "\n" ) {
+                $whitespace->insert_after( PPI::Token::Whitespace->new("\n") );
+            }
+        }
+    }
+    else {
+        if (    $whitespace
+            and $whitespace->isa('PPI::Token::Whitespace')
+            and $whitespace ne "\n" )
+        {
+            $whitespace->delete;
+            $whitespace = $element->previous_sibling;
+            if ( $whitespace ne "\n" ) {
+                $element->insert_before( PPI::Token::Whitespace->new("\n") );
             }
         }
     }
