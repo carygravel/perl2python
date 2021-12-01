@@ -225,16 +225,20 @@ is parse_document( \$script ), $expected, "ternary operator";
 $script = <<'EOS';
 open my $fh, '<', $filename;
 my $line = <$fh>;
+close $fh;
 open my $fh, '<', $filename or return;
+close($fh);
 EOS
 
 $expected = <<'EOS';
 fh=open(    filename,mode='r')
 line = fh.readline()
+fh.close( )
 try:
     fh=open(    filename,mode='r' )
 except:
     return
+fh.close()
 EOS
 
 is parse_document( \$script ), $expected, "more built-ins";

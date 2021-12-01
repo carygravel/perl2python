@@ -175,6 +175,7 @@ sub map_package {
 sub map_statement {
     my ($element) = @_;
     my $child = $element->schild(0);
+    if ( not $child ) { return }
     if ( $child eq 'print' ) {
         my $list  = map_built_in($child);
         my $quote = $list->schild($LAST);
@@ -210,6 +211,15 @@ sub map_statement {
             $operator->insert_after( $mode->remove );
         }
     }
+    elsif ( $child eq 'close' ) {
+        my $list = map_built_in($child);
+        my $fh   = $list->schild(0);
+        if ( $fh->isa('PPI::Statement::Expression') ) {
+            $fh = $fh->schild(0);
+        }
+        $fh->{content} .= q{.};
+        $child->insert_before( $fh->remove );
+    }
     map_magic($element);
     return;
 }
@@ -217,7 +227,7 @@ sub map_statement {
 sub map_built_in {
     my ($element) = @_;
     my $list = $element->snext_sibling;
-    if ( $list ne '(' ) {
+    if ( not $list->isa('PPI::Structure::List') ) {
         $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
         $list->{finish} = PPI::Token::Structure->new(')');
         my @children;
