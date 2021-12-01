@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(parse_document);
-use Test::More tests => 16;
+use Test::More tests => 17;
 
 sub slurp {
     my ($file) = @_;
@@ -242,6 +242,22 @@ fh.close()
 EOS
 
 is parse_document( \$script ), $expected, "more built-ins";
+
+$script = <<'EOS';
+while ( $line = <$fh> ) {
+}
+EOS
+
+$expected = <<'EOS';
+while  True:
+    line = fh.readline()
+    if line is None:
+        break
+
+EOS
+
+is parse_document( \$script ), $expected,
+  "move variable assignment out of condition";
 
 #########################
 
