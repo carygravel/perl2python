@@ -262,17 +262,19 @@ is parse_document( \$script ), $expected,
 #########################
 
 $script = <<'EOS';
-if (1) {return} else {return}
+if (1) {return} elsif (1) {return} else {return}
 EOS
 
 $expected = <<'EOS';
 if 1 :
     return
+elif 1 :
+    return
 else :
     return
 EOS
 
-is parse_document( \$script ), $expected, "indent else";
+is parse_document( \$script ), $expected, "indent elif/else";
 
 $script = <<'EOS';
 if (1) {if (1) {return} else {return}}

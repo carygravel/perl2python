@@ -441,95 +441,105 @@ sub map_regex_match {
 
 sub map_word {
     my ($element) = @_;
-    if ( $element eq 'Readonly' ) {
-        my $scope = $element->snext_sibling;
-        if ( $scope !~ /(?:my|our)/xsm ) {
-            croak "Unexpected scope '$scope'\n";
+    given ("$element") {
+        when ('Readonly') {
+            my $scope = $element->snext_sibling;
+            if ( $scope !~ /(?:my|our)/xsm ) {
+                croak "Unexpected scope '$scope'\n";
+            }
+            my $operator = $scope->snext_sibling->snext_sibling;
+            if ( $operator ne '=>' ) {
+                croak "Unexpected operator '$operator'\n";
+            }
+            $operator->{content} = q{=};
+            $element->delete;
+            $scope->delete;
         }
-        my $operator = $scope->snext_sibling->snext_sibling;
-        if ( $operator ne '=>' ) {
-            croak "Unexpected operator '$operator'\n";
+        when ('defined') {
+            my $parent = $element->parent;
+            $element->{content} = 'is';
+            $parent->__insert_after_child(
+                $element->snext_sibling,
+                PPI::Token::Whitespace->new(q{ }),
+                $element->remove,
+                PPI::Token::Whitespace->new(q{ }),
+                PPI::Token::Word->new('not'),
+                PPI::Token::Whitespace->new(q{ }),
+                PPI::Token::Word->new('None')
+            );
         }
-        $operator->{content} = q{=};
-        $element->delete;
-        $scope->delete;
-    }
-    elsif ( $element eq 'defined' ) {
-        my $parent = $element->parent;
-        $element->{content} = 'is';
-        $parent->__insert_after_child(
-            $element->snext_sibling,      PPI::Token::Whitespace->new(q{ }),
-            $element->remove,             PPI::Token::Whitespace->new(q{ }),
-            PPI::Token::Word->new('not'), PPI::Token::Whitespace->new(q{ }),
-            PPI::Token::Word->new('None')
-        );
-    }
-    elsif ( $element eq 'shift' ) {
-        my $parent = $element->parent;
-        $element->{content} = '.pop(0)';
-        $element->snext_sibling->insert_after( $element->remove );
+        when ('elsif') {
+            $element->{content} = 'elif';
+        }
+        when ('shift') {
+            my $parent = $element->parent;
+            $element->{content} = '.pop(0)';
+            $element->snext_sibling->insert_after( $element->remove );
+        }
     }
     return;
 }
 
 sub map_compound {
     my ($element) = @_;
-    my $condition = $element->find_first('PPI::Structure::Condition');
-    if ( not $condition ) { return }
-    my $expression = $element->find_first('PPI::Statement::Expression');
+    my $conditions = $element->find('PPI::Structure::Condition');
+    for my $condition ( @{$conditions} ) {
+        if ( not $condition or $condition->parent ne $element ) { return }
+        my $expression = $condition->find_first('PPI::Statement::Expression');
 
-    # move variable assignment out of condition
-    my $assignment = $expression->find_first(
-        sub {
-            $_[1]->isa('PPI::Token::Operator')
-              and $_[1]->content eq q{=};
-        }
-    );
-    if ($assignment) {
-        my $parent    = $assignment->parent;
-        my $statement = PPI::Statement->new;
-        $statement->add_element( $parent->remove );
-        my $variable = $assignment->sprevious_sibling;
-        my $block    = $condition->snext_sibling;
-        my $first    = $block->child(0);
-        if ($first) {
-            $block->__insert_before_child( $first, $statement );
+        # move variable assignment out of condition
+        my $assignment = $expression->find_first(
+            sub {
+                $_[1]->isa('PPI::Token::Operator')
+                  and $_[1]->content eq q{=};
+            }
+        );
+        if ($assignment) {
+            my $parent    = $assignment->parent;
+            my $statement = PPI::Statement->new;
+            $statement->add_element( $parent->remove );
+            my $variable = $assignment->sprevious_sibling;
+            my $block    = $condition->snext_sibling;
+            my $first    = $block->child(0);
+            if ($first) {
+                $block->__insert_before_child( $first, $statement );
+            }
+            else {
+                $block->add_element($statement);
+            }
+            my $if = PPI::Statement::Compound->new;
+            my $ifcondition =
+              PPI::Structure::Condition->new( PPI::Token::Structure->new('(') );
+            $ifcondition->{finish} = PPI::Token::Structure->new(')');
+            my $ifexpression = PPI::Statement::Expression->new;
+            $ifexpression->add_element( PPI::Token::Symbol->new($variable) );
+            $ifexpression->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $ifexpression->add_element( PPI::Token::Word->new('is') );
+            $ifexpression->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $ifexpression->add_element( PPI::Token::Word->new('None') );
+            $ifcondition->add_element($ifexpression);
+            my $ifblock =
+              PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+            $ifblock->{finish} = PPI::Token::Structure->new('}');
+            my $break = PPI::Statement->new;
+            $break->add_element( PPI::Token::Word->new('break') );
+            $ifblock->add_element($break);
+            $if->add_element( PPI::Token::Word->new('if') );
+            $if->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $if->add_element($ifcondition);
+            $if->add_element($ifblock);
+            $block->__insert_before_child( $first, $if );
+
+            # if the conditional is now empty, make it True
+            if ( $expression eq $parent ) {
+                $block->insert_before( PPI::Token::Word->new('True') );
+            }
         }
         else {
-            $block->add_element($statement);
+            $element->__insert_after_child( $condition, $expression->remove );
         }
-        my $if = PPI::Statement::Compound->new;
-        my $ifcondition =
-          PPI::Structure::Condition->new( PPI::Token::Structure->new('(') );
-        $ifcondition->{finish} = PPI::Token::Structure->new(')');
-        my $ifexpression = PPI::Statement::Expression->new;
-        $ifexpression->add_element( PPI::Token::Symbol->new($variable) );
-        $ifexpression->add_element( PPI::Token::Whitespace->new(q{ }) );
-        $ifexpression->add_element( PPI::Token::Word->new('is') );
-        $ifexpression->add_element( PPI::Token::Whitespace->new(q{ }) );
-        $ifexpression->add_element( PPI::Token::Word->new('None') );
-        $ifcondition->add_element($ifexpression);
-        my $ifblock =
-          PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
-        $ifblock->{finish} = PPI::Token::Structure->new('}');
-        my $break = PPI::Statement->new;
-        $break->add_element( PPI::Token::Word->new('break') );
-        $ifblock->add_element($break);
-        $if->add_element( PPI::Token::Word->new('if') );
-        $if->add_element( PPI::Token::Whitespace->new(q{ }) );
-        $if->add_element($ifcondition);
-        $if->add_element($ifblock);
-        $block->__insert_before_child( $first, $if );
-
-        # if the conditional is now empty, make it True
-        if ( $expression eq $parent ) {
-            $block->insert_before( PPI::Token::Word->new('True') );
-        }
+        $condition->delete;
     }
-    else {
-        $element->__insert_after_child( $condition, $expression->remove );
-    }
-    $condition->delete;
     return;
 }
 
@@ -596,7 +606,7 @@ sub indent_element {
             my $substatements = $element->find(
                 sub {
                     $_[1]->isa('PPI::Token::Word')
-                      and $_[1]->content =~ /(?:elsif|else)/xsm;
+                      and $_[1]->content =~ /(?:elif|else)/xsm;
                 }
             );
             if ($substatements) {
