@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(parse_document);
-use Test::More tests => 17;
+use Test::More tests => 18;
 
 sub slurp {
     my ($file) = @_;
@@ -287,6 +287,18 @@ if 1 :
 EOS
 
 is parse_document( \$script ), $expected, "indent else2";
+
+#########################
+
+$script = <<'EOS';
+$line .= 'string';
+EOS
+
+$expected = <<'EOS';
+line += 'string'
+EOS
+
+is parse_document( \$script ), $expected, "operators";
 
 #########################
 

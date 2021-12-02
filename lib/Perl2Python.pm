@@ -114,6 +114,9 @@ sub map_element {
                 $parent->__insert_before_child( $element, $true->remove,
                     PPI::Token::Whitespace->new(q{ }) );
             }
+            elsif ( $element eq q{.=} ) {
+                $element->{content} = q{+=};
+            }
         }
         when (/PPI::Token::Regexp::Match/xsm) {
             map_regex_match($element)
