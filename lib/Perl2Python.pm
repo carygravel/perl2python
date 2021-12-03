@@ -170,52 +170,6 @@ sub map_package {
 
 sub map_statement {
     my ($element) = @_;
-    my $child = $element->schild(0);
-    if ( not $child ) { return }
-    if ( $child eq 'print' ) {
-        my $list  = map_built_in($child);
-        my $quote = $list->schild($LAST);
-        if ( $quote->isa('PPI::Token::Quote::Double') ) {
-            $quote->{content} =~ s/\\n"$/"/gsmx;
-        }
-    }
-    elsif ( $child eq 'open' ) {
-        my $list = map_built_in($child);
-        my $fh   = $list->schild(0);
-        if ( $fh->isa('PPI::Token::Word') ) {    # my|our
-            $fh->delete;
-            $fh = $list->schild(0);
-        }
-        if ( not $fh->isa('PPI::Token::Symbol') ) {
-            croak "Expected symbol, found '$fh'\n";
-        }
-        my $operator = $fh->snext_sibling;
-        if ( not $operator->isa('PPI::Token::Operator') ) {
-            croak "Expected operator, found '$operator'\n";
-        }
-        $operator->{content} = q{=};
-        $child->insert_before( $fh->remove );
-        $child->insert_before( $operator->remove );
-        my $mode = $list->schild(0);
-        if (    $mode->isa('PPI::Token::Quote')
-            and $mode eq "$mode->{separator}<$mode->{separator}" )
-        {
-            $mode->{content} = "mode=$mode->{separator}r$mode->{separator}";
-            $operator = $mode->snext_sibling;
-            my $fname = $operator->snext_sibling;
-            $fname->insert_after( $operator->remove );
-            $operator->insert_after( $mode->remove );
-        }
-    }
-    elsif ( $child eq 'close' ) {
-        my $list = map_built_in($child);
-        my $fh   = $list->schild(0);
-        if ( $fh->isa('PPI::Statement::Expression') ) {
-            $fh = $fh->schild(0);
-        }
-        $fh->{content} .= q{.};
-        $child->insert_before( $fh->remove );
-    }
     map_magic($element);
     return;
 }
@@ -455,6 +409,16 @@ sub map_word {
             $element->delete;
             $scope->delete;
         }
+        when ('close') {
+            my $list = map_built_in($element);
+            my $fh   = $list->schild(0);
+            map_element($fh);
+            if ( $fh->isa('PPI::Statement::Expression') ) {
+                $fh = $fh->schild(0);
+            }
+            $fh->{content} .= q{.};
+            $element->insert_before( $fh->remove );
+        }
         when ('defined') {
             my $parent = $element->parent;
             $element->{content} = 'is';
@@ -470,6 +434,45 @@ sub map_word {
         }
         when ('elsif') {
             $element->{content} = 'elif';
+        }
+        when ('length') {
+            my $list = map_built_in($element);
+            $element->{content} = 'len';
+        }
+        when ('open') {
+            my $list = map_built_in($element);
+            my $fh   = $list->schild(0);
+            if ( $fh->isa('PPI::Token::Word') ) {    # my|our
+                $fh->delete;
+                $fh = $list->schild(0);
+            }
+            if ( not $fh->isa('PPI::Token::Symbol') ) {
+                croak "Expected symbol, found '$fh'\n";
+            }
+            my $operator = $fh->snext_sibling;
+            if ( not $operator->isa('PPI::Token::Operator') ) {
+                croak "Expected operator, found '$operator'\n";
+            }
+            $operator->{content} = q{=};
+            $element->insert_before( $fh->remove );
+            $element->insert_before( $operator->remove );
+            my $mode = $list->schild(0);
+            if (    $mode->isa('PPI::Token::Quote')
+                and $mode eq "$mode->{separator}<$mode->{separator}" )
+            {
+                $mode->{content} = "mode=$mode->{separator}r$mode->{separator}";
+                $operator = $mode->snext_sibling;
+                my $fname = $operator->snext_sibling;
+                $fname->insert_after( $operator->remove );
+                $operator->insert_after( $mode->remove );
+            }
+        }
+        when ('print') {
+            my $list  = map_built_in($element);
+            my $quote = $list->schild($LAST);
+            if ( $quote->isa('PPI::Token::Quote::Double') ) {
+                $quote->{content} =~ s/\\n"$/"/gsmx;
+            }
         }
         when ('shift') {
             my $parent = $element->parent;

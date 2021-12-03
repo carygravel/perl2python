@@ -228,6 +228,7 @@ my $line = <$fh>;
 close $fh;
 open my $fh, '<', $filename or return;
 close($fh);
+l = length $line
 EOS
 
 $expected = <<'EOS';
@@ -239,6 +240,7 @@ try:
 except:
     return
 fh.close()
+l = len( line)
 EOS
 
 is parse_document( \$script ), $expected, "more built-ins";
