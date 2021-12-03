@@ -184,13 +184,16 @@ is parse_document( \$script ), $expected, "indenting of new lines";
 $script = <<'EOS';
 package MyModule::MyPackage;
 $CLASS_VAR          = 4;
-our $VERSION = 1
+our $VERSION = 1;
+1;
+__END__
 EOS
 
 $expected = <<'EOS';
 class MyPackage():
     CLASS_VAR          = 4
     VERSION = 1
+
 EOS
 
 is parse_document( \$script ), $expected, "package";

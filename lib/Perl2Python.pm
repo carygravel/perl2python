@@ -41,6 +41,12 @@ sub map_element {
                 $element->{content} = $1 . "python3\n";
             }
         }
+        when (/PPI::Statement::End/xsm) {
+            while ( my $sibling = $element->next_sibling ) {
+                $sibling->delete;
+            }
+            $element->delete;
+        }
         when (/PPI::Statement::Include/xsm) {
             my $module = $element->module;
             if ( $module =~ /^(warnings|strict|feature|if|Readonly)$/xsm ) {
@@ -89,34 +95,20 @@ sub map_element {
             map_variable($element);
         }
         when (/PPI::Statement/xsm) {
-            map_statement($element)
+            if ( not $element->isa('PPI::Statement::Expression')
+                and $element eq '1' )
+            {
+                $element->delete;
+                return;
+            }
+            map_magic($element);
         }
         when (/PPI::Structure::Block/xsm) {
             $element->{start}->{content}  = q{:};
             $element->{finish}->{content} = q{};
         }
         when (/PPI::Token::Operator/xsm) {
-            if ( $element eq q{?} ) {
-                my $conditional = $element->sprevious_sibling;
-                my $true        = $element->snext_sibling;
-                my $operator    = $true->snext_sibling;
-                my $false       = $operator->snext_sibling;
-                if ( $operator ne q{:} or not( $true and $false ) ) {
-                    croak
-"Error parsing conditional operator: '$conditional $element $true $operator $false'\n";
-                }
-                $element->{content}  = 'if';
-                $operator->{content} = 'else';
-                my $parent = $element->parent;
-                $parent->__insert_after_child( $element,
-                    PPI::Token::Whitespace->new(q{ }),
-                    $conditional->remove );
-                $parent->__insert_before_child( $element, $true->remove,
-                    PPI::Token::Whitespace->new(q{ }) );
-            }
-            elsif ( $element eq q{.=} ) {
-                $element->{content} = q{+=};
-            }
+            map_operator($element);
         }
         when (/PPI::Token::Regexp::Match/xsm) {
             map_regex_match($element)
@@ -134,6 +126,32 @@ sub map_element {
         }
     }
     indent_element($element);
+    return;
+}
+
+sub map_operator {
+    my ($element) = @_;
+    if ( $element eq q{?} ) {
+        my $conditional = $element->sprevious_sibling;
+        my $true        = $element->snext_sibling;
+        my $operator    = $true->snext_sibling;
+        my $false       = $operator->snext_sibling;
+        if ( $operator ne q{:} or not( $true and $false ) ) {
+            croak
+"Error parsing conditional operator: '$conditional $element $true $operator $false'\n";
+        }
+        $element->{content}  = 'if';
+        $operator->{content} = 'else';
+        my $parent = $element->parent;
+        $parent->__insert_after_child( $element,
+            PPI::Token::Whitespace->new(q{ }),
+            $conditional->remove );
+        $parent->__insert_before_child( $element, $true->remove,
+            PPI::Token::Whitespace->new(q{ }) );
+    }
+    elsif ( $element eq q{.=} ) {
+        $element->{content} = q{+=};
+    }
     return;
 }
 
@@ -165,12 +183,6 @@ sub map_package {
     {
         $block->add_element( $next->remove );
     }
-    return;
-}
-
-sub map_statement {
-    my ($element) = @_;
-    map_magic($element);
     return;
 }
 
