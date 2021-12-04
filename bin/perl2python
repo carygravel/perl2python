@@ -11,7 +11,7 @@ for my $infile (@ARGV) {
     print "Reading from $infile\n" or croak 'Error printing to STDOUT';
     my $out = parse_file($infile);
     my $outfile;
-    if ( $infile =~ /(.+?)(:?[.]p[lm])$/xsm ) {
+    if ( $infile =~ /(.+?)(:?[.](:?p[lm]|t))$/xsm ) {
         $outfile = "$1.py";
     }
     else {

@@ -36,8 +36,7 @@ sub map_element {
     remove_trailing_semicolon($element);
     given ( ref $element ) {
         when (/PPI::Token::Comment/xsm) {
-            my $comment = $element->content;
-            if ( $element->line and $comment =~ /^([#]!.*)perl/xsm ) {
+            if ( $element->line and $element->content =~ /^([#]!.*)perl/xsm ) {
                 $element->{content} = $1 . "python3\n";
             }
         }
@@ -58,6 +57,28 @@ sub map_element {
                     $whitespace->delete;
                 }
                 $element->delete;
+                return;
+            }
+            elsif ( $module eq 'Test::More' ) {
+                my $def = PPI::Statement::Sub->new;
+                $def->add_element( PPI::Token::Word->new('def') );
+                $def->add_element( PPI::Token::Whitespace->new(q{ }) );
+                $def->add_element( PPI::Token::Word->new('test_1') );
+                my $list =
+                  PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+                $list->{finish} = PPI::Token::Structure->new(')');
+                $def->add_element($list);
+                $element->insert_after($def);
+                $element->delete;
+
+                # Add a block to scope and indent things properly
+                my $block =
+                  PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+                $block->{start}->{content} = q{:};
+                $def->add_element($block);
+                while ( my $next = $def->next_sibling ) {
+                    $block->add_element( $next->remove );
+                }
                 return;
             }
             $module =~ s/::/./gsm;
@@ -446,6 +467,27 @@ sub map_word {
         }
         when ('elsif') {
             $element->{content} = 'elif';
+        }
+        when ('is') {
+
+            # ignore 'is' created by previously mapping defined
+            if ( $element->snext_sibling =~ /(None|not)/xsm ) {
+                return;
+            }
+
+            # we've got a unit test - map to assert
+            $element->{content} = 'assert';
+            my $statement = $element->parent;
+            my $operators = $statement->find(
+                sub {
+                    $_[1]->isa('PPI::Token::Operator')
+                      and $_[1]->content eq q{,};
+                }
+            );
+            $operators->[0]->{content} = q{==};
+            my $comment = PPI::Token::Comment->new(' # ');
+            $statement->__insert_after_child( $operators->[1], $comment );
+            $operators->[1]->delete;
         }
         when ('length') {
             my $list = map_built_in($element);
