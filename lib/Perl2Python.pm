@@ -48,7 +48,10 @@ sub map_element {
         }
         when (/PPI::Statement::Include/xsm) {
             my $module = $element->module;
-            if ( $module =~ /^(warnings|strict|feature|if|Readonly)$/xsm ) {
+            if ( $module =~
+                /^(warnings|strict|feature|if|Readonly|IPC::System::Simple)$/xsm
+              )
+            {
                 my $whitespace = $element->next_sibling;
                 if (    defined $whitespace
                     and $whitespace->isa('PPI::Token::Whitespace')
@@ -130,6 +133,22 @@ sub map_element {
         }
         when (/PPI::Token::Operator/xsm) {
             map_operator($element);
+        }
+        when (/PPI::Token::QuoteLike::Words/xsm) {
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('[') );
+            $list->{finish} = PPI::Token::Structure->new(']');
+            my $string = substr $element->content,
+              $element->{sections}[0]{position}, $element->{sections}[0]{size};
+            for ( split q{ }, $string ) {
+                if ( $list->children ) {
+                    $list->add_element( PPI::Token::Operator->new(q{,}) );
+                }
+                $list->add_element(
+                    PPI::Token::Quote::Double->new( q{"} . $_ . q{"} ) );
+            }
+            $element->insert_after($list);
+            $element->delete;
         }
         when (/PPI::Token::Regexp::Match/xsm) {
             map_regex_match($element)
@@ -406,23 +425,7 @@ sub map_regex_match {
     $element->{content} =~ s{$separator[xsmg]+$}{'}xsm;
 
     # ensure we have import re
-    my $document = $element->top;
-    if (
-        not $document->find_first(
-            sub {
-                $_[1]->isa('PPI::Statement::Include')
-                  and $_[1]->content eq 'import re';
-            }
-        )
-      )
-    {
-        my $statement = PPI::Statement::Include->new;
-        $statement->add_element( PPI::Token::Word->new('import') );
-        $statement->add_element( PPI::Token::Whitespace->new(q{ }) );
-        $statement->add_element( PPI::Token::Word->new('re') );
-        $document->child(0)->insert_before($statement);
-        $statement->insert_after( PPI::Token::Whitespace->new("\n") );
-    }
+    add_import( $element, 're' );
     return;
 }
 
@@ -532,6 +535,10 @@ sub map_word {
             my $parent = $element->parent;
             $element->{content} = '.pop(0)';
             $element->snext_sibling->insert_after( $element->remove );
+        }
+        when ('system') {
+            add_import( $element, 'subprocess' );
+            $element->{content} = 'subprocess.run';
         }
     }
     return;
@@ -711,6 +718,28 @@ sub indent_subelement {
                 $element->insert_before( PPI::Token::Whitespace->new("\n") );
             }
         }
+    }
+    return;
+}
+
+sub add_import {
+    my ( $element, $module ) = @_;
+    my $document = $element->top;
+    if (
+        not $document->find_first(
+            sub {
+                $_[1]->isa('PPI::Statement::Include')
+                  and $_[1]->content eq "import $module";
+            }
+        )
+      )
+    {
+        my $statement = PPI::Statement::Include->new;
+        $statement->add_element( PPI::Token::Word->new('import') );
+        $statement->add_element( PPI::Token::Whitespace->new(q{ }) );
+        $statement->add_element( PPI::Token::Word->new($module) );
+        $document->child(0)->insert_before($statement);
+        $statement->insert_after( PPI::Token::Whitespace->new("\n") );
     }
     return;
 }

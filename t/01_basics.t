@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(parse_document);
-use Test::More tests => 19;
+use Test::More tests => 20;
 
 sub slurp {
     my ($file) = @_;
@@ -326,6 +326,20 @@ line += 'string'
 EOS
 
 is parse_document( \$script ), $expected, "operators";
+
+#########################
+
+$script = <<'EOS';
+use IPC::System::Simple qw(system);
+system( qw(ls -l) );
+EOS
+
+$expected = <<'EOS';
+import subprocess
+subprocess.run( ["ls","-l"] )
+EOS
+
+is parse_document( \$script ), $expected, "subprocess";
 
 #########################
 
