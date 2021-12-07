@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(parse_document);
-use Test::More tests => 20;
+use Test::More tests => 21;
 
 sub slurp {
     my ($file) = @_;
@@ -340,6 +340,16 @@ subprocess.run( ["ls","-l"] )
 EOS
 
 is parse_document( \$script ), $expected, "subprocess";
+
+#########################
+
+$script = <<'EOS';
+BEGIN {
+    use_ok('MyModule::MySubModule::MySubSubModule');
+}
+EOS
+
+is parse_document( \$script ), "\n", "scheduled blocks";
 
 #########################
 

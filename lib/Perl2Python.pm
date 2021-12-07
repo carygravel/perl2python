@@ -96,6 +96,9 @@ sub map_element {
         when (/PPI::Statement::Package/xsm) {
             map_package($element);
         }
+        when (/PPI::Statement::Scheduled/xsm) {
+            $element->delete
+        }
         when (/PPI::Statement::Sub/xsm) {
             my $name = $element->name;
             if ( not defined $name or $name eq q{} ) {
