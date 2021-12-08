@@ -47,51 +47,7 @@ sub map_element {
             $element->delete;
         }
         when (/PPI::Statement::Include/xsm) {
-            my $module = $element->module;
-            if ( $module =~
-                /^(warnings|strict|feature|if|Readonly|IPC::System::Simple)$/xsm
-              )
-            {
-                my $whitespace = $element->next_sibling;
-                if (    defined $whitespace
-                    and $whitespace->isa('PPI::Token::Whitespace')
-                    and $whitespace =~ /\n/xsm )
-                {
-                    $whitespace->delete;
-                }
-                $element->delete;
-                return;
-            }
-            elsif ( $module eq 'Test::More' ) {
-                my $def = PPI::Statement::Sub->new;
-                $def->add_element( PPI::Token::Word->new('def') );
-                $def->add_element( PPI::Token::Whitespace->new(q{ }) );
-                $def->add_element( PPI::Token::Word->new('test_1') );
-                my $list =
-                  PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-                $list->{finish} = PPI::Token::Structure->new(')');
-                $def->add_element($list);
-                $element->insert_after($def);
-                $element->delete;
-
-                # Add a block to scope and indent things properly
-                my $block =
-                  PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
-                $block->{start}->{content} = q{:};
-                $def->add_element($block);
-                while ( my $next = $def->next_sibling ) {
-                    $block->add_element( $next->remove );
-                }
-                return;
-            }
-            $module =~ s/::/./gsm;
-            my $import = $element->schild(0);
-            if ( $import ne 'use' ) {
-                croak "Unrecognised include $element\n";
-            }
-            $import->{content} = 'import';
-            $import            = $import->snext_sibling;
-            $import->{content} = $module;
+            map_include($element);
         }
         when (/PPI::Statement::Package/xsm) {
             map_package($element);
@@ -136,6 +92,28 @@ sub map_element {
         }
         when (/PPI::Token::Operator/xsm) {
             map_operator($element);
+        }
+
+        # deal with $line = <$fh>
+        when (/PPI::Token::QuoteLike::Readline/xsm) {
+            if ( $element =~ /<\$(\w+)>/xsm ) {
+                my $parent = $element->parent;
+
+                # on a separate line, so map to "line = fh.readline()"
+                if ( $parent->isa('PPI::Statement::Variable') ) {
+                    $parent->__insert_before_child( $element,
+                        PPI::Token::Symbol->new("$1.readline()") );
+                    $element->delete;
+                }
+
+                # we are in a loop, so map to "for line in fh":
+                else {
+                    $element->{content} = $1;
+                }
+            }
+            else {
+                croak "Error parsing '$element\n";
+            }
         }
         when (/PPI::Token::QuoteLike::Words/xsm) {
             my $list =
@@ -372,20 +350,6 @@ sub map_magic {
         map_element($dest_list);
         return;
     }
-
-    # deal with $line = <$fh>
-    my $readline = $element->find_first('PPI::Token::QuoteLike::Readline');
-    if ($readline) {
-        if ( $readline =~ /<\$(\w+)>/xsm ) {
-            my $parent = $readline->parent;
-            $parent->__insert_before_child( $readline,
-                PPI::Token::Symbol->new("$1.readline()") );
-            $readline->delete;
-        }
-        else {
-            croak "Error parsing '$readline\n";
-        }
-    }
     return;
 }
 
@@ -554,7 +518,7 @@ sub map_compound {
         if ( not $condition or $condition->parent ne $element ) { return }
         my $expression = $condition->find_first('PPI::Statement::Expression');
 
-        # move variable assignment out of condition
+        # variable assignments can only occur with for var in iterator
         my $assignment = $expression->find_first(
             sub {
                 $_[1]->isa('PPI::Token::Operator')
@@ -562,51 +526,63 @@ sub map_compound {
             }
         );
         if ($assignment) {
-            my $parent    = $assignment->parent;
-            my $statement = PPI::Statement->new;
-            $statement->add_element( $parent->remove );
-            my $variable = $assignment->sprevious_sibling;
-            my $block    = $condition->snext_sibling;
-            my $first    = $block->child(0);
-            if ($first) {
-                $block->__insert_before_child( $first, $statement );
-            }
-            else {
-                $block->add_element($statement);
-            }
-            my $if = PPI::Statement::Compound->new;
-            my $ifcondition =
-              PPI::Structure::Condition->new( PPI::Token::Structure->new('(') );
-            $ifcondition->{finish} = PPI::Token::Structure->new(')');
-            my $ifexpression = PPI::Statement::Expression->new;
-            $ifexpression->add_element( PPI::Token::Symbol->new($variable) );
-            $ifexpression->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $ifexpression->add_element( PPI::Token::Word->new('is') );
-            $ifexpression->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $ifexpression->add_element( PPI::Token::Word->new('None') );
-            $ifcondition->add_element($ifexpression);
-            my $ifblock =
-              PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
-            $ifblock->{finish} = PPI::Token::Structure->new('}');
-            my $break = PPI::Statement->new;
-            $break->add_element( PPI::Token::Word->new('break') );
-            $ifblock->add_element($break);
-            $if->add_element( PPI::Token::Word->new('if') );
-            $if->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $if->add_element($ifcondition);
-            $if->add_element($ifblock);
-            $block->__insert_before_child( $first, $if );
-
-            # if the conditional is now empty, make it True
-            if ( $expression eq $parent ) {
-                $block->insert_before( PPI::Token::Word->new('True') );
+            $assignment->{content} = 'in';
+            my $word = $element->schild(0);
+            if ( $word eq 'while' ) {
+                $word->{content} = 'for';
             }
         }
-        else {
-            $element->__insert_after_child( $condition, $expression->remove );
-        }
+        $element->__insert_after_child( $condition, $expression->remove );
         $condition->delete;
     }
+    return;
+}
+
+sub map_include {
+    my ($element) = @_;
+    my $module = $element->module;
+    if ( $module =~
+        /^(warnings|strict|feature|if|Readonly|IPC::System::Simple)$/xsm )
+    {
+        my $whitespace = $element->next_sibling;
+        if (    defined $whitespace
+            and $whitespace->isa('PPI::Token::Whitespace')
+            and $whitespace =~ /\n/xsm )
+        {
+            $whitespace->delete;
+        }
+        $element->delete;
+        return;
+    }
+    elsif ( $module eq 'Test::More' ) {
+        my $def = PPI::Statement::Sub->new;
+        $def->add_element( PPI::Token::Word->new('def') );
+        $def->add_element( PPI::Token::Whitespace->new(q{ }) );
+        $def->add_element( PPI::Token::Word->new('test_1') );
+        my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $list->{finish} = PPI::Token::Structure->new(')');
+        $def->add_element($list);
+        $element->insert_after($def);
+        $element->delete;
+
+        # Add a block to scope and indent things properly
+        my $block =
+          PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+        $block->{start}->{content} = q{:};
+        $def->add_element($block);
+        while ( my $next = $def->next_sibling ) {
+            $block->add_element( $next->remove );
+        }
+        return;
+    }
+    $module =~ s/::/./gsm;
+    my $import = $element->schild(0);
+    if ( $import ne 'use' ) {
+        croak "Unrecognised include $element\n";
+    }
+    $import->{content} = 'import';
+    $import            = $import->snext_sibling;
+    $import->{content} = $module;
     return;
 }
 

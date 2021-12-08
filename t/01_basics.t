@@ -270,19 +270,17 @@ is parse_document( \$script ), $expected, "more built-ins";
 
 $script = <<'EOS';
 while ( $line = <$fh> ) {
+    print line
 }
 EOS
 
 $expected = <<'EOS';
-while  True:
-    line = fh.readline()
-    if line is None:
-        break
+for line in fh :
+    print( line)
 
 EOS
 
-is parse_document( \$script ), $expected,
-  "move variable assignment out of condition";
+is parse_document( \$script ), $expected, "map while reading a line at a time";
 
 #########################
 
