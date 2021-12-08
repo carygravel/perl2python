@@ -75,7 +75,7 @@ sub map_element {
             map_compound($element);
         }
         when (/PPI::Statement::Variable/xsm) {
-            map_variable($element);
+            map_magic($element);
         }
         when (/PPI::Statement/xsm) {
             if ( not $element->isa('PPI::Statement::Expression')
@@ -267,16 +267,6 @@ sub map_built_in {
     return $list;
 }
 
-sub map_variable {
-    my ($element) = @_;
-    if ( $element->child(0) =~ /^(my|our)$/xsm ) {
-        $element->child(0)->delete;    # my
-        $element->child(0)->delete;    # whitespace
-    }
-    map_magic($element);
-    return;
-}
-
 sub map_magic {
     my ($element) = @_;
 
@@ -459,15 +449,8 @@ sub map_word {
             $element->{content} = 'len';
         }
         when ('open') {
-            my $list = map_built_in($element);
-            my $fh   = $list->schild(0);
-            if ( $fh->isa('PPI::Token::Word') ) {    # my|our
-                $fh->delete;
-                $fh = $list->schild(0);
-            }
-            if ( not $fh->isa('PPI::Token::Symbol') ) {
-                croak "Expected symbol, found '$fh'\n";
-            }
+            my $list     = map_built_in($element);
+            my $fh       = $list->find_first('PPI::Token::Symbol');
             my $operator = $fh->snext_sibling;
             if ( not $operator->isa('PPI::Token::Operator') ) {
                 croak "Expected operator, found '$operator'\n";
@@ -475,10 +458,8 @@ sub map_word {
             $operator->{content} = q{=};
             $element->insert_before( $fh->remove );
             $element->insert_before( $operator->remove );
-            my $mode = $list->schild(0);
-            if (    $mode->isa('PPI::Token::Quote')
-                and $mode eq "$mode->{separator}<$mode->{separator}" )
-            {
+            my $mode = $list->find_first('PPI::Token::Quote');
+            if ( $mode eq "$mode->{separator}<$mode->{separator}" ) {
                 $mode->{content} = "mode=$mode->{separator}r$mode->{separator}";
                 $operator = $mode->snext_sibling;
                 my $fname = $operator->snext_sibling;
