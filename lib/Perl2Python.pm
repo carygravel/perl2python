@@ -400,17 +400,12 @@ sub map_word {
     my ($element) = @_;
     given ("$element") {
         when ('Readonly') {
-            my $scope = $element->snext_sibling;
-            if ( $scope !~ /(?:my|our)/xsm ) {
-                croak "Unexpected scope '$scope'\n";
-            }
-            my $operator = $scope->snext_sibling->snext_sibling;
+            my $operator = $element->parent->find_first('PPI::Token::Operator');
             if ( $operator ne '=>' ) {
                 croak "Unexpected operator '$operator'\n";
             }
             $operator->{content} = q{=};
             $element->delete;
-            $scope->delete;
         }
         when ('close') {
             my $list = map_built_in($element);
@@ -507,6 +502,9 @@ sub map_word {
             add_import( $element, 'subprocess' );
             $element->{content} = 'subprocess.run';
         }
+        when (/(?:my|our)/xsm) {
+            $element->delete;
+        }
     }
     return;
 }
@@ -514,26 +512,42 @@ sub map_word {
 sub map_compound {
     my ($element) = @_;
     my $conditions = $element->find('PPI::Structure::Condition');
-    for my $condition ( @{$conditions} ) {
-        if ( not $condition or $condition->parent ne $element ) { return }
-        my $expression = $condition->find_first('PPI::Statement::Expression');
+    if ($conditions) {
+        for my $condition ( @{$conditions} ) {
+            if ( not $condition or $condition->parent ne $element ) { return }
+            my $expression =
+              $condition->find_first('PPI::Statement::Expression');
 
-        # variable assignments can only occur with for var in iterator
-        my $assignment = $expression->find_first(
-            sub {
-                $_[1]->isa('PPI::Token::Operator')
-                  and $_[1]->content eq q{=};
+            # variable assignments can only occur with for var in iterator
+            my $assignment = $expression->find_first(
+                sub {
+                    $_[1]->isa('PPI::Token::Operator')
+                      and $_[1]->content eq q{=};
+                }
+            );
+            if ($assignment) {
+                $assignment->{content} = 'in';
+                my $word = $element->schild(0);
+                if ( $word eq 'while' ) {
+                    $word->{content} = 'for';
+                }
             }
-        );
-        if ($assignment) {
-            $assignment->{content} = 'in';
-            my $word = $element->schild(0);
-            if ( $word eq 'while' ) {
-                $word->{content} = 'for';
-            }
+            $element->__insert_after_child( $condition, $expression->remove );
+            $condition->delete;
         }
-        $element->__insert_after_child( $condition, $expression->remove );
-        $condition->delete;
+    }
+    my $word = $element->schild(0);
+    my $list = $element->find_first('PPI::Structure::List');
+    if ( $word =~ /(?:while|for)/xsm and $list and $list->parent eq $element ) {
+        for my $child ( $list->children ) {
+            $element->__insert_after_child( $list, $child->remove );
+        }
+        $element->__insert_before_child(
+            $list,
+            PPI::Token::Operator->new('in'),
+            PPI::Token::Whitespace->new(q{ })
+        );
+        $list->delete;
     }
     return;
 }

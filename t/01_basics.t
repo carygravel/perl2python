@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(parse_document);
-use Test::More tests => 21;
+use Test::More tests => 22;
 
 sub slurp {
     my ($file) = @_;
@@ -348,6 +348,22 @@ BEGIN {
 EOS
 
 is parse_document( \$script ), "\n", "scheduled blocks";
+
+#########################
+
+$script = <<'EOS';
+for my $type (qw(pbm pgm ppm)) {
+    print $type
+}
+EOS
+
+$expected = <<'EOS';
+for  type in ["pbm","pgm","ppm"] :
+    print( type)
+
+EOS
+
+is parse_document( \$script ), $expected, "iterator over array";
 
 #########################
 
