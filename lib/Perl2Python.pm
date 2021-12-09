@@ -53,6 +53,12 @@ sub map_element {
             map_package($element);
         }
         when (/PPI::Statement::Scheduled/xsm) {
+            my $block  = $element->find_first('PPI::Structure::Block');
+            my $parent = $element->parent;
+            for my $child ( $block->children ) {
+                $parent->__insert_before_child( $element, $child->remove );
+                map_element($child);
+            }
             $element->delete
         }
         when (/PPI::Statement::Sub/xsm) {
@@ -448,6 +454,9 @@ sub map_word {
             my $list = map_built_in($element);
             $element->{content} = 'len';
         }
+        when (/(?:my|our)/xsm) {
+            $element->delete;
+        }
         when ('open') {
             my $list     = map_built_in($element);
             my $fh       = $list->find_first('PPI::Token::Symbol');
@@ -483,8 +492,25 @@ sub map_word {
             add_import( $element, 'subprocess' );
             $element->{content} = 'subprocess.run';
         }
-        when (/(?:my|our)/xsm) {
-            $element->delete;
+        when ('use_ok') {
+            $element->{content} = 'import';
+            my $parent = $element->parent;
+            my $list   = $parent->find_first('PPI::Structure::List');
+            if ($list) {
+                $parent->__insert_before_child( $list,
+                    PPI::Token::Whitespace->new(q{ }) );
+                for my $child ( $list->children ) {
+                    $parent->__insert_before_child( $list, $child->remove );
+                }
+                $list->delete;
+            }
+            my $quote = $parent->find_first('PPI::Token::Quote');
+            if ($quote) {
+                my $separator = $quote->{separator};
+                $quote->{content} =~ s{^$separator}{}xsm;
+                $quote->{content} =~ s{$separator$}{}xsm;
+                $quote->{content} =~ s/::/./gsm;
+            }
         }
     }
     return;

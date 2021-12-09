@@ -347,7 +347,13 @@ BEGIN {
 }
 EOS
 
-is parse_document( \$script ), "\n", "scheduled blocks";
+$expected = <<'EOS';
+
+import MyModule.MySubModule.MySubSubModule
+
+EOS
+
+is parse_document( \$script ), $expected, "scheduled blocks";
 
 #########################
 
