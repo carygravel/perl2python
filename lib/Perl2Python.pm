@@ -379,7 +379,7 @@ sub map_regex_match {
     # remove the flags convert the separator to Python string terminators
     my $separator = $element->{separator};
     $element->{content} =~ s{^$separator}{r'}xsm;
-    $element->{content} =~ s{$separator[xsmg]+$}{'}xsm;
+    $element->{content} =~ s{$separator(?:[xsmg]+)?$}{'}xsm;
 
     # ensure we have import re
     add_import( $element, 're' );
@@ -495,7 +495,7 @@ sub map_compound {
     my $conditions = $element->find('PPI::Structure::Condition');
     if ($conditions) {
         for my $condition ( @{$conditions} ) {
-            if ( not $condition or $condition->parent ne $element ) { return }
+            if ( not $condition or $condition->parent ne $element ) { next }
             my $expression =
               $condition->find_first('PPI::Statement::Expression');
 
