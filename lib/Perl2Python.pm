@@ -344,7 +344,6 @@ sub map_magic {
         $dest_list->add_element( $source->remove );
         $element->delete;
         map_element($dest_list);
-        return;
     }
     return;
 }
@@ -394,6 +393,7 @@ sub map_regex_match {
 
 sub map_word {
     my ($element) = @_;
+    $element->{content} =~ s/::/./gsm;
     given ("$element") {
         when ('Readonly') {
             my $operator = $element->parent->find_first('PPI::Token::Operator');
@@ -454,7 +454,7 @@ sub map_word {
             my $list = map_built_in($element);
             $element->{content} = 'len';
         }
-        when (/(?:my|our)/xsm) {
+        when (/^(?:my|our)$/xsm) {
             $element->delete;
         }
         when ('open') {

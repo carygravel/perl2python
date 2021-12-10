@@ -63,10 +63,12 @@ $script = <<'EOS';
 use feature 'switch';
 no if $] >= 5.018, warnings => 'experimental::smartmatch';
 use MyModule::MySubModule::MySubSubModule;
+MyModule::MySubModule::MySubSubModule::my_method();
 EOS
 
 $expected = <<'EOS';
 import MyModule.MySubModule.MySubSubModule
+MyModule.MySubModule.MySubSubModule.my_method()
 EOS
 
 is parse_document( \$script ), $expected, "import";
