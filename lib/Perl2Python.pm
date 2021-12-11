@@ -179,6 +179,16 @@ sub map_operator {
     elsif ( $element eq q{.=} ) {
         $element->{content} = q{+=};
     }
+    elsif ( $element eq q{-s} ) {
+        add_import( $element, 'os' );
+        my $parent = $element->parent;
+        my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $list->{finish} = PPI::Token::Structure->new(')');
+        $list->add_element( $element->snext_sibling->remove );
+        $parent->__insert_after_child( $element,
+            PPI::Token::Word->new('os.path.getsize'), $list );
+        $element->delete;
+    }
     return;
 }
 

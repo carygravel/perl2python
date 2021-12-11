@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(parse_document);
-use Test::More tests => 23;
+use Test::More tests => 24;
 
 sub slurp {
     my ($file) = @_;
@@ -391,6 +391,19 @@ for  type in ["pbm","pgm","ppm"] :
 EOS
 
 is parse_document( \$script ), $expected, "iterator over array + regex";
+
+#########################
+
+$script = <<'EOS';
+my $size = -s $file;
+EOS
+
+$expected = <<'EOS';
+import os
+size = os.path.getsize(file) 
+EOS
+
+is parse_document( \$script ), $expected, "-s -> getsize()";
 
 #########################
 
