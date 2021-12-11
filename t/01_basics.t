@@ -253,10 +253,12 @@ my $line = <$fh>;
 close $fh;
 open my $fh, '<', $filename or return;
 close($fh);
-l = length $line
+l = length $line;
+unlink $filename;
 EOS
 
 $expected = <<'EOS';
+import os
 fh=open(    filename,mode='r')
 line = fh.readline()
 fh.close( )
@@ -266,6 +268,7 @@ except:
     return
 fh.close()
 l = len( line)
+os.remove( filename)
 EOS
 
 is parse_document( \$script ), $expected, "more built-ins";

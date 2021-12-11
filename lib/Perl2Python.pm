@@ -502,6 +502,11 @@ sub map_word {
             add_import( $element, 'subprocess' );
             $element->{content} = 'subprocess.run';
         }
+        when ('unlink') {
+            add_import( $element, 'os' );
+            $element->{content} = 'os.remove';
+            my $list = map_built_in($element);
+        }
         when ('use_ok') {
             $element->{content} = 'import';
             my $parent = $element->parent;
