@@ -14,10 +14,23 @@ Readonly my $LAST          => -1;
 Readonly my $INDENT_LENGTH => 4;
 Readonly my $INDENT        => q{ } x $INDENT_LENGTH;
 
-our @EXPORT_OK =
-  qw(map_document map_file map_path);    # symbols to export on request
+# symbols to export on request
+our @EXPORT_OK = qw(map_directory map_document map_file map_path);
 
 our $VERSION = 1;
+
+sub map_directory {
+    my ($dir) = @_;
+    if ( -d $dir ) {
+        for my $file ( glob( $dir . q{/*} ) ) {
+            map_directory($file);
+        }
+    }
+    else {
+        map_file($dir);
+    }
+    return;
+}
 
 sub map_document {
     my ($string) = @_;
@@ -29,8 +42,14 @@ sub map_document {
 sub map_file {
     my ($file) = @_;
     my $doc = PPI::Document::File->new($file);
+    print "Reading from $file\n" or croak 'Error printing to STDOUT';
     map_element($doc);
-    return $doc;
+    my $outfile = map_path($file);
+    print "Writing to $outfile\n" or croak 'Error printing to STDOUT';
+    open my $fh, '>', $outfile or croak "Error opening $outfile";
+    print {$fh} $doc or croak "Error writing to $outfile";
+    close $fh or croak "Error closing $outfile";
+    return;
 }
 
 #https://docs.python-guide.org/writing/structure/ i.e.:
