@@ -2,21 +2,15 @@
 
 use warnings;
 use strict;
-use Perl2Python qw(parse_document parse_file);
+use Perl2Python qw(map_path map_file);
 use Carp;
 
 our $VERSION = 1;
 
 for my $infile (@ARGV) {
     print "Reading from $infile\n" or croak 'Error printing to STDOUT';
-    my $out = parse_file($infile);
-    my $outfile;
-    if ( $infile =~ /(.+?)(:?[.](:?p[lm]|t))$/xsm ) {
-        $outfile = "$1.py";
-    }
-    else {
-        $outfile = "$infile.py";
-    }
+    my $out     = map_file($infile);
+    my $outfile = map_path($infile);
     print "Writing to $outfile\n" or croak 'Error printing to STDOUT';
     open my $fh, '>', $outfile or croak "Error opening $outfile";
     print {$fh} $out or croak "Error writing to $outfile";

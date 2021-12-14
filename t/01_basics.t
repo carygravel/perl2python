@@ -1,8 +1,8 @@
 use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
-use Perl2Python qw(parse_document);
-use Test::More tests => 24;
+use Perl2Python qw(map_document map_path);
+use Test::More tests => 27;
 
 sub slurp {
     my ($file) = @_;
@@ -27,7 +27,7 @@ my $expected = <<'EOS';
 print( "Hello world!")
 EOS
 
-is parse_document( \$script ), $expected, "print()";
+is map_document( \$script ), $expected, "print()";
 
 my $in  = 'test.pl';
 my $out = 'test.py';
@@ -71,7 +71,7 @@ import MyModule.MySubModule.MySubSubModule
 MyModule.MySubModule.MySubSubModule.my_method()
 EOS
 
-is parse_document( \$script ), $expected, "import";
+is map_document( \$script ), $expected, "import";
 
 #########################
 
@@ -84,7 +84,7 @@ $expected = <<'EOS';
 VARIABLE          = 4
 EOS
 
-is parse_document( \$script ), $expected, "readonly";
+is map_document( \$script ), $expected, "readonly";
 
 #########################
 
@@ -102,7 +102,7 @@ def function( x, y, t ) :
 
 EOS
 
-is parse_document( \$script ), $expected, "sub";
+is map_document( \$script ), $expected, "sub";
 
 $script = <<'EOS';
 sub function {
@@ -124,7 +124,7 @@ def function(x,y,t) :
 
 EOS
 
-is parse_document( \$script ), $expected, "sub + shift";
+is map_document( \$script ), $expected, "sub + shift";
 
 #########################
 
@@ -149,7 +149,7 @@ if  line is not None and   regex :
 
 EOS
 
-is parse_document( \$script ), $expected, "if + capture from regex";
+is map_document( \$script ), $expected, "if + capture from regex";
 
 $script = <<'EOS';
 if ( $line =~ /(\d+)\n/xsm ) {
@@ -165,7 +165,7 @@ if   regex :
 
 EOS
 
-is parse_document( \$script ), $expected, "if + capture from regex - no my/our";
+is map_document( \$script ), $expected, "if + capture from regex - no my/our";
 
 $script = <<'EOS';
 if ( $line =~ /(\d*)[ ](\d*)\n/xsm ) {
@@ -181,7 +181,7 @@ if   regex :
 
 EOS
 
-is parse_document( \$script ), $expected, "multiple capture groups";
+is map_document( \$script ), $expected, "multiple capture groups";
 
 $script = <<'EOS';
 if (1) {
@@ -199,7 +199,7 @@ if 1 :
 
 EOS
 
-is parse_document( \$script ), $expected, "indenting of new lines";
+is map_document( \$script ), $expected, "indenting of new lines";
 
 #########################
 
@@ -218,7 +218,7 @@ class MyPackage():
 
 EOS
 
-is parse_document( \$script ), $expected, "package";
+is map_document( \$script ), $expected, "package";
 
 #########################
 
@@ -231,7 +231,7 @@ $expected = <<'EOS';
 line =     run_function(filename)
 EOS
 
-is parse_document( \$script ), $expected, "remove linebreaks inside statements";
+is map_document( \$script ), $expected, "remove linebreaks inside statements";
 
 #########################
 
@@ -243,7 +243,7 @@ $expected = <<'EOS';
 result =  result_if_true if result_of_expression  else result_if_false
 EOS
 
-is parse_document( \$script ), $expected, "ternary operator";
+is map_document( \$script ), $expected, "ternary operator";
 
 #########################
 
@@ -271,7 +271,7 @@ l = len( line)
 os.remove( filename)
 EOS
 
-is parse_document( \$script ), $expected, "more built-ins";
+is map_document( \$script ), $expected, "more built-ins";
 
 $script = <<'EOS';
 while ( $line = <$fh> ) {
@@ -285,7 +285,7 @@ for line in fh :
 
 EOS
 
-is parse_document( \$script ), $expected, "map while reading a line at a time";
+is map_document( \$script ), $expected, "map while reading a line at a time";
 
 #########################
 
@@ -302,7 +302,7 @@ else :
     return
 EOS
 
-is parse_document( \$script ), $expected, "indent elif/else";
+is map_document( \$script ), $expected, "indent elif/else";
 
 $script = <<'EOS';
 if (1) {if (1) {return} else {return}}
@@ -316,7 +316,7 @@ if 1 :
         return
 EOS
 
-is parse_document( \$script ), $expected, "indent else2";
+is map_document( \$script ), $expected, "indent else2";
 
 #########################
 
@@ -328,7 +328,7 @@ $expected = <<'EOS';
 line += 'string'
 EOS
 
-is parse_document( \$script ), $expected, "operators";
+is map_document( \$script ), $expected, "operators";
 
 #########################
 
@@ -342,7 +342,7 @@ import subprocess
 subprocess.run( ["ls","-l"] )
 EOS
 
-is parse_document( \$script ), $expected, "subprocess";
+is map_document( \$script ), $expected, "subprocess";
 
 #########################
 
@@ -358,7 +358,7 @@ import MyModule.MySubModule.MySubSubModule
 
 EOS
 
-is parse_document( \$script ), $expected, "scheduled blocks";
+is map_document( \$script ), $expected, "scheduled blocks";
 
 #########################
 
@@ -374,7 +374,7 @@ for  type in ["pbm","pgm","ppm"] :
 
 EOS
 
-is parse_document( \$script ), $expected, "iterator over array";
+is map_document( \$script ), $expected, "iterator over array";
 
 $script = <<'EOS';
 for my $type (qw(pbm pgm ppm)) {
@@ -393,7 +393,7 @@ for  type in ["pbm","pgm","ppm"] :
 
 EOS
 
-is parse_document( \$script ), $expected, "iterator over array + regex";
+is map_document( \$script ), $expected, "iterator over array + regex";
 
 #########################
 
@@ -406,7 +406,14 @@ import os
 size = os.path.getsize(file) 
 EOS
 
-is parse_document( \$script ), $expected, "-s -> getsize()";
+is map_document( \$script ), $expected, "-s -> getsize()";
+
+#########################
+
+is map_path('lib/package/module.pm'), 'package/module.py', "map_path lib";
+is map_path('base/lib/package/module.pm'), 'base/package/module.py',
+  "map_path lib2";
+is map_path('t/01_basics.t'), 'tests/test_01_basics.py', "map_path t";
 
 #########################
 

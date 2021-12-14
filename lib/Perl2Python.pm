@@ -8,27 +8,64 @@ use PPI;
 use Exporter ();
 use base qw(Exporter);
 use Carp;
+use File::Spec;
 use Readonly;
 Readonly my $LAST          => -1;
 Readonly my $INDENT_LENGTH => 4;
 Readonly my $INDENT        => q{ } x $INDENT_LENGTH;
 
-our @EXPORT_OK = qw(parse_document parse_file);   # symbols to export on request
+our @EXPORT_OK =
+  qw(map_document map_file map_path);    # symbols to export on request
 
 our $VERSION = 1;
 
-sub parse_document {
+sub map_document {
     my ($string) = @_;
     my $doc = PPI::Document->new($string);
     map_element($doc);
     return $doc;
 }
 
-sub parse_file {
+sub map_file {
     my ($file) = @_;
     my $doc = PPI::Document::File->new($file);
     map_element($doc);
     return $doc;
+}
+
+#https://docs.python-guide.org/writing/structure/ i.e.:
+#  bin -> bin
+#  lib/package -> package
+#  t -> tests, then ensure the contents start with test_
+#  Makefile.PL -> setup.py + Makefile
+sub map_path {
+    my ($path) = @_;
+    my ( $volume, $directories, $file ) = File::Spec->splitpath($path);
+    my @dirs    = File::Spec->splitdir($directories);
+    my $outfile = "$file.py";
+    if ( $file =~ /(.+?)(:?[.]t)$/xsm ) {
+        my $pref = $1;
+        if ( $pref =~ /^test/xsm ) {
+            $outfile = "$pref.py";
+        }
+        else {
+            $outfile = "test_$pref.py";
+        }
+    }
+    elsif ( $file =~ /(.+?)(:?[.]p[lm])$/xsm ) {
+        $outfile = "$1.py";
+    }
+    my @outdirs;
+    for (@dirs) {
+        if ( $_ eq 't' ) {
+            push @outdirs, 'tests';
+        }
+        elsif ( $_ ne 'lib' ) {
+            push @outdirs, $_;
+        }
+    }
+    return File::Spec->catpath( $volume, File::Spec->catdir(@outdirs),
+        $outfile );
 }
 
 sub map_element {
@@ -778,7 +815,7 @@ Perl2Python - Tool to transcribe Perl 5 to Python 3
 
 =head1 SUBROUTINES/METHODS
 
-=head2 parse_document
+=head2 map_document
 
 =for readme continue
 

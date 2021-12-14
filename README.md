@@ -12,7 +12,7 @@ Perl2Python - Tool to transcribe Perl 5 to Python 3
 
 # SUBROUTINES/METHODS
 
-## parse\_document
+## map\_document
 
 # DIAGNOSTICS
 
