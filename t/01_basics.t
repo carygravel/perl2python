@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 27;
+use Test::More tests => 28;
 
 sub slurp {
     my ($file) = @_;
@@ -407,6 +407,21 @@ size = os.path.getsize(file)
 EOS
 
 is map_document( \$script ), $expected, "-s -> getsize()";
+
+#########################
+
+$script = <<'EOS';
+local $SIG{__WARN__} = sub {
+    $logger->warn(@_);
+};
+EOS
+
+$expected = <<'EOS';
+import logging
+logging.captureWarnings(True)
+EOS
+
+is map_document( \$script ), $expected, "log warnings";
 
 #########################
 

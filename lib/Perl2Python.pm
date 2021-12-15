@@ -200,7 +200,7 @@ sub map_element {
             map_regex_match($element)
         }
         when (/PPI::Token::Symbol/xsm) {
-            $element->{content} =~ s/^[\$@%]//smx;
+            map_symbol($element);
         }
         when (/PPI::Token::Word/xsm) {
             map_word($element);
@@ -345,12 +345,15 @@ sub map_built_in {
 sub map_magic {
     my ($element) = @_;
 
-    # magic defined in sub
+    # magic defined in sub - add to def arguments
     my $magic = $element->find_first('PPI::Token::Magic');
     if ( $magic eq '@_' ) {    ## no critic (RequireInterpolationOfMetachars)
         my $source_list = $element->find_first('PPI::Structure::List');
-        my $dest_list =
-          $element->parent->parent->find_first('PPI::Structure::List');
+        my $sub         = $element->parent->parent;
+        if ( not $sub ) {
+            return;
+        }
+        my $dest_list = $sub->find_first('PPI::Structure::List');
         for my $child ( $source_list->children ) {
             $dest_list->add_element( $child->remove );
         }
@@ -678,6 +681,28 @@ sub map_include {
     $import->{content} = 'import';
     $import            = $import->snext_sibling;
     $import->{content} = $module;
+    return;
+}
+
+sub map_symbol {
+    my ($element) = @_;
+    if (
+        $element eq '$SIG'    ## no critic (RequireInterpolationOfMetachars)
+        and $element->snext_sibling eq '{__WARN__}'
+      )
+    {
+        add_import( $element, 'logging' );
+        my $statement = $element->parent;
+        for my $child ( $statement->children ) {
+            $child->delete;
+        }
+        $statement->add_element(
+            PPI::Token::Word->new('logging.captureWarnings(True)') );
+
+    }
+    else {
+        $element->{content} =~ s/^[\$@%]//smx;
+    }
     return;
 }
 
