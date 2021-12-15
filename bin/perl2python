@@ -4,8 +4,12 @@ use warnings;
 use strict;
 use Perl2Python qw(map_directory);
 use Carp;
+use Getopt::Long;
 
 our $VERSION = 1;
+
+my @args = ( 'debug' => sub { $Perl2Python::DEBUG = 1 }, );
+if ( not GetOptions(@args) ) { exit 1 }
 
 for my $file (@ARGV) {
     map_directory($file);

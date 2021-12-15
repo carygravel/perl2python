@@ -19,6 +19,8 @@ our @EXPORT_OK = qw(map_directory map_document map_file map_path);
 
 our $VERSION = 1;
 
+our $DEBUG;
+
 sub map_directory {
     my ($dir) = @_;
     if ( -d $dir ) {
@@ -89,6 +91,7 @@ sub map_path {
 
 sub map_element {
     my ($element) = @_;
+    logger($element);
     remove_trailing_semicolon($element);
     given ( ref $element ) {
         when (/PPI::Token::Comment/xsm) {
@@ -811,6 +814,19 @@ sub add_import {
         $statement->add_element( PPI::Token::Word->new($module) );
         $document->child(0)->insert_before($statement);
         $statement->insert_after( PPI::Token::Whitespace->new("\n") );
+    }
+    return;
+}
+
+sub logger {
+    my ($element) = @_;
+    if ($DEBUG) {
+        my $message = ref $element;
+        if ( defined $element->{content} ) {
+            $message .= ': ' . $element->{content};
+            $message =~ s/\n.*//xsm;
+        }
+        print {*STDERR} "$message\n" or croak;
     }
     return;
 }
