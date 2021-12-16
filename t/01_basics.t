@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 30;
+use Test::More tests => 31;
 
 sub slurp {
     my ($file) = @_;
@@ -200,6 +200,18 @@ if 1 :
 EOS
 
 is map_document( \$script ), $expected, "indenting of new lines";
+
+$script = <<'EOS';
+if ( $obj->Get('version') =~ /(\d+)\n/xsm ) { return }
+EOS
+
+$expected = <<'EOS';
+import re
+if   re.search(r'(\d+)\n',obj.Get('version')) :
+    return 
+EOS
+
+is map_document( \$script ), $expected, "support precedence";
 
 $script = <<'EOS';
 my @paths = split ':', $path;
