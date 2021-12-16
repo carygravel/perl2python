@@ -426,11 +426,13 @@ sub map_regex_match {
     # in perl, the parent is a PPI::Statement::Expression, which we now
     # turn into re.search(regex, string)
     my $expression = $element->parent;
+    if ( not $expression ) { return }
     $expression->add_element( PPI::Token::Word->new('re.search') );
     my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
     $list->{finish} = PPI::Token::Structure->new(')');
     $expression->add_element($list);
     my $operator = $element->sprevious_sibling;
+
     if ( not $operator->isa('PPI::Token::Operator') ) {
         croak "Expected operator before regex match. Found '$operator'\n";
     }
@@ -559,6 +561,36 @@ sub map_word {
             my $parent = $element->parent;
             $element->{content} = '.pop(0)';
             $element->snext_sibling->insert_after( $element->remove );
+        }
+        when ('split') {
+            my $list = map_built_in($element);
+            my $sep  = $list->schild(0);
+            my $op   = $sep->snext_sibling;
+            my $str  = $op->snext_sibling;
+            if ($sep) {
+                map_element($str);
+                if ( $sep->isa('PPI::Token::Quote') ) {
+                    $element->{content} = "$str.$element->{content}";
+                    $op->delete;
+                    $str->delete;
+                }
+                elsif ( $sep->isa('PPI::Token::Regexp::Match') ) {
+                    add_import( $element, 're' );
+                    $element->{content} = "re.$element->{content}";
+                    $sep->insert_after(
+                        PPI::Token::Quote::Double->new(
+                            q{r"}
+                              . substr(
+                                $sep->content,
+                                $sep->{sections}[0]{position},
+                                $sep->{sections}[0]{size}
+                              )
+                              . q{"}
+                        )
+                    );
+                    $sep->delete;
+                }
+            }
         }
         when ('system') {
             add_import( $element, 'subprocess' );
@@ -837,7 +869,7 @@ sub add_import {
         $statement->add_element( PPI::Token::Word->new('import') );
         $statement->add_element( PPI::Token::Whitespace->new(q{ }) );
         $statement->add_element( PPI::Token::Word->new($module) );
-        $document->child(0)->insert_before($statement);
+        $document->schild(0)->insert_before($statement);
         $statement->insert_after( PPI::Token::Whitespace->new("\n") );
     }
     return;
