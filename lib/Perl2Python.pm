@@ -594,7 +594,9 @@ sub map_regex_match {
     my $operator = $element->sprevious_sibling;
 
     if ( not $operator or not $operator->isa('PPI::Token::Operator') ) {
-        croak "Expected operator before regex match. Found '$operator'\n";
+        carp
+"Expected operator before '$element' regex match. Found '$operator'\n";
+        return;
     }
     my @argument = get_argument_for_operator( $operator, 0 );
     if ( not @argument or not $argument[0] ) {
