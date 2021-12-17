@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 31;
+use Test::More tests => 33;
 
 sub slurp {
     my ($file) = @_;
@@ -212,6 +212,28 @@ if   re.search(r'(\d+)\n',obj.Get('version')) :
 EOS
 
 is map_document( \$script ), $expected, "support precedence";
+
+$script = <<'EOS';
+@new = grep { /^0$/xsm } @old;
+EOS
+
+$expected = <<'EOS';
+import re
+new = [x for x in old if re.search(r"^0$",x)]
+EOS
+
+is map_document( \$script ), $expected, "map grep->list comprehension";
+
+$script = <<'EOS';
+@new = grep { !/^0$/xsm } @old;
+EOS
+
+$expected = <<'EOS';
+import re
+new = [x for x in old if not re.search(r"^0$",x)]
+EOS
+
+is map_document( \$script ), $expected, "map !->not, more precedence";
 
 $script = <<'EOS';
 my @paths = split ':', $path;

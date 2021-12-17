@@ -203,19 +203,6 @@ sub map_document {
     return $doc;
 }
 
-sub map_file {
-    my ($file) = @_;
-    my $doc = PPI::Document::File->new($file);
-    print "Reading from $file\n" or croak 'Error printing to STDOUT';
-    map_element($doc);
-    my $outfile = map_path($file);
-    print "Writing to $outfile\n" or croak 'Error printing to STDOUT';
-    open my $fh, '>', $outfile or croak "Error opening $outfile";
-    print {$fh} $doc or croak "Error writing to $outfile";
-    close $fh or croak "Error closing $outfile";
-    return;
-}
-
 sub map_element {
     my ($element) = @_;
     logger($element);
@@ -339,6 +326,19 @@ sub map_element {
         }
     }
     indent_element($element);
+    return;
+}
+
+sub map_file {
+    my ($file) = @_;
+    my $doc = PPI::Document::File->new($file);
+    print "Reading from $file\n" or croak 'Error printing to STDOUT';
+    map_element($doc);
+    my $outfile = map_path($file);
+    print "Writing to $outfile\n" or croak 'Error printing to STDOUT';
+    open my $fh, '>', $outfile or croak "Error opening $outfile";
+    print {$fh} $doc or croak "Error writing to $outfile";
+    close $fh or croak "Error closing $outfile";
     return;
 }
 
@@ -507,6 +507,9 @@ sub map_operator {
                 PPI::Token::Word->new('os.path.getsize'), $list );
             $element->delete;
         }
+        when (q{!}) {
+            $element->{content} = q{not};
+        }
     }
     return;
 }
@@ -590,7 +593,7 @@ sub map_regex_match {
     $expression->add_element($list);
     my $operator = $element->sprevious_sibling;
 
-    if ( not $operator->isa('PPI::Token::Operator') ) {
+    if ( not $operator or not $operator->isa('PPI::Token::Operator') ) {
         croak "Expected operator before regex match. Found '$operator'\n";
     }
     my @argument = get_argument_for_operator( $operator, 0 );
@@ -683,6 +686,63 @@ sub map_word {
         }
         when ('elsif') {
             $element->{content} = 'elif';
+        }
+        when ('grep') {
+            my $expression = $element->snext_sibling;
+            my $array      = $expression->snext_sibling;
+            while ( $expression->isa('PPI::Structure::Block') ) {
+                $expression = $expression->schild(0);
+            }
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('[') );
+            $list->{finish} = PPI::Token::Structure->new(']');
+            $element->insert_before($list);
+            $list->add_element( PPI::Token::Symbol->new('x') );
+            $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $list->add_element( PPI::Token::Word->new('for') );
+            $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $list->add_element( PPI::Token::Symbol->new('x') );
+            $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $list->add_element( PPI::Token::Operator->new('in') );
+            $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $list->add_element( $array->remove );
+            $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $list->add_element( PPI::Token::Operator->new('if') );
+            $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+            my $operator = $expression->find_first('PPI::Token::Operator');
+
+            if ($operator) {
+                $list->add_element( $operator->remove );
+                $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+                map_operator($operator);
+            }
+            my $regex = $expression->find_first('PPI::Token::Regexp::Match');
+            if ($regex) {
+                add_import( $element, 're' );
+                $list->add_element( PPI::Token::Word->new('re.search') );
+                my $list2 =
+                  PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+                $list2->{finish} = PPI::Token::Structure->new(')');
+                $list->add_element($list2);
+                $list2->add_element(
+                    PPI::Token::Quote::Double->new(
+                        q{r"}
+                          . substr(
+                            $regex->content,
+                            $regex->{sections}[0]{position},
+                            $regex->{sections}[0]{size}
+                          )
+                          . q{"}
+                    )
+                );
+                $list2->add_element( PPI::Token::Operator->new(q{,}) );
+                $list2->add_element( PPI::Token::Symbol->new('x') );
+            }
+            while ($element) {
+                my $next = $element->next_sibling;
+                $element->delete;
+                $element = $next;
+            }
         }
         when ('is') {
 
