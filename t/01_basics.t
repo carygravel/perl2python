@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 33;
+use Test::More tests => 34;
 
 sub slurp {
     my ($file) = @_;
@@ -24,6 +24,7 @@ EOS
 
 my $expected = <<'EOS';
 #!/usr/bin/python3
+
 print( "Hello world!")
 EOS
 
@@ -208,7 +209,7 @@ EOS
 $expected = <<'EOS';
 import re
 if   re.search(r'(\d+)\n',obj.Get('version')) :
-    return 
+    return
 EOS
 
 is map_document( \$script ), $expected, "support precedence";
@@ -376,6 +377,38 @@ is map_document( \$script ), $expected, "indent else2";
 #########################
 
 $script = <<'EOS';
+given ( $result ) {
+    when (/a/xsm) {
+        return 0
+    }
+    when ('b') {
+        return 1
+    }
+    default {
+        return 2
+    }
+}
+EOS
+
+$expected = <<'EOS';
+import re
+
+
+if re.search(r"a", result ):
+    return 0
+
+elif  result =='b':
+    return 1
+
+else :
+    return 2
+EOS
+
+is map_document( \$script ), $expected, "given/when->if/elif/else";
+
+#########################
+
+$script = <<'EOS';
 $line .= 'string';
 EOS
 
@@ -444,7 +477,7 @@ import re
 for  type in ["pbm","pgm","ppm"] :
     if   re.search(r'(\w)',type) :
         print( type)
-    
+
 
 EOS
 

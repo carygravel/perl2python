@@ -219,6 +219,9 @@ sub map_element {
             }
             $element->delete;
         }
+        when (/PPI::Statement::Given/xsm) {
+            map_given($element);
+        }
         when (/PPI::Statement::Include/xsm) {
             map_include($element);
         }
@@ -339,6 +342,51 @@ sub map_file {
     open my $fh, '>', $outfile or croak "Error opening $outfile";
     print {$fh} $doc or croak "Error writing to $outfile";
     close $fh or croak "Error closing $outfile";
+    return;
+}
+
+sub map_given {
+    my ($element) = @_;
+    my $compound  = PPI::Statement::Compound->new;
+    my $given     = $element->find_first('PPI::Structure::Given');
+    map_element($given);
+    my $whens = $element->find('PPI::Statement::When');
+    if ( not $whens ) { return }
+    for my $when ( @{$whens} ) {
+        my $structure = $when->find_first('PPI::Structure::When');
+        my $regex     = $when->find_first('PPI::Token::Regexp::Match');
+        if ( not $structure ) {
+            $compound->add_element( PPI::Token::Word->new('else') );
+        }
+        elsif ( $compound->children ) {
+            $compound->add_element( PPI::Token::Word->new('elif') );
+        }
+        else {
+            $compound->add_element( PPI::Token::Word->new('if') );
+        }
+        $compound->add_element( PPI::Token::Whitespace->new(q{ }) );
+        if ($regex) {
+            my @out = regex2search( $regex, $given->children );
+            for my $out (@out) {
+                $compound->add_element($out);
+            }
+        }
+        elsif ($structure) {
+            my $expression = $when->find_first('PPI::Statement::Expression');
+            for my $match ( $given->children ) {
+                $compound->add_element( $match->clone );
+            }
+            $compound->add_element( PPI::Token::Operator->new(q{==}) );
+            $compound->add_element( $expression->remove );
+        }
+        my $block = $when->find_first('PPI::Structure::Block');
+        if ( not $block ) { return }
+        $compound->add_element( $block->remove );
+    }
+    $element->parent->add_element($compound);
+    $compound->insert_before($element);
+    $element->delete;
+    map_element($compound);
     return;
 }
 
@@ -720,25 +768,10 @@ sub map_word {
             }
             my $regex = $expression->find_first('PPI::Token::Regexp::Match');
             if ($regex) {
-                add_import( $element, 're' );
-                $list->add_element( PPI::Token::Word->new('re.search') );
-                my $list2 =
-                  PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-                $list2->{finish} = PPI::Token::Structure->new(')');
-                $list->add_element($list2);
-                $list2->add_element(
-                    PPI::Token::Quote::Double->new(
-                        q{r"}
-                          . substr(
-                            $regex->content,
-                            $regex->{sections}[0]{position},
-                            $regex->{sections}[0]{size}
-                          )
-                          . q{"}
-                    )
-                );
-                $list2->add_element( PPI::Token::Operator->new(q{,}) );
-                $list2->add_element( PPI::Token::Symbol->new('x') );
+                my @out = regex2search( $regex, PPI::Token::Symbol->new('x') );
+                for my $out (@out) {
+                    $list->add_element($out);
+                }
             }
             while ($element) {
                 my $next = $element->next_sibling;
@@ -926,7 +959,7 @@ sub indent_element {
         # fixup whitespace before statement
         indent_subelement($element);
 
-        # and inside compounds statements
+        # and inside compound statements
         if ( $element->isa('PPI::Statement::Compound') ) {
             my $substatements = $element->find(
                 sub {
@@ -939,6 +972,15 @@ sub indent_element {
                     indent_subelement($child);
                 }
             }
+        }
+    }
+
+    # remove trailing whitespace in blocks
+    elsif ( $element->isa('PPI::Structure::Block') ) {
+        my $child = $element->child($LAST);
+        if ( not $child ) { return }
+        if ( $child->isa('PPI::Token::Whitespace') and $child =~ /[ ]+/xsm ) {
+            $child->delete;
         }
     }
     return;
@@ -974,12 +1016,13 @@ sub indent_subelement {
         }
     }
     else {
-        if (    $whitespace
-            and $whitespace->isa('PPI::Token::Whitespace')
-            and $whitespace ne "\n" )
-        {
-            $whitespace->delete;
-            $whitespace = $element->previous_sibling;
+        if ($whitespace) {
+            if (    $whitespace->isa('PPI::Token::Whitespace')
+                and $whitespace ne "\n" )
+            {
+                $whitespace->delete;
+                $whitespace = $element->previous_sibling;
+            }
             if ( $whitespace ne "\n" ) {
                 $element->insert_before( PPI::Token::Whitespace->new("\n") );
             }
@@ -1048,6 +1091,28 @@ sub has_higher_precedence_than {
     my ( $op1, $op2 ) = @_;
     return $PRECENDENCE{ $op1->{originally} } <
       $PRECENDENCE{ $op2->{originally} };
+}
+
+sub regex2search {
+    my ( $regex, @string_expression ) = @_;
+    add_import( $regex, 're' );
+    my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+    $list->{finish} = PPI::Token::Structure->new(')');
+    $list->add_element(
+        PPI::Token::Quote::Double->new(
+            q{r"}
+              . substr(
+                $regex->content, $regex->{sections}[0]{position},
+                $regex->{sections}[0]{size}
+              )
+              . q{"}
+        )
+    );
+    $list->add_element( PPI::Token::Operator->new(q{,}) );
+    for my $string (@string_expression) {
+        $list->add_element( $string->clone );
+    }
+    return PPI::Token::Word->new('re.search'), $list;
 }
 
 1;
