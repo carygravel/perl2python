@@ -28,6 +28,7 @@ my %PRECENDENCE = (
     q{and} => 1,
     q{not} => 2,
     q{,}   => 4,
+    q{=>}  => 4,
     q{=}   => 5,
     q{+=}  => 5,
     q{-=}  => 5,
@@ -557,6 +558,17 @@ sub map_operator {
         }
         when (q{!}) {
             $element->{content} = q{not};
+        }
+        when (q{=>}) {
+            my $expression = $element->parent;
+            my @largument  = get_argument_for_operator( $element, 0 );
+            if ( @largument == 1 and $largument[0]->isa('PPI::Token::Word') ) {
+                my $key =
+                  PPI::Token::Quote::Double->new( q{"} . $largument[0] . q{"} );
+                $expression->__insert_before_child( $largument[0], $key );
+                $largument[0]->delete;
+            }
+            $element->{content} = q{:};
         }
     }
     return;

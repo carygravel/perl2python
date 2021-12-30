@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 34;
+use Test::More tests => 35;
 
 sub slurp {
     my ($file) = @_;
@@ -510,6 +510,24 @@ logging.captureWarnings(True)
 EOS
 
 is map_document( \$script ), $expected, "log warnings";
+
+#########################
+
+$script = <<'EOS';
+%my_hash = {
+    key  => "value",
+    key2 => "value2",
+}
+EOS
+
+$expected = <<'EOS';
+my_hash = {
+    "key"  : "value",
+    "key2" : "value2",
+}
+EOS
+
+is map_document( \$script ), $expected, "map hash->dict";
 
 #########################
 
