@@ -194,7 +194,10 @@ sub map_directory {
         }
     }
     else {
-        map_file($dir);
+        $dir =~ /.*[.](\w+)$/xsm;
+        if ( not defined $1 or $1 =~ /(p[lm]|t)$/xsmi ) {
+            map_file($dir);
+        }
     }
     return;
 }
