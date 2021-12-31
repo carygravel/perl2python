@@ -18,7 +18,7 @@ Readonly my $INDENT        => q{ } x $INDENT_LENGTH;
 our @EXPORT_OK = qw(map_directory map_document map_file map_path);
 
 our $VERSION = 1;
-
+our $LINENUMBER;
 our $DEBUG;
 
 # https://perldoc.perl.org/perlop#Operator-Precedence-and-Associativity
@@ -1111,6 +1111,7 @@ sub logger {
         }
         print {*STDERR} "$message\n" or croak;
     }
+    $LINENUMBER = $element->line_number;
     return;
 }
 

@@ -11,6 +11,11 @@ our $VERSION = 1;
 my @args = ( 'debug' => sub { $Perl2Python::DEBUG = 1 }, );
 if ( not GetOptions(@args) ) { exit 1 }
 
+# Catch and log perl warnings
+local $SIG{__DIE__} = sub {
+    confess "Error parsing code at line number $Perl2Python::LINENUMBER";
+};
+
 for my $file (@ARGV) {
     map_directory($file);
 }
