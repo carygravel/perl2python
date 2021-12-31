@@ -497,28 +497,6 @@ sub map_magic {
         $magic->insert_before( PPI::Token::Word->new("regex.group($1)") );
         $magic->delete;
     }
-
-    # deal with implied @_ in shift
-    if (
-        $element->find_first(
-            sub {
-                $_[1]->isa('PPI::Token::Word')
-                  and $_[1]->content eq 'shift'
-                  and not $_[1]->snext_sibling;
-            }
-        )
-      )
-    {
-        my $source = $element->find_first('PPI::Token::Symbol');
-        my $dest_list =
-          $element->parent->parent->find_first('PPI::Structure::List');
-        if ( $dest_list->children ) {
-            $dest_list->add_element( PPI::Token::Operator->new(q{,}) );
-        }
-        $dest_list->add_element( $source->remove );
-        $element->delete;
-        map_element($dest_list);
-    }
     return;
 }
 
@@ -885,9 +863,25 @@ sub map_word {
             }
         }
         when ('shift') {
-            my $parent = $element->parent;
-            $element->{content} = '.pop(0)';
-            $element->snext_sibling->insert_after( $element->remove );
+            my $argument = $element->snext_sibling;
+
+            # deal with implied @_ in shift
+            if ( not $argument ) {
+                my $parent = $element->parent;
+                my $source = $parent->find_first('PPI::Token::Symbol');
+                my $dest_list =
+                  $parent->parent->parent->find_first('PPI::Structure::List');
+                if ( $dest_list->children ) {
+                    $dest_list->add_element( PPI::Token::Operator->new(q{,}) );
+                }
+                $dest_list->add_element( $source->remove );
+                $parent->delete;
+                map_element($dest_list);
+            }
+            else {
+                $element->{content} = '.pop(0)';
+                $element->snext_sibling->insert_after( $element->remove );
+            }
         }
         when ('split') {
             my $list = map_built_in($element);
