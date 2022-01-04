@@ -262,9 +262,6 @@ sub map_element {
         when (/PPI::Statement::Compound/xsm) {
             map_compound($element);
         }
-        when (/PPI::Statement::Variable/xsm) {
-            map_magic($element);
-        }
         when (/PPI::Statement/xsm) {
             if ( not $element->isa('PPI::Statement::Expression')
                 and $element eq '1' )
@@ -272,7 +269,6 @@ sub map_element {
                 $element->delete;
                 return;
             }
-            map_magic($element);
         }
         when (/PPI::Structure::Block/xsm) {
             $element->{start}->{content}  = q{:};
@@ -327,6 +323,9 @@ sub map_element {
         }
         when (/PPI::Token::Word/xsm) {
             map_word($element);
+        }
+        when (/PPI::Token::Magic/xsm) {
+            map_magic($element);
         }
     }
     if ( exists $element->{children} ) {
@@ -396,6 +395,50 @@ sub map_given {
     return;
 }
 
+sub map_grep {
+    my ($element)  = @_;
+    my $expression = $element->snext_sibling;
+    my $array      = $expression->snext_sibling;
+    while ( $expression->isa('PPI::Structure::Block') ) {
+        $expression = $expression->schild(0);
+    }
+    my $list = PPI::Structure::List->new( PPI::Token::Structure->new('[') );
+    $list->{finish} = PPI::Token::Structure->new(']');
+    $element->insert_before($list);
+    $list->add_element( PPI::Token::Symbol->new('x') );
+    $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+    $list->add_element( PPI::Token::Word->new('for') );
+    $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+    $list->add_element( PPI::Token::Symbol->new('x') );
+    $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+    $list->add_element( PPI::Token::Operator->new('in') );
+    $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+    $list->add_element( $array->remove );
+    $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+    $list->add_element( PPI::Token::Operator->new('if') );
+    $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+    my $operator = $expression->find_first('PPI::Token::Operator');
+
+    if ($operator) {
+        $list->add_element( $operator->remove );
+        $list->add_element( PPI::Token::Whitespace->new(q{ }) );
+        map_operator($operator);
+    }
+    my $regex = $expression->find_first('PPI::Token::Regexp::Match');
+    if ($regex) {
+        my @out = regex2search( $regex, PPI::Token::Symbol->new('x') );
+        for my $out (@out) {
+            $list->add_element($out);
+        }
+    }
+    while ($element) {
+        my $next = $element->next_sibling;
+        $element->delete;
+        $element = $next;
+    }
+    return;
+}
+
 sub map_include {
     my ($element) = @_;
     my $module = $element->module;
@@ -448,25 +491,40 @@ sub map_magic {
     my ($element) = @_;
 
     # magic defined in sub - add to def arguments
-    my $magic = $element->find_first('PPI::Token::Magic');
-    if ( $magic eq '@_' ) {    ## no critic (RequireInterpolationOfMetachars)
-        my $source_list = $element->find_first('PPI::Structure::List');
-        my $sub         = $element->parent->parent;
+    if ( $element eq '@_' ) {    ## no critic (RequireInterpolationOfMetachars)
+        my $expression = $element->parent;
+        my $sub        = $expression->parent;
+        while ( $sub and not $sub->isa('PPI::Statement::Sub') ) {
+            $sub = $sub->parent;
+        }
         if ( not $sub ) {
+            warn "Error parsing magic in $sub\n";
             return;
         }
         my $dest_list = $sub->find_first('PPI::Structure::List');
-        for my $child ( $source_list->children ) {
-            $dest_list->add_element( $child->remove );
+
+        # sub argument definition
+        if (    $expression->isa('PPI::Statement::Variable')
+            and $sub->isa('PPI::Statement::Sub') )
+        {
+            my $source_list = $expression->find_first('PPI::Structure::List');
+            for my $child ( $source_list->children ) {
+                $dest_list->add_element( $child->remove );
+            }
+            $expression->delete;
+            map_element($dest_list);
+            return;
         }
-        $element->delete;
-        map_element($dest_list);
+
+        # sub argument usage
+        $element->{content} = '*argv';
+        $dest_list->add_element( PPI::Token::Symbol->new('*argv') );
         return;
     }
 
     # magic defined in regex capture, move capture out of condition
     # and use it to fetch group
-    elsif ( $magic =~ /^\$(\d+)$/xsm ) {
+    elsif ( $element =~ /^\$(\d+)$/xsm ) {
         my $block = $element->parent;
         while ( not $block->isa('PPI::Structure::Block') ) {
             $block = $block->parent;
@@ -494,8 +552,8 @@ sub map_magic {
         }
 
         # replace the magic with the regex group
-        $magic->insert_before( PPI::Token::Word->new("regex.group($1)") );
-        $magic->delete;
+        $element->insert_before( PPI::Token::Word->new("regex.group($1)") );
+        $element->delete;
     }
     return;
 }
@@ -767,46 +825,7 @@ sub map_word {
             $element->{content} = 'elif';
         }
         when ('grep') {
-            my $expression = $element->snext_sibling;
-            my $array      = $expression->snext_sibling;
-            while ( $expression->isa('PPI::Structure::Block') ) {
-                $expression = $expression->schild(0);
-            }
-            my $list =
-              PPI::Structure::List->new( PPI::Token::Structure->new('[') );
-            $list->{finish} = PPI::Token::Structure->new(']');
-            $element->insert_before($list);
-            $list->add_element( PPI::Token::Symbol->new('x') );
-            $list->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $list->add_element( PPI::Token::Word->new('for') );
-            $list->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $list->add_element( PPI::Token::Symbol->new('x') );
-            $list->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $list->add_element( PPI::Token::Operator->new('in') );
-            $list->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $list->add_element( $array->remove );
-            $list->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $list->add_element( PPI::Token::Operator->new('if') );
-            $list->add_element( PPI::Token::Whitespace->new(q{ }) );
-            my $operator = $expression->find_first('PPI::Token::Operator');
-
-            if ($operator) {
-                $list->add_element( $operator->remove );
-                $list->add_element( PPI::Token::Whitespace->new(q{ }) );
-                map_operator($operator);
-            }
-            my $regex = $expression->find_first('PPI::Token::Regexp::Match');
-            if ($regex) {
-                my @out = regex2search( $regex, PPI::Token::Symbol->new('x') );
-                for my $out (@out) {
-                    $list->add_element($out);
-                }
-            }
-            while ($element) {
-                my $next = $element->next_sibling;
-                $element->delete;
-                $element = $next;
-            }
+            map_grep($element);
         }
         when ('is') {
 
