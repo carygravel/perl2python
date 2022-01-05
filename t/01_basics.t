@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 37;
+use Test::More tests => 38;
 
 sub slurp {
     my ($file) = @_;
@@ -300,6 +300,17 @@ result =  result_if_true if result_of_expression  else result_if_false
 EOS
 
 is map_document( \$script ), $expected, "ternary operator";
+
+$script = <<'EOS';
+$result = $result_of_expression ? $ahash{'key with space'} : $ahash{'key with another space'};
+EOS
+
+$expected = <<'EOS';
+result =  ahash['key with space'] if result_of_expression  else ahash['key with another space']
+EOS
+
+is map_document( \$script ), $expected,
+  "ternary operator with more complex arguments";
 
 #########################
 

@@ -34,32 +34,34 @@ my %PRECENDENCE = (
     q{-=}  => 5,
     q{*=}  => 5,
     q{/=}  => 5,
-    q{..}  => 6,
-    q{...} => 6,
-    q{||}  => 7,
-    q{//}  => 7,
-    q{&&}  => 8,
-    q{|}   => 9,
-    q{|.}  => 9,
-    q{^}   => 9,
-    q{^.}  => 9,
-    q{&}   => 10,
-    q{&.}  => 10,
-    q{==}  => 11,
-    q{!=}  => 11,
-    q{eq}  => 11,
-    q{ne}  => 11,
-    q{<=>} => 11,
-    q{cmp} => 11,
-    q{~~}  => 11,
-    q{<}   => 12,
-    q{>}   => 12,
-    q{<=}  => 12,
-    q{>=}  => 12,
-    q{lt}  => 12,
-    q{gt}  => 12,
-    q{le}  => 12,
-    q{ge}  => 12,
+    q{?}   => 6,
+    q{:}   => 6,
+    q{..}  => 7,
+    q{...} => 7,
+    q{||}  => 8,
+    q{//}  => 8,
+    q{&&}  => 9,
+    q{|}   => 10,
+    q{|.}  => 10,
+    q{^}   => 10,
+    q{^.}  => 10,
+    q{&}   => 11,
+    q{&.}  => 11,
+    q{==}  => 12,
+    q{!=}  => 12,
+    q{eq}  => 12,
+    q{ne}  => 12,
+    q{<=>} => 12,
+    q{cmp} => 12,
+    q{~~}  => 12,
+    q{<}   => 13,
+    q{>}   => 13,
+    q{<=}  => 13,
+    q{>=}  => 13,
+    q{lt}  => 13,
+    q{gt}  => 13,
+    q{le}  => 13,
+    q{ge}  => 13,
     q{<<}  => 15,
     q{>>}  => 15,
     q{+}   => 16,
@@ -273,6 +275,10 @@ sub map_element {
         when (/PPI::Structure::Block/xsm) {
             $element->{start}->{content}  = q{:};
             $element->{finish}->{content} = q{};
+        }
+        when (/PPI::Structure::Subscript/xsm) {
+            $element->{start}->{content}  = q{[};
+            $element->{finish}->{content} = q{]};
         }
         when (/PPI::Token::Operator/xsm) {
             map_operator($element);
@@ -563,21 +569,26 @@ sub map_operator {
     $element->{originally} = $element->{content};
     given ("$element") {
         when (q{?}) {
-            my $conditional = $element->sprevious_sibling;
-            my $true        = $element->snext_sibling;
-            my $operator    = $true->snext_sibling;
-            my $false       = $operator->snext_sibling;
-            if ( $operator ne q{:} or not( $true and $false ) ) {
+            my @conditional = get_argument_for_operator( $element,  0 );
+            my @true        = get_argument_for_operator( $element,  1 );
+            my $operator    = $true[-1]->snext_sibling;
+            my @false       = get_argument_for_operator( $operator, 1 );
+            if ( $operator ne q{:} or not( @true and @false ) ) {
                 croak
-"Error parsing conditional operator: '$conditional $element $true $operator $false'\n";
+"Error parsing conditional operator: '@conditional $element @true $operator @false'\n";
             }
             $element->{content}  = 'if';
             $operator->{content} = 'else';
             my $parent = $element->parent;
+            for my $conditional (@conditional) {
+                $parent->__insert_after_child( $element, $conditional->remove );
+            }
             $parent->__insert_after_child( $element,
-                PPI::Token::Whitespace->new(q{ }),
-                $conditional->remove );
-            $parent->__insert_before_child( $element, $true->remove,
+                PPI::Token::Whitespace->new(q{ }) );
+            for my $true (@true) {
+                $parent->__insert_before_child( $element, $true->remove );
+            }
+            $parent->__insert_before_child( $element,
                 PPI::Token::Whitespace->new(q{ }) );
         }
         when (q{.=}) {
@@ -1133,6 +1144,10 @@ sub logger {
 
 sub get_argument_for_operator {
     my ( $element, $n ) = @_;
+    if ( not $element->isa('PPI::Token::Operator') ) {
+        croak
+"Called 'get_argument_for_operator()' with for '$element', which is not an operator\n";
+    }
     my @sibling;
     my $next = $n == 0 ? $element->sprevious_sibling : $element->snext_sibling;
     while (
@@ -1159,6 +1174,12 @@ sub has_higher_precedence_than {
     }
     if ( defined $op2->{originally} ) {
         $op2 = $op2->{originally};
+    }
+    if ( not defined $PRECENDENCE{$op1} ) {
+        croak "Unknown operator '$op1'\n";
+    }
+    if ( not defined $PRECENDENCE{$op2} ) {
+        croak "Unknown operator '$op2'\n";
     }
     return $PRECENDENCE{$op1} < $PRECENDENCE{$op2};
 }
