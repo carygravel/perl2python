@@ -26,6 +26,7 @@ my @PRECENDENCE = (
     [qw{or xor}],
     [qw{and}],
     [qw{not}],
+    ['list operator (rightward)'],
     [ q{,}, q{=>} ],
     [qw{= += -= *= /=}],
     [qw{? :}],
@@ -47,12 +48,24 @@ my @PRECENDENCE = (
     [qw{**}],
     [qw{++ --}],
     [qw{->}],
+    [ 'term', 'list operator (leftward)' ],
 );
 my %PRECENDENCE = ();
 for my $i ( 0 .. $#PRECENDENCE ) {
     for my $op ( @{ $PRECENDENCE[$i] } ) {
         $PRECENDENCE{$op} = $i;
     }
+}
+
+# https://perldoc.perl.org/functions
+my @BUILTINS = (
+
+    # misc
+    qw(defined formline lock prototype reset scalar undef)
+);
+my %BUILTINS = ();
+for my $op (@BUILTINS) {
+    $BUILTINS{$op} = 1;
 }
 
 my $ANONYMOUS = 0;
@@ -156,6 +169,37 @@ sub map_compound {
             PPI::Token::Whitespace->new(q{ })
         );
         $list->delete;
+    }
+    return;
+}
+
+sub map_defined {
+    my ($element) = @_;
+    my $parent = $element->parent;
+    my @args = get_argument_for_operator( $element, 1 );
+    if ( $args[-1]->isa('PPI::Structure::Subscript') ) {
+        $element->{content} = 'in';
+        for my $child ( $args[-1]->children ) {
+            if ( not $child->isa('PPI::Token::Symbol') ) {
+                $child = PPI::Token::Quote::Single->new("'$child'");
+
+            }
+            $parent->__insert_before_child( $args[0], $child->remove, );
+        }
+        $args[-1]->delete;
+        $parent->__insert_before_child(
+            $args[0],         PPI::Token::Whitespace->new(q{ }),
+            $element->remove, PPI::Token::Whitespace->new(q{ }),
+        );
+    }
+    else {
+        $element->{content} = 'is';
+        $parent->__insert_after_child(
+            $args[-1],                    PPI::Token::Whitespace->new(q{ }),
+            $element->remove,             PPI::Token::Whitespace->new(q{ }),
+            PPI::Token::Word->new('not'), PPI::Token::Whitespace->new(q{ }),
+            PPI::Token::Word->new('None')
+        );
     }
     return;
 }
@@ -795,17 +839,7 @@ sub map_word {
             $element->insert_before( $fh->remove );
         }
         when ('defined') {
-            my $parent = $element->parent;
-            $element->{content} = 'is';
-            $parent->__insert_after_child(
-                $element->snext_sibling,
-                PPI::Token::Whitespace->new(q{ }),
-                $element->remove,
-                PPI::Token::Whitespace->new(q{ }),
-                PPI::Token::Word->new('not'),
-                PPI::Token::Whitespace->new(q{ }),
-                PPI::Token::Word->new('None')
-            );
+            map_defined($element);
         }
         when ('elsif') {
             $element->{content} = 'elif';
@@ -1119,9 +1153,11 @@ sub logger {
 
 sub get_argument_for_operator {
     my ( $element, $n ) = @_;
-    if ( not $element->isa('PPI::Token::Operator') ) {
+    if (    not defined $PRECENDENCE{$element}
+        and not defined $BUILTINS{$element} )
+    {
         croak
-"Called 'get_argument_for_operator()' with for '$element', which is not an operator\n";
+"Called 'get_argument_for_operator()' with for '$element', which is neither an operator, nor a built-in\n";
     }
     my @sibling;
     my $next = $n == 0 ? $element->sprevious_sibling : $element->snext_sibling;
@@ -1144,19 +1180,23 @@ sub get_argument_for_operator {
 
 sub has_higher_precedence_than {
     my ( $op1, $op2 ) = @_;
-    if ( defined $op1->{originally} ) {
-        $op1 = $op1->{originally};
-    }
-    if ( defined $op2->{originally} ) {
-        $op2 = $op2->{originally};
-    }
-    if ( not defined $PRECENDENCE{$op1} ) {
-        croak "Unknown operator '$op1'\n";
-    }
-    if ( not defined $PRECENDENCE{$op2} ) {
-        croak "Unknown operator '$op2'\n";
-    }
+    $op1 = check_operator($op1);
+    $op2 = check_operator($op2);
     return $PRECENDENCE{$op1} < $PRECENDENCE{$op2};
+}
+
+sub check_operator {
+    my ($element) = @_;
+    if ( defined $element->{originally} ) {
+        $element = $element->{originally};
+    }
+    if ( not defined $PRECENDENCE{$element} ) {
+        if ( defined $BUILTINS{$element} ) {
+            return 'list operator (rightward)';
+        }
+        croak "'$element' is neither an operator, nor a built-in\n";
+    }
+    return $element;
 }
 
 sub regex2search {
