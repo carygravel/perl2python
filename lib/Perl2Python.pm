@@ -22,66 +22,38 @@ our $LINENUMBER;
 our $DEBUG;
 
 # https://perldoc.perl.org/perlop#Operator-Precedence-and-Associativity
-my %PRECENDENCE = (
-    q{or}  => 0,
-    q{xor} => 0,
-    q{and} => 1,
-    q{not} => 2,
-    q{,}   => 4,
-    q{=>}  => 4,
-    q{=}   => 5,
-    q{+=}  => 5,
-    q{-=}  => 5,
-    q{*=}  => 5,
-    q{/=}  => 5,
-    q{?}   => 6,
-    q{:}   => 6,
-    q{..}  => 7,
-    q{...} => 7,
-    q{||}  => 8,
-    q{//}  => 8,
-    q{&&}  => 9,
-    q{|}   => 10,
-    q{|.}  => 10,
-    q{^}   => 10,
-    q{^.}  => 10,
-    q{&}   => 11,
-    q{&.}  => 11,
-    q{==}  => 12,
-    q{!=}  => 12,
-    q{eq}  => 12,
-    q{ne}  => 12,
-    q{<=>} => 12,
-    q{cmp} => 12,
-    q{~~}  => 12,
-    q{<}   => 13,
-    q{>}   => 13,
-    q{<=}  => 13,
-    q{>=}  => 13,
-    q{lt}  => 13,
-    q{gt}  => 13,
-    q{le}  => 13,
-    q{ge}  => 13,
-    q{<<}  => 15,
-    q{>>}  => 15,
-    q{+}   => 16,
-    q{-}   => 16,
-    q{.}   => 16,
-    q{*}   => 17,
-    q{/}   => 17,
-    q{%}   => 17,
-    q{x}   => 17,
-    q{=~}  => 18,
-    q{!~}  => 18,
-    q{!}   => 19,
-    q{~}   => 19,
-    q{~.}  => 19,
-    q{\\}  => 19,
-    q{**}  => 20,
-    q{++}  => 21,
-    q{--}  => 21,
-    q{->}  => 22,
+my @PRECENDENCE = (
+    [qw{or xor}],
+    [qw{and}],
+    [qw{not}],
+    [ q{,}, q{=>} ],
+    [qw{= += -= *= /=}],
+    [qw{? :}],
+    [qw{.. ...}],
+    [qw{|| //}],
+    [qw{&&}],
+    [qw{| |. ^ ^.}],
+    [qw{& &.}],
+    [qw{== != eq ne <=> cmp ~~}],
+    [qw{< > <= >= lt gt le ge}],
+    [
+        qw{-r -w -x -o -R -W -X -O -e -z -s -f -d -l -p -S -b -c -t -u -g -k -T -B -M -A -C}
+    ],
+    [qw{<< >>}],
+    [qw{+ - .}],
+    [qw{* / % x}],
+    [qw{=~ !~}],
+    [qw{! ~ ~. \\}],
+    [qw{**}],
+    [qw{++ --}],
+    [qw{->}],
 );
+my %PRECENDENCE = ();
+for my $i ( 0 .. $#PRECENDENCE ) {
+    for my $op ( @{ $PRECENDENCE[$i] } ) {
+        $PRECENDENCE{$op} = $i;
+    }
+}
 
 my $ANONYMOUS = 0;
 
@@ -603,7 +575,10 @@ sub map_operator {
             my $list =
               PPI::Structure::List->new( PPI::Token::Structure->new('(') );
             $list->{finish} = PPI::Token::Structure->new(')');
-            $list->add_element( $element->snext_sibling->remove );
+            my @args = get_argument_for_operator( $element, 1 );
+            for (@args) {
+                $list->add_element( $_->remove );
+            }
             $parent->__insert_after_child( $element,
                 PPI::Token::Word->new('os.path.getsize'), $list );
             $element->delete;
