@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 39;
+use Test::More tests => 40;
 
 sub slurp {
     my ($file) = @_;
@@ -311,6 +311,17 @@ EOS
 
 is map_document( \$script ), $expected,
   "ternary operator with more complex arguments";
+
+$script = <<'EOS';
+$result = $result_of_expression ? TRUE : FALSE;
+EOS
+
+$expected = <<'EOS';
+result =  True if result_of_expression else False
+EOS
+
+# https://github.com/Perl-Critic/PPI/issues/262
+is map_document( \$script ), $expected, "workaround PPI bug #262";
 
 #########################
 

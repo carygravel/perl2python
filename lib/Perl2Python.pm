@@ -585,10 +585,23 @@ sub map_operator {
     $element->{originally} = $element->{content};
     given ("$element") {
         when (q{?}) {
-            my @conditional = get_argument_for_operator( $element,  0 );
-            my @true        = get_argument_for_operator( $element,  1 );
-            my $operator    = $true[-1]->snext_sibling;
-            my @false       = get_argument_for_operator( $operator, 1 );
+            my @conditional = get_argument_for_operator( $element, 0 );
+            my @true        = get_argument_for_operator( $element, 1 );
+
+            # Work around https://github.com/Perl-Critic/PPI/issues/262
+            if ( $true[0]->isa('PPI::Token::Label') ) {
+                my $word = $true[0]->content;
+                $word =~ s/[ ]*:$//xsm;
+                $word = PPI::Token::Word->new($word);
+                $true[0]->insert_before($word);
+                map_word($word);
+                $true[0]->insert_after( PPI::Token::Operator->new(q{:}) );
+                $true[0]->delete;
+                @true = get_argument_for_operator( $element, 1 );
+            }
+
+            my $operator = $true[-1]->snext_sibling;
+            my @false    = get_argument_for_operator( $operator, 1 );
             if ( $operator ne q{:} or not( @true and @false ) ) {
                 croak
 "Error parsing conditional operator: '@conditional $element @true $operator @false'\n";
@@ -820,6 +833,12 @@ sub map_word {
     my ($element) = @_;
     $element->{content} =~ s/::/./gsm;
     given ("$element") {
+        when ('FALSE') {    # special-case common bare words
+            $element->{content} = 'False';
+        }
+        when ('TRUE') {
+            $element->{content} = 'True';
+        }
         when ('Readonly') {
             my $operator = $element->parent->find_first('PPI::Token::Operator');
             if ( $operator ne '=>' ) {
