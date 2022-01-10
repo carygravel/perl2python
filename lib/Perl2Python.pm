@@ -530,12 +530,23 @@ sub map_magic {
             and $sub->isa('PPI::Statement::Sub') )
         {
             my $source_list = $expression->find_first('PPI::Structure::List');
-            for my $child ( $source_list->children ) {
-                $dest_list->add_element( $child->remove );
+            if ($source_list) {
+                for my $child ( $source_list->children ) {
+                    $dest_list->add_element( $child->remove );
+                }
+                $expression->delete;
+                map_element($dest_list);
+                return;
             }
-            $expression->delete;
-            map_element($dest_list);
-            return;
+            my $operator = $expression->find_first('PPI::Token::Operator');
+            if ( $operator eq q{=} ) {
+                my @array = get_argument_for_operator( $operator, 0 );
+                for my $item (@array) {
+                    $dest_list->add_element( $item->remove );
+                }
+                $expression->delete;
+                return;
+            }
         }
 
         # sub argument usage
