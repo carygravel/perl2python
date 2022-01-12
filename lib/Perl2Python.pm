@@ -9,6 +9,7 @@ use Exporter ();
 use base qw(Exporter);
 use Carp;
 use File::Spec;
+use IPC::Open3 'open3';
 use Readonly;
 Readonly my $LAST          => -1;
 Readonly my $INDENT_LENGTH => 4;
@@ -367,11 +368,18 @@ sub map_element {
 
 sub map_file {
     my ($file) = @_;
+    my $pid = open3( undef, my $chld_out, undef, 'file', $file );
+    waitpid $pid, 0;
+    my $magic = <$chld_out>;
+    if ( $magic !~ /Perl/xsm and $file !~ /[.]t$/xsm ) {
+        warn "Ignoring $file, as not Perl code\n";
+        return;
+    }
     my $doc = PPI::Document::File->new($file);
-    print "Reading from $file\n" or croak 'Error printing to STDOUT';
+    warn "Reading from $file\n";
     map_element($doc);
     my $outfile = map_path($file);
-    print "Writing to $outfile\n" or croak 'Error printing to STDOUT';
+    warn "Writing to $outfile\n";
     open my $fh, '>', $outfile or croak "Error opening $outfile";
     print {$fh} $doc or croak "Error writing to $outfile";
     close $fh or croak "Error closing $outfile";
