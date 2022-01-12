@@ -8,7 +8,14 @@ use Getopt::Long;
 
 our $VERSION = 1;
 
-my @args = ( 'debug' => sub { $Perl2Python::DEBUG = 1 }, );
+# ignore blib directory by default
+my @xpaths;
+for my $file (@ARGV) {
+    push @xpaths, "$file/blib";
+}
+my @args =
+  ( 'debug' => sub { $Perl2Python::DEBUG = 1 }, 'exclude=s' => \@xpaths, );
+
 if ( not GetOptions(@args) ) { exit 1 }
 
 # Catch and log perl warnings
@@ -17,5 +24,5 @@ local $SIG{__DIE__} = sub {
 };
 
 for my $file (@ARGV) {
-    map_directory($file);
+    map_directory( $file, @xpaths );
 }

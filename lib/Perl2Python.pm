@@ -205,10 +205,16 @@ sub map_defined {
 }
 
 sub map_directory {
-    my ($dir) = @_;
+    my ( $dir, @xpaths ) = @_;
+    for my $path (@xpaths) {
+        if ( $path eq $dir ) {
+            warn "Ignoring $dir, as in exclude list\n";
+            return;
+        }
+    }
     if ( -d $dir ) {
         for my $file ( glob( $dir . q{/*} ) ) {
-            map_directory($file);
+            map_directory( $file, @xpaths );
         }
     }
     else {
