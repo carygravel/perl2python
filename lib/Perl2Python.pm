@@ -161,10 +161,21 @@ sub map_compound {
     my $word = $element->schild(0);
     my $list = $element->find_first('PPI::Structure::List');
     if ( $word =~ /(?:while|for)/xsm and $list and $list->parent eq $element ) {
+
+        # if no variable assignment, map magic
+        my $var = $list->sprevious_sibling;
+        if ( $var eq $word ) {
+            $element->__insert_before_child(
+                $list,
+                PPI::Token::Symbol->new('_'),
+                PPI::Token::Whitespace->new(q{ })
+            );
+        }
+
         for my $child ( $list->children ) {
             $element->__insert_after_child( $list, $child->remove );
         }
-        $element->__insert_before_child(
+        $element->__insert_after_child(
             $list,
             PPI::Token::Operator->new('in'),
             PPI::Token::Whitespace->new(q{ })
@@ -969,10 +980,18 @@ sub map_word {
         when ('split') {
             my $list = map_built_in($element);
             my $sep  = $list->schild(0);
-            my $op   = $sep->snext_sibling;
-            my $str  = $op->snext_sibling;
             if ($sep) {
-                map_element($str);
+                my $str;
+                my $op = $sep->snext_sibling;
+                if ($op) {
+                    $str = $op->snext_sibling;
+                    map_element($str);
+                }
+                else {
+                    $op  = PPI::Token::Operator->new(q{,});
+                    $str = PPI::Token::Symbol->new('_');
+                    $list->__insert_after_child( $sep, $op, $str );
+                }
                 if ( $sep->isa('PPI::Token::Quote') ) {
                     $element->{content} = "$str.$element->{content}";
                     $op->delete;

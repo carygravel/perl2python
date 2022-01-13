@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 41;
+use Test::More tests => 42;
 
 sub slurp {
     my ($file) = @_;
@@ -230,6 +230,8 @@ EOS
 
 is map_document( \$script ), $expected, "support precedence";
 
+#########################
+
 $script = <<'EOS';
 @new = grep { /^0$/xsm } @old;
 EOS
@@ -272,6 +274,21 @@ paths = re.split( r":", path)
 EOS
 
 is map_document( \$script ), $expected, "split on regex";
+
+$script = <<'EOS';
+for ( @array ) {
+    my @paths = split /:/xsm;
+}
+EOS
+
+$expected = <<'EOS';
+import re
+for _ in  array  :
+    paths = re.split( r":",_)
+
+EOS
+
+is map_document( \$script ), $expected, "split magic on regex";
 
 #########################
 
