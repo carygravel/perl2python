@@ -613,6 +613,9 @@ sub map_magic {
         $element->insert_before( PPI::Token::Word->new("regex.group($1)") );
         $element->delete;
     }
+    else {
+        map_symbol($element);
+    }
     return;
 }
 
@@ -807,14 +810,21 @@ sub map_regex_match {
     $expression->add_element($list);
     my $operator = $element->sprevious_sibling;
 
-    if ( not $operator or not $operator->isa('PPI::Token::Operator') ) {
+    my @argument;
+    if ( not $operator ) {
+        $operator = PPI::Token::Operator->new(q{=~});
+        push @argument, PPI::Token::Symbol->new('_');
+    }
+    elsif ( not $operator->isa('PPI::Token::Operator') ) {
         carp
 "Expected operator before '$element' regex match. Found '$operator'\n";
         return;
     }
-    my @argument = get_argument_for_operator( $operator, 0 );
-    if ( not @argument or not $argument[0] ) {
-        croak "Argument for operator '$operator' not found\n";
+    else {
+        @argument = get_argument_for_operator( $operator, 0 );
+        if ( not @argument or not $argument[0] ) {
+            croak "Argument for operator '$operator' not found\n";
+        }
     }
     $list->add_element( $element->remove );
 
