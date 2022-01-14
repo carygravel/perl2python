@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 43;
+use Test::More tests => 44;
 
 sub slurp {
     my ($file) = @_;
@@ -471,6 +471,31 @@ else :
 EOS
 
 is map_document( \$script ), $expected, "given/when->if/elif/else";
+
+$script = <<'EOS';
+given ( $vara ) {
+    when ('S') {
+        given ( $varb ) {
+            when (/regex/xsm) {
+                $data = 'data';
+            }
+        }
+    }
+}
+EOS
+
+$expected = <<'EOS';
+
+import re
+
+if  vara =='S':
+        
+    
+    if re.search(r"regex", varb ):
+        data = 'data'
+EOS
+
+is map_document( \$script ), $expected, "nested given";
 
 #########################
 

@@ -402,22 +402,22 @@ sub map_given {
     my $compound  = PPI::Statement::Compound->new;
     my $given     = $element->find_first('PPI::Structure::Given');
     map_element($given);
-    my $whens = $element->find('PPI::Statement::When');
-    if ( not $whens ) { return }
-    for my $when ( @{$whens} ) {
+    my $block = $element->find_first('PPI::Structure::Block');
+    for my $when ( $block->children ) {
+        if ( not $when->isa('PPI::Statement::When') ) { next }
         my $structure = $when->find_first('PPI::Structure::When');
         my $regex     = $when->find_first('PPI::Token::Regexp::Match');
         if ( not $structure ) {
             $compound->add_element( PPI::Token::Word->new('else') );
         }
         elsif ( $compound->children ) {
-            $compound->add_element( PPI::Token::Word->new('elif') );
+            $compound->add_element( PPI::Token::Word->new('elsif') );
         }
         else {
             $compound->add_element( PPI::Token::Word->new('if') );
         }
         $compound->add_element( PPI::Token::Whitespace->new(q{ }) );
-        if ($regex) {
+        if ( $regex and $regex->parent->parent->parent eq $when ) {
             my @out = regex2search( $regex, $given->children );
             for my $out (@out) {
                 $compound->add_element($out);
@@ -431,9 +431,9 @@ sub map_given {
             $compound->add_element( PPI::Token::Operator->new(q{==}) );
             $compound->add_element( $expression->remove );
         }
-        my $block = $when->find_first('PPI::Structure::Block');
-        if ( not $block ) { return }
-        $compound->add_element( $block->remove );
+        my $whenblock = $when->find_first('PPI::Structure::Block');
+        if ( not $whenblock ) { return }
+        $compound->add_element( $whenblock->remove );
     }
     $element->parent->add_element($compound);
     $compound->insert_before($element);
@@ -1204,8 +1204,8 @@ sub add_import {
         $statement->add_element( PPI::Token::Word->new('import') );
         $statement->add_element( PPI::Token::Whitespace->new(q{ }) );
         $statement->add_element( PPI::Token::Word->new($module) );
-        $document->schild(0)->insert_before($statement);
-        $statement->insert_after( PPI::Token::Whitespace->new("\n") );
+        $document->__insert_before_child( $document->schild(0),
+            $statement, PPI::Token::Whitespace->new("\n") );
     }
     return;
 }
