@@ -584,6 +584,9 @@ sub map_magic {
     # and use it to fetch group
     elsif ( $element =~ /^\$(\d+)$/xsm ) {
         my $block = $element->parent;
+
+        # split + regex capture group test otherwise falls over here
+        if ( not $block ) { return }
         while ( not $block->isa('PPI::Structure::Block') ) {
             $block = $block->parent;
         }
