@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 46;
+use Test::More tests => 47;
 
 sub slurp {
     my ($file) = @_;
@@ -146,14 +146,14 @@ is map_document( \$script ), $expected, "sub + array";
 #########################
 
 $script = <<'EOS';
-if ( $line =~ /(\d+)\n/xsm ) {
+if ( $line =~ /(\d+)\n/ ) {
     my $maxval = $1;
 }
 EOS
 
 $expected = <<'EOS';
 import re
-regex=re.search(r'(\d+)\n',line)
+regex=re.search(r"(\d+)\n",line)
 if   regex :
     maxval = regex.group(1)
 
@@ -162,14 +162,14 @@ EOS
 is map_document( \$script ), $expected, "if + capture from regex";
 
 $script = <<'EOS';
-if ( defined $line and $line =~ /(\d+)\n/xsm ) {
+if ( defined $line and $line =~ /(\d+)\n/ ) {
     my $maxval = $1;
 }
 EOS
 
 $expected = <<'EOS';
 import re
-regex=re.search(r'(\d+)\n',line)
+regex=re.search(r"(\d+)\n",line)
 if  line is not None and   regex :
     maxval = regex.group(1)
 
@@ -178,14 +178,14 @@ EOS
 is map_document( \$script ), $expected, "if + regex + other conditions";
 
 $script = <<'EOS';
-if ( $line =~ /(\d+)\n/xsm ) {
+if ( $line =~ /(\d+)\n/ ) {
     $maxval = $1;
 }
 EOS
 
 $expected = <<'EOS';
 import re
-regex=re.search(r'(\d+)\n',line)
+regex=re.search(r"(\d+)\n",line)
 if   regex :
     maxval = regex.group(1)
 
@@ -194,30 +194,30 @@ EOS
 is map_document( \$script ), $expected, "if + capture from regex - no my/our";
 
 $script = <<'EOS';
-if ( $line =~ /(\d*)[ ](\d*)\n/xsm ) {
-    ( $width, $height ) = ( $1, $2 );
+if ( $line =~ /(\d*)[ ](\d*)\n/ ) {
+    ( $vara, $varb ) = ( $1, $2 );
 }
 EOS
 
 $expected = <<'EOS';
 import re
-regex=re.search(r'(\d*)[ ](\d*)\n',line)
+regex=re.search(r"(\d*)[ ](\d*)\n",line)
 if   regex :
-    ( width, height ) = ( regex.group(1), regex.group(2) )
+    ( vara, varb ) = ( regex.group(1), regex.group(2) )
 
 EOS
 
 is map_document( \$script ), $expected, "multiple capture groups";
 
 $script = <<'EOS';
-if ( $line =~ /(\d+)\n/xsm ) {
+if ( $line =~ /(\d+)\n/ ) {
     my @values = split /\s+/sm, $1;
 }
 EOS
 
 $expected = <<'EOS';
 import re
-regex=re.search(r'(\d+)\n',line)
+regex=re.search(r"(\d+)\n",line)
 if   regex :
     values = re.split( r"\s+", regex.group(1))
 
@@ -225,11 +225,31 @@ EOS
 
 is map_document( \$script ), $expected, "split + regex capture group";
 
+$script = <<'EOS';
+if (
+    $line =~ m{[(]\s+".*" # comment
+[)]}xsm
+          )
+        {
+    $vara = 2;
+}
+EOS
+
+$expected = <<'EOS';
+import re
+if   re.search(r"""[(]\s+".*" # comment
+[)]""",line,re.MULTILINE|re.DOTALL|re.VERBOSE)         :
+    vara = 2
+
+EOS
+
+is map_document( \$script ), $expected, "regex flags";
+
 #########################
 
 $script = <<'EOS';
 if (1) {
-if ( $line =~ /(\d+)\n/xsm ) {
+if ( $line =~ /(\d+)\n/ ) {
     my $maxval = $1;
 }}
 EOS
@@ -237,7 +257,7 @@ EOS
 $expected = <<'EOS';
 import re
 if 1 :
-    regex=re.search(r'(\d+)\n',line)
+    regex=re.search(r"(\d+)\n",line)
     if   regex :
         maxval = regex.group(1)
 
@@ -246,12 +266,12 @@ EOS
 is map_document( \$script ), $expected, "indenting of new lines";
 
 $script = <<'EOS';
-if ( $obj->Get('version') =~ /(\d+)\n/xsm ) { return }
+if ( $obj->Get('version') =~ /(\d+)\n/ ) { return }
 EOS
 
 $expected = <<'EOS';
 import re
-if   re.search(r'(\d+)\n',obj.Get('version')) :
+if   re.search(r"(\d+)\n",obj.Get('version')) :
     return
 EOS
 
@@ -593,7 +613,7 @@ EOS
 $expected = <<'EOS';
 import re
 for  type in ["pbm","pgm","ppm"] :
-    if   re.search(r'(\w)',type) :
+    if   re.search(r"(\w)",type) :
         print( type)
 
 
@@ -612,7 +632,7 @@ EOS
 $expected = <<'EOS';
 import re
 for _ in ["pbm","pgm","ppm"] :
-    if re.search(r'(\w)',_) :
+    if re.search(r"(\w)",_) :
         print( _)
 
 

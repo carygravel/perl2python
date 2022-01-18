@@ -69,6 +69,13 @@ for my $op (@BUILTINS) {
     $BUILTINS{$op} = 1;
 }
 
+my %REGEX_MODIFIERS = (
+    i => 're.IGNORECASE',
+    m => 're.MULTILINE',
+    s => 're.DOTALL',
+    x => 're.VERBOSE',
+);
+
 my $ANONYMOUS = 0;
 
 sub map_built_in {
@@ -804,7 +811,7 @@ sub map_regex_match {
     my ($element) = @_;
 
     # in perl, the parent is a PPI::Statement::Expression, which we now
-    # turn into re.search(regex, string)
+    # turn into re.search(regex, string, flags)
     my $expression = $element->parent;
     if ( not $expression ) { return }
     $expression->add_element( PPI::Token::Word->new('re.search') );
@@ -829,7 +836,7 @@ sub map_regex_match {
             croak "Argument for operator '$operator' not found\n";
         }
     }
-    $list->add_element( $element->remove );
+    $list->add_element( regex2quote($element) );
 
     if ( $operator eq q{=~} ) {
     }
@@ -846,13 +853,23 @@ sub map_regex_match {
         $list->add_element( $argument->remove );
     }
 
-    # remove the flags convert the separator to Python string terminators
-    my $separator = $element->{separator};
-    $element->{content} =~ s{^$separator}{r'}xsm;
-    $element->{content} =~ s{$separator(?:[xsmg]+)?$}{'}xsm;
+    my @flags;
+    for my $modifier ( sort keys %{ $element->{modifiers} } ) {
+        if ( defined $REGEX_MODIFIERS{$modifier} ) {
+            push @flags, $REGEX_MODIFIERS{$modifier};
+        }
+        else {
+            carp "Unknown regex modifier '$modifier'";
+        }
+    }
+    if (@flags) {
+        $list->add_element( PPI::Token::Operator->new(q{,}) );
+        $list->add_element( PPI::Token::Symbol->new( join q{|}, @flags ) );
+    }
 
     # ensure we have import re
     add_import( $element, 're' );
+    $element->delete;
     return;
 }
 
@@ -1013,17 +1030,7 @@ sub map_word {
                 elsif ( $sep->isa('PPI::Token::Regexp::Match') ) {
                     add_import( $element, 're' );
                     $element->{content} = "re.$element->{content}";
-                    $sep->insert_after(
-                        PPI::Token::Quote::Double->new(
-                            q{r"}
-                              . substr(
-                                $sep->content,
-                                $sep->{sections}[0]{position},
-                                $sep->{sections}[0]{size}
-                              )
-                              . q{"}
-                        )
-                    );
+                    $sep->insert_after( regex2quote($sep) );
                     $sep->delete;
                 }
             }
@@ -1280,21 +1287,28 @@ sub regex2search {
     add_import( $regex, 're' );
     my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
     $list->{finish} = PPI::Token::Structure->new(')');
-    $list->add_element(
-        PPI::Token::Quote::Double->new(
-            q{r"}
-              . substr(
-                $regex->content, $regex->{sections}[0]{position},
-                $regex->{sections}[0]{size}
-              )
-              . q{"}
-        )
-    );
+    $list->add_element( regex2quote($regex) );
     $list->add_element( PPI::Token::Operator->new(q{,}) );
     for my $string (@string_expression) {
         $list->add_element( $string->clone );
     }
     return PPI::Token::Word->new('re.search'), $list;
+}
+
+sub regex2quote {
+    my ($element) = @_;
+    my $quote = q{"};
+    if ( $element->{content} =~ /\n/xsm ) {
+        $quote = q{"""};
+    }
+    return PPI::Token::Quote::Double->new(
+        "r$quote"
+          . substr(
+            $element->content, $element->{sections}[0]{position},
+            $element->{sections}[0]{size}
+          )
+          . $quote
+    );
 }
 
 1;
