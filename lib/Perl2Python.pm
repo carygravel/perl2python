@@ -10,6 +10,7 @@ use base qw(Exporter);
 use Carp;
 use File::Spec;
 use IPC::Open3 'open3';
+use Try::Tiny;
 use Readonly;
 Readonly my $LAST          => -1;
 Readonly my $INDENT_LENGTH => 4;
@@ -378,7 +379,12 @@ sub map_element {
     }
     if ( exists $element->{children} ) {
         for my $child ( $element->children ) {
-            map_element($child);
+            try {
+                map_element($child);
+            }
+            catch {
+                warn "Error mapping: '$child' at line number $LINENUMBER\n"
+            };
         }
     }
     indent_element($element);
