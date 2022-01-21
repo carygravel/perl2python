@@ -228,7 +228,7 @@ is map_document( \$script ), $expected, "split + regex capture group";
 $script = <<'EOS';
 if (
     $line =~ m{[(]\s+".*" # comment
-[)]}xsm
+[)]}xsmo
           )
         {
     $vara = 2;

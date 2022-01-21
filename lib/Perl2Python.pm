@@ -72,6 +72,7 @@ for my $op (@BUILTINS) {
 my %REGEX_MODIFIERS = (
     i => 're.IGNORECASE',
     m => 're.MULTILINE',
+    o => q{},               # no equivalent
     s => 're.DOTALL',
     x => 're.VERBOSE',
 );
@@ -860,7 +861,9 @@ sub map_regex_match {
     my @flags;
     for my $modifier ( sort keys %{ $element->{modifiers} } ) {
         if ( defined $REGEX_MODIFIERS{$modifier} ) {
-            push @flags, $REGEX_MODIFIERS{$modifier};
+            if ( $REGEX_MODIFIERS{$modifier} ) {
+                push @flags, $REGEX_MODIFIERS{$modifier};
+            }
         }
         else {
             carp "Unknown regex modifier '$modifier'";
