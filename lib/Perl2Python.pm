@@ -398,6 +398,10 @@ sub map_file {
     map_element($doc);
     my $outfile = map_path($file);
     warn "Writing to $outfile\n";
+    my ( undef, $directories, undef ) = File::Spec->splitpath($outfile);
+    if ( not -d $directories ) {
+        mkdir $directories;
+    }
     open my $fh, '>', $outfile or croak "Error opening $outfile";
     print {$fh} $doc or croak "Error writing to $outfile";
     close $fh or croak "Error closing $outfile";
