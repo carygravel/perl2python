@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 47;
+use Test::More tests => 48;
 
 sub slurp {
     my ($file) = @_;
@@ -25,7 +25,7 @@ EOS
 my $expected = <<'EOS';
 #!/usr/bin/python3
 
-print( "Hello world!")
+print("Hello world!") 
 EOS
 
 is map_document( \$script ), $expected, "print()";
@@ -219,7 +219,7 @@ $expected = <<'EOS';
 import re
 regex=re.search(r"(\d+)\n",line)
 if   regex :
-    values = re.split( r"\s+", regex.group(1))
+    values = re.split(r"\s+",regex.group(1))  
 
 EOS
 
@@ -306,7 +306,7 @@ my @paths = split ':', $path;
 EOS
 
 $expected = <<'EOS';
-paths = path.split( ':' )
+paths = path.split(':')  
 EOS
 
 is map_document( \$script ), $expected, "split on string";
@@ -317,7 +317,7 @@ EOS
 
 $expected = <<'EOS';
 import re
-paths = re.split( r":", path)
+paths = re.split(r":",path)  
 EOS
 
 is map_document( \$script ), $expected, "split on regex";
@@ -331,7 +331,7 @@ EOS
 $expected = <<'EOS';
 import re
 for _ in  array  :
-    paths = re.split( r":",_)
+    paths = re.split(r":",_) 
 
 EOS
 
@@ -403,6 +403,18 @@ EOS
 # https://github.com/Perl-Critic/PPI/issues/262
 is map_document( \$script ), $expected, "workaround PPI bug #262";
 
+$script = <<'EOS';
+return $result_of_expression
+  ? sprintf $FORMAT1, @args1
+  : sprintf $FORMAT2, @args2;
+EOS
+
+$expected = <<'EOS';
+return    FORMAT1 % (args1) if result_of_expression      else FORMAT2 % (args2)  
+EOS
+
+is map_document( \$script ), $expected, "ternary + built-in";
+
 #########################
 
 $script = <<'EOS';
@@ -417,16 +429,16 @@ EOS
 
 $expected = <<'EOS';
 import os
-fh=open(    filename,mode='r')
+fh=open(filename,mode='r')    
 line = fh.readline()
-fh.close( )
+fh.close() 
 try:
-    fh=open(    filename,mode='r' )
+    fh=open(filename,mode='r')
 except:
     return
 fh.close()
-l = len( line)
-os.remove( filename)
+l = len(line) 
+os.remove(filename) 
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";
@@ -439,7 +451,7 @@ EOS
 
 $expected = <<'EOS';
 for line in fh :
-    print( line)
+    print(line) 
 
 EOS
 
@@ -596,7 +608,7 @@ EOS
 
 $expected = <<'EOS';
 for  type in ["pbm","pgm","ppm"] :
-    print( type)
+    print(type) 
 
 EOS
 
@@ -614,7 +626,7 @@ $expected = <<'EOS';
 import re
 for  type in ["pbm","pgm","ppm"] :
     if   re.search(r"(\w)",type) :
-        print( type)
+        print(type) 
 
 
 EOS
@@ -633,7 +645,7 @@ $expected = <<'EOS';
 import re
 for _ in ["pbm","pgm","ppm"] :
     if re.search(r"(\w)",_) :
-        print( _)
+        print(_) 
 
 
 EOS

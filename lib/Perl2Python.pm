@@ -60,11 +60,8 @@ for my $i ( 0 .. $#PRECENDENCE ) {
 }
 
 # https://perldoc.perl.org/functions
-my @BUILTINS = (
-
-    # misc
-    qw(defined formline lock prototype reset scalar undef)
-);
+my @BUILTINS =
+  qw(chmod chown close defined grep join length map pack open print printf push return reverse say sort split sprintf unlink unshift);
 my %BUILTINS = ();
 for my $op (@BUILTINS) {
     $BUILTINS{$op} = 1;
@@ -81,26 +78,22 @@ my %REGEX_MODIFIERS = (
 my $ANONYMOUS = 0;
 
 sub map_built_in {
-    my ($element) = @_;
+    my ( $element, @args ) = @_;
     my $list = $element->snext_sibling;
     if ( not $list->isa('PPI::Structure::List') ) {
         $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
         $list->{finish} = PPI::Token::Structure->new(')');
-        my @children;
-        my $child = $element->next_sibling;
-        while ( $child
-            and not( $child->isa('PPI::Token::Structure') or $child eq 'or' ) )
-        {
-            push @children, $child;
-            $child = $child->next_sibling;
+
+        if ( not @args ) {
+            @args = get_argument_for_operator( $element, 1 );
         }
-        for my $child (@children) {
+        for my $child (@args) {
             $list->add_element( $child->remove );
         }
         $element->insert_after($list);
 
         # deal with return value from built-in
-        $child = $list->next_sibling;
+        my $child = $list->snext_sibling;
         if ( $child eq 'or' ) {
             $child->delete;
             my $statement = $element->parent;
@@ -662,6 +655,18 @@ sub map_operator {
 
             my $operator = $true[-1]->snext_sibling;
             my @false    = get_argument_for_operator( $operator, 1 );
+
+            # map true/false expressions before mapping ternary in case we
+            # change the precedence in doing so
+            if ( defined $BUILTINS{ $true[0]->content } ) {
+                my $list = map_built_in(@true);
+                @true = ( $true[0], $list );
+            }
+            if ( defined $BUILTINS{ $false[0]->content } ) {
+                my $list = map_built_in(@false);
+                @false = ( $false[0], $list );
+            }
+
             if ( $operator ne q{:} or not( @true and @false ) ) {
                 croak
 "Error parsing conditional operator: '@conditional $element @true $operator @false'\n";
@@ -1048,14 +1053,25 @@ sub map_word {
                 }
             }
         }
+        when ('sprintf') {
+            my $list     = map_built_in($element);
+            my $format   = $list->schild(0);
+            my $operator = $list->schild(1);
+            $operator->{content} = q{%};
+            my $parent = $element->parent;
+            $parent->__insert_before_child( $element, $format->remove,
+                PPI::Token::Whitespace->new(q{ }),
+                $operator->remove, PPI::Token::Whitespace->new(q{ }) );
+            $element->delete;
+        }
         when ('system') {
             add_import( $element, 'subprocess' );
             $element->{content} = 'subprocess.run';
         }
         when ('unlink') {
+            my $list = map_built_in($element);
             add_import( $element, 'os' );
             $element->{content} = 'os.remove';
-            my $list = map_built_in($element);
         }
         when ('use_ok') {
             $element->{content} = 'import';
@@ -1249,48 +1265,76 @@ sub logger {
 
 sub get_argument_for_operator {
     my ( $element, $n ) = @_;
+
+    my @sibling;
+    my $iter = $element;
+    if ( $element eq q{?} ) {
+        if ( $n == 0 ) {
+            return $iter->sprevious_sibling;
+        }
+        if ( $n == 1 ) {
+            while ( $iter = $iter->snext_sibling ) {
+                if ( $iter eq q{?} ) {
+                    push @sibling, get_argument_for_operator( $iter, 1 );
+                    $iter = $sibling[-1];
+                }
+                elsif ( $iter eq q{:} ) {
+                    last;
+                }
+                else {
+                    push @sibling, $iter;
+                }
+            }
+            return @sibling;
+        }
+    }
+
     if (    not defined $PRECENDENCE{$element}
         and not defined $BUILTINS{$element} )
     {
-        croak
+        warn
 "Called 'get_argument_for_operator()' with for '$element', which is neither an operator, nor a built-in\n";
     }
-    my @sibling;
-    my $next = $n == 0 ? $element->sprevious_sibling : $element->snext_sibling;
-    while (
-        $next
-        and ( not $next->isa('PPI::Token::Operator')
-            or has_higher_precedence_than( $element, $next ) )
-      )
+    while ( $iter = $n == 0 ? $iter->sprevious_sibling : $iter->snext_sibling )
     {
+        if ( $n > 0 and defined $BUILTINS{$iter} ) {
+            push @sibling, $iter, get_argument_for_operator( $iter, $n );
+            $iter = pop @sibling;
+        }
+        if ( not has_higher_precedence_than( $element, $iter, $n ) ) { last }
+
         if ( $n == 0 ) {
-            unshift @sibling, $next;
+            unshift @sibling, $iter;
         }
         else {
-            push @sibling, $next;
+            push @sibling, $iter;
         }
-        $next = $n == 0 ? $next->sprevious_sibling : $next->snext_sibling;
     }
     return @sibling;
 }
 
 sub has_higher_precedence_than {
-    my ( $op1, $op2 ) = @_;
-    $op1 = check_operator($op1);
-    $op2 = check_operator($op2);
+    my ( $op1, $op2, $direction ) = @_;
+    $op1 = check_operator( $op1, $direction );
+    $op2 = check_operator( $op2, $direction );
     return $PRECENDENCE{$op1} < $PRECENDENCE{$op2};
 }
 
 sub check_operator {
-    my ($element) = @_;
+    my ( $element, $direction ) = @_;
     if ( defined $element->{originally} ) {
         $element = $element->{originally};
     }
     if ( not defined $PRECENDENCE{$element} ) {
         if ( defined $BUILTINS{$element} ) {
-            return 'list operator (rightward)';
+            if ( $direction > 0 ) {
+                return 'list operator (rightward)';
+            }
+            return 'list operator (leftward)';
         }
-        croak "'$element' is neither an operator, nor a built-in\n";
+        else {
+            return 'term';
+        }
     }
     return $element;
 }
