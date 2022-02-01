@@ -196,7 +196,6 @@ sub map_defined {
         for my $child ( $args[-1]->children ) {
             if ( not $child->isa('PPI::Token::Symbol') ) {
                 $child = PPI::Token::Quote::Single->new("'$child'");
-
             }
             $parent->__insert_before_child( $args[0], $child->remove, );
         }
@@ -207,6 +206,16 @@ sub map_defined {
         );
     }
     else {
+        if ( $args[-1]->isa('PPI::Structure::List') ) {
+            map_element( $args[-1] );
+            my @args2;
+            for my $child ( $args[-1]->children ) {
+                push @args2, $child->remove;
+            }
+            $parent->__insert_after_child( $args[-1], @args2 );
+            $args[-1]->delete;
+            @args = @args2;
+        }
         $element->{content} = 'is';
         $parent->__insert_after_child(
             $args[-1],                    PPI::Token::Whitespace->new(q{ }),
@@ -861,7 +870,8 @@ sub map_regex_match {
             PPI::Token::Whitespace->new(q{ }) );
     }
     else {
-        croak "Unknown operator '$operator'\n";
+        $operator = PPI::Token::Operator->new(q{=~});
+        @argument = ( PPI::Token::Symbol->new('_') );
     }
     $operator->delete;
     $list->add_element( PPI::Token::Operator->new(q{,}) );
