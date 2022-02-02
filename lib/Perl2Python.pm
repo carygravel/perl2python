@@ -762,6 +762,9 @@ sub map_operator {
             }
             $element->{content} = q{:};
         }
+        when ('eq') {
+            $element->{content} = q{==};
+        }
     }
     return;
 }
@@ -1064,9 +1067,13 @@ sub map_word {
             }
         }
         when ('sprintf') {
-            my $list     = map_built_in($element);
-            my $format   = $list->schild(0);
-            my $operator = $list->schild(1);
+            my $list       = map_built_in($element);
+            my $expression = $list->schild(0);
+            if ( not $expression->isa('PPI::Statement::Expression') ) {
+                $expression = $list;
+            }
+            my $format   = $expression->schild(0);
+            my $operator = $expression->schild(1);
             $operator->{content} = q{%};
             my $parent = $element->parent;
             $parent->__insert_before_child( $element, $format->remove,
@@ -1278,27 +1285,6 @@ sub get_argument_for_operator {
 
     my @sibling;
     my $iter = $element;
-    if ( $element eq q{?} ) {
-        if ( $n == 0 ) {
-            return $iter->sprevious_sibling;
-        }
-        if ( $n == 1 ) {
-            while ( $iter = $iter->snext_sibling ) {
-                if ( $iter eq q{?} ) {
-                    push @sibling, get_argument_for_operator( $iter, 1 );
-                    $iter = $sibling[-1];
-                }
-                elsif ( $iter eq q{:} ) {
-                    last;
-                }
-                else {
-                    push @sibling, $iter;
-                }
-            }
-            return @sibling;
-        }
-    }
-
     if (    not defined $PRECENDENCE{$element}
         and not defined $BUILTINS{$element} )
     {
@@ -1307,17 +1293,40 @@ sub get_argument_for_operator {
     }
     while ( $iter = $n == 0 ? $iter->sprevious_sibling : $iter->snext_sibling )
     {
-        if ( $n > 0 and defined $BUILTINS{$iter} ) {
-            push @sibling, $iter, get_argument_for_operator( $iter, $n );
-            $iter = pop @sibling;
-        }
-        if ( not has_higher_precedence_than( $element, $iter, $n ) ) { last }
-
-        if ( $n == 0 ) {
-            unshift @sibling, $iter;
+        if ( $element eq q{?} ) {
+            if ( $iter eq q{?} ) {
+                push @sibling, get_argument_for_operator( $iter, 1 );
+                $iter = $sibling[-1];
+            }
+            else {
+                if ( $n == 0 ) {
+                    if ( not has_higher_precedence_than( $element, $iter, $n ) )
+                    {
+                        last;
+                    }
+                    push @sibling, $iter;
+                }
+                else {
+                    if ( $iter eq q{:} ) { last }
+                    push @sibling, $iter;
+                }
+            }
         }
         else {
-            push @sibling, $iter;
+            if ( $n > 0 and defined $BUILTINS{$iter} ) {
+                push @sibling, $iter, get_argument_for_operator( $iter, $n );
+                $iter = pop @sibling;
+            }
+            if ( not has_higher_precedence_than( $element, $iter, $n ) ) {
+                last;
+            }
+
+            if ( $n == 0 ) {
+                unshift @sibling, $iter;
+            }
+            else {
+                push @sibling, $iter;
+            }
         }
     }
     return @sibling;
@@ -1325,6 +1334,10 @@ sub get_argument_for_operator {
 
 sub has_higher_precedence_than {
     my ( $op1, $op2, $direction ) = @_;
+
+    # don't swallow built-ins looking left for arguments
+    if ( $direction == 0 and defined $BUILTINS{$op2} ) { return }
+
     $op1 = check_operator( $op1, $direction );
     $op2 = check_operator( $op2, $direction );
     return $PRECENDENCE{$op1} < $PRECENDENCE{$op2};

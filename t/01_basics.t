@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 49;
+use Test::More tests => 50;
 
 sub slurp {
     my ($file) = @_;
@@ -414,6 +414,17 @@ return    FORMAT1 % (args1) if result_of_expression      else FORMAT2 % (args2)
 EOS
 
 is map_document( \$script ), $expected, "ternary + built-in";
+
+$script = <<'EOS';
+return $var1 eq $val ? 0 : sprintf( '%.1g', $var1 ),
+      $var2 eq $val ? 0 : sprintf '%.1g', $var2;
+EOS
+
+$expected = <<'EOS';
+return    0 if var1==val  else '%.1g' % (  var1 ),          0 if var2==val  else '%.1g' % (var2)  
+EOS
+
+is map_document( \$script ), $expected, "list of ternaries + built-ins";
 
 #########################
 
