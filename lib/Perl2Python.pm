@@ -421,6 +421,7 @@ sub map_given {
     my ($element) = @_;
     my $compound  = PPI::Statement::Compound->new;
     my $given     = $element->find_first('PPI::Structure::Given');
+    if ( not $given ) { return }    # can get triggered when mapping twice.
     map_element($given);
     my $block = $element->find_first('PPI::Structure::Block');
     for my $when ( $block->children ) {
