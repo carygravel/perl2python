@@ -61,7 +61,7 @@ for my $i ( 0 .. $#PRECENDENCE ) {
 
 # https://perldoc.perl.org/functions
 my @BUILTINS =
-  qw(chmod chown close defined grep join length map pack open print printf push return reverse say sort split sprintf unlink unshift);
+  qw(chmod chown close defined grep join length map next pack open print printf push return reverse say sort split sprintf unlink unshift);
 my %BUILTINS = ();
 for my $op (@BUILTINS) {
     $BUILTINS{$op} = 1;
@@ -80,7 +80,7 @@ my $ANONYMOUS = 0;
 sub map_built_in {
     my ( $element, @args ) = @_;
     my $list = $element->snext_sibling;
-    if ( not $list->isa('PPI::Structure::List') ) {
+    if ( not $list or not $list->isa('PPI::Structure::List') ) {
         $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
         $list->{finish} = PPI::Token::Structure->new(')');
 
@@ -191,6 +191,11 @@ sub map_defined {
     my ($element) = @_;
     my $parent = $element->parent;
     my @args = get_argument_for_operator( $element, 1 );
+    if ( not @args ) {
+        my $magic = PPI::Token::Symbol->new('_');
+        $element->insert_after($magic);
+        push @args, $magic;
+    }
     if ( $args[-1]->isa('PPI::Structure::Subscript') ) {
         $element->{content} = 'in';
         for my $child ( $args[-1]->children ) {
@@ -217,12 +222,20 @@ sub map_defined {
             @args = @args2;
         }
         $element->{content} = 'is';
-        $parent->__insert_after_child(
-            $args[-1],                    PPI::Token::Whitespace->new(q{ }),
-            $element->remove,             PPI::Token::Whitespace->new(q{ }),
-            PPI::Token::Word->new('not'), PPI::Token::Whitespace->new(q{ }),
-            PPI::Token::Word->new('None')
+        my $not        = $element->sprevious_sibling;
+        my @expression = (
+            PPI::Token::Whitespace->new(q{ }),
+            $element->remove, PPI::Token::Whitespace->new(q{ }),
         );
+        if ( $not eq 'not' or $not eq q{!} ) {
+            $not->delete;
+        }
+        else {
+            push @expression, PPI::Token::Word->new('not'),
+              PPI::Token::Whitespace->new(q{ });
+        }
+        push @expression, PPI::Token::Word->new('None');
+        $parent->__insert_after_child( $args[-1], @expression );
     }
     return;
 }
@@ -991,6 +1004,9 @@ sub map_word {
         }
         when (/^(?:my|our)$/xsm) {
             $element->delete;
+        }
+        when ('next') {
+            map_built_in($element);
         }
         when ('open') {
             my $list     = map_built_in($element);
