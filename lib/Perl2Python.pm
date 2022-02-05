@@ -398,7 +398,14 @@ sub map_element {
                 map_element($child);
             }
             catch {
-                warn "Error mapping: '$child' at line number $LINENUMBER\n"
+                my $mess =
+                  "Error mapping: '$child' at line number $LINENUMBER\n";
+                if ($DEBUG) {
+                    croak $mess;
+                }
+                else {
+                    warn $mess;
+                }
             };
         }
     }
