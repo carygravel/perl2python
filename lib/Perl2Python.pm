@@ -617,23 +617,24 @@ sub map_magic {
     # magic defined in regex capture, move capture out of condition
     # and use it to fetch group
     elsif ( $element =~ /^\$(\d+)$/xsm ) {
-        my $block = $element->parent;
+        my $compound = $element->parent;
 
         # split + regex capture group test otherwise falls over here
-        if ( not $block ) { return }
-        while ( not $block->isa('PPI::Structure::Block') ) {
-            $block = $block->parent;
+        if ( not $compound ) { return }
+
+        my $search;
+        while (
+            not $search = $compound->find_first(
+                sub {
+                    $_[1]->isa('PPI::Token::Word')
+                      and $_[1]->content eq 're.search';
+                }
+            )
+          )
+        {
+            $compound = $compound->parent;
         }
-        my $compound  = $block->parent;
-        my $parent    = $compound->parent;
-        my $condition = $block->sprevious_sibling;
-        my $search    = $condition->find_first(
-            sub {
-                $_[1]->isa('PPI::Token::Word')
-                  and $_[1]->content eq 're.search';
-            }
-        );
-        if ($search) {
+        if ( $search and $compound->isa('PPI::Statement::Compound') ) {
             my $list      = $search->snext_sibling;
             my $regex_var = PPI::Statement::Variable->new;
             $regex_var->add_element( PPI::Token::Symbol->new('regex') );
