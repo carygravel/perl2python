@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 53;
+use Test::More tests => 56;
 
 sub slurp {
     my ($file) = @_;
@@ -264,6 +264,39 @@ if   re.search(r"""[(]\s+".*" # comment
 EOS
 
 is map_document( \$script ), $expected, "regex flags";
+
+$script = <<'EOS';
+$data =~ s/in/out/s;
+EOS
+
+$expected = <<'EOS';
+import re
+data = re.sub(r"in",r"out",data,count=1,flags=re.DOTALL)
+EOS
+
+is map_document( \$script ), $expected, "regex replace";
+
+$script = <<'EOS';
+$data =~ s/in/out/g;
+EOS
+
+$expected = <<'EOS';
+import re
+data = re.sub(r"in",r"out",data)
+EOS
+
+is map_document( \$script ), $expected, "regex replace global flag";
+
+$script = <<'EOS';
+$data =~ s/$in/$out/g;
+EOS
+
+$expected = <<'EOS';
+import re
+data = re.sub(in,out,data)
+EOS
+
+is map_document( \$script ), $expected, "regex replace variables";
 
 #########################
 

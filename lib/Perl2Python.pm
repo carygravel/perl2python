@@ -382,6 +382,9 @@ sub map_element {
         when (/PPI::Token::Regexp::Match/xsm) {
             map_regex_match($element)
         }
+        when (/PPI::Token::Regexp::Substitute/xsm) {
+            map_regex_substitute($element);
+        }
         when (/PPI::Token::Symbol/xsm) {
             map_symbol($element);
         }
@@ -664,6 +667,25 @@ sub map_magic {
     return;
 }
 
+sub map_modifiers {
+    my ($element) = @_;
+    my @flags;
+    for my $modifier ( sort keys %{ $element->{modifiers} } ) {
+        if ( defined $REGEX_MODIFIERS{$modifier} ) {
+            if ( $REGEX_MODIFIERS{$modifier} ) {
+                push @flags, $REGEX_MODIFIERS{$modifier};
+            }
+        }
+        else {
+            carp "Unknown regex modifier '$modifier'";
+        }
+    }
+    if (@flags) {
+        return PPI::Token::Symbol->new( join q{|}, @flags );
+    }
+    return;
+}
+
 sub map_operator {
     my ($element) = @_;
     $element->{originally} = $element->{content};
@@ -904,24 +926,54 @@ sub map_regex_match {
         $list->add_element( $argument->remove );
     }
 
-    my @flags;
-    for my $modifier ( sort keys %{ $element->{modifiers} } ) {
-        if ( defined $REGEX_MODIFIERS{$modifier} ) {
-            if ( $REGEX_MODIFIERS{$modifier} ) {
-                push @flags, $REGEX_MODIFIERS{$modifier};
-            }
-        }
-        else {
-            carp "Unknown regex modifier '$modifier'";
-        }
-    }
-    if (@flags) {
+    my $flags = map_modifiers($element);
+    if ($flags) {
         $list->add_element( PPI::Token::Operator->new(q{,}) );
-        $list->add_element( PPI::Token::Symbol->new( join q{|}, @flags ) );
+        $list->add_element($flags);
     }
 
     # ensure we have import re
     add_import( $element, 're' );
+    $element->delete;
+    return;
+}
+
+sub map_regex_substitute {
+    my ($element) = @_;
+    add_import( $element, 're' );
+    my $operator = $element->sprevious_sibling;
+    if ( $operator ne q{=~} ) {
+        warn
+          "Unexpected operator '$operator'. Expected '=~' for substitution\n";
+        return;
+    }
+    $operator->{content} = q{=};
+    $element->insert_before( PPI::Token::Word->new('re.sub') );
+    my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+    $list->{finish} = PPI::Token::Structure->new(')');
+    $element->insert_after($list);
+    for my $i ( 0 .. 1 ) {
+        if ( $i > 0 ) {
+            $list->add_element( PPI::Token::Operator->new(q{,}) );
+        }
+        $list->add_element( regex2quote( $element, $i ) );
+    }
+    $list->add_element( PPI::Token::Operator->new(q{,}) );
+    my $target = $operator->sprevious_sibling;
+    $list->add_element( PPI::Token::Word->new( $target->{content} ) );
+    if ( defined $element->{modifiers}{g} ) {
+        delete $element->{modifiers}{g};
+    }
+    else {
+        $list->add_element( PPI::Token::Operator->new(q{,}) );
+        $list->add_element( PPI::Token::Word->new('count=1') );
+    }
+    my $flags = map_modifiers($element);
+    if ($flags) {
+        $list->add_element( PPI::Token::Operator->new(q{,}) );
+        $list->add_element( PPI::Token::Word->new('flags=') );
+        $list->add_element($flags);
+    }
     $element->delete;
     return;
 }
@@ -1401,19 +1453,21 @@ sub regex2search {
 }
 
 sub regex2quote {
-    my ($element) = @_;
+    my ( $element, $section ) = @_;
+    if ( not defined $section ) {
+        $section = 0;
+    }
+    my $content = substr $element->content,
+      $element->{sections}[$section]{position},
+      $element->{sections}[$section]{size};
+    if ( $content =~ /^\$(\w+)$/xsm ) {
+        return PPI::Token::Symbol->new($1);
+    }
     my $quote = q{"};
     if ( $element->{content} =~ /\n/xsm ) {
         $quote = q{"""};
     }
-    return PPI::Token::Quote::Double->new(
-        "r$quote"
-          . substr(
-            $element->content, $element->{sections}[0]{position},
-            $element->{sections}[0]{size}
-          )
-          . $quote
-    );
+    return PPI::Token::Quote::Double->new("r$quote$content$quote");
 }
 
 1;
