@@ -686,6 +686,30 @@ sub map_modifiers {
     return;
 }
 
+sub map_open {
+    my ($element) = @_;
+    my $list      = map_built_in($element);
+    my $previous  = $element->sprevious_sibling;
+    if ( $previous and $previous eq q{.} ) { return }    # not built-in
+    my $fh       = $list->find_first('PPI::Token::Symbol');
+    my $operator = $fh->snext_sibling;
+    if ( not $operator->isa('PPI::Token::Operator') ) {
+        croak "Expected operator, found '$operator'\n";
+    }
+    $operator->{content} = q{=};
+    $element->insert_before( $fh->remove );
+    $element->insert_before( $operator->remove );
+    my $mode = $list->find_first('PPI::Token::Quote');
+    if ( $mode eq "$mode->{separator}<$mode->{separator}" ) {
+        $mode->{content} = "mode=$mode->{separator}r$mode->{separator}";
+        $operator = $mode->snext_sibling;
+        my $fname = $operator->snext_sibling;
+        $fname->insert_after( $operator->remove );
+        $operator->insert_after( $mode->remove );
+    }
+    return;
+}
+
 sub map_operator {
     my ($element) = @_;
     $element->{originally} = $element->{content};
@@ -1069,23 +1093,7 @@ sub map_word {
             map_built_in($element);
         }
         when ('open') {
-            my $list     = map_built_in($element);
-            my $fh       = $list->find_first('PPI::Token::Symbol');
-            my $operator = $fh->snext_sibling;
-            if ( not $operator->isa('PPI::Token::Operator') ) {
-                croak "Expected operator, found '$operator'\n";
-            }
-            $operator->{content} = q{=};
-            $element->insert_before( $fh->remove );
-            $element->insert_before( $operator->remove );
-            my $mode = $list->find_first('PPI::Token::Quote');
-            if ( $mode eq "$mode->{separator}<$mode->{separator}" ) {
-                $mode->{content} = "mode=$mode->{separator}r$mode->{separator}";
-                $operator = $mode->snext_sibling;
-                my $fname = $operator->snext_sibling;
-                $fname->insert_after( $operator->remove );
-                $operator->insert_after( $mode->remove );
-            }
+            map_open($element);
         }
         when ('print') {
             my $list  = map_built_in($element);
