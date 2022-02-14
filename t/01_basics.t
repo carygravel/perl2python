@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 57;
+use Test::More tests => 58;
 
 sub slurp {
     my ($file) = @_;
@@ -479,6 +479,16 @@ EOS
 
 is map_document( \$script ), $expected, "list of ternaries + built-ins";
 
+$script = <<'EOS';
+my @results = split $var1, sprintf $hash{key}, $var2, $var3;
+EOS
+
+$expected = <<'EOS';
+results = split(var1,hash["key"] % (var2,var3))     
+EOS
+
+is map_document( \$script ), $expected, "sprintf with complex arguments";
+
 #########################
 
 $script = <<'EOS';
@@ -512,7 +522,7 @@ my $pdfobj = PDF::Builder->open( $options{info}{path} );
 EOS
 
 $expected = <<'EOS';
-pdfobj = PDF.Builder.open( options[info][path] )
+pdfobj = PDF.Builder.open( options["info"]["path"] )
 EOS
 
 is map_document( \$script ), $expected, "looks like a built-in but isn't";

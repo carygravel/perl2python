@@ -79,6 +79,8 @@ my $ANONYMOUS = 0;
 
 sub map_built_in {
     my ( $element, @args ) = @_;
+    my $statement = $element->parent;
+    if ( not $statement ) { return }
     my $list = $element->snext_sibling;
     if ( not $list or not $list->isa('PPI::Structure::List') ) {
         $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
@@ -96,9 +98,8 @@ sub map_built_in {
         my $child = $list->snext_sibling;
         if ( $child eq 'or' ) {
             $child->delete;
-            my $statement = $element->parent;
-            my $try       = PPI::Statement::Compound->new;
-            my $parent    = $statement->parent;
+            my $try    = PPI::Statement::Compound->new;
+            my $parent = $statement->parent;
             $parent->__insert_before_child( $statement, $try );
             $try->add_element( PPI::Token::Word->new('try') );
             my $block =
@@ -211,14 +212,18 @@ sub map_defined {
         );
     }
     else {
-        if ( $args[-1]->isa('PPI::Structure::List') ) {
+        my $list = $args[-1]->parent;
+        if ( $list ne $parent ) {
+            if ( $list->isa('PPI::Statement::Expression') ) {
+                $list = $list->parent;
+            }
             map_element( $args[-1] );
             my @args2;
-            for my $child ( $args[-1]->children ) {
+            for my $child (@args) {
                 push @args2, $child->remove;
             }
-            $parent->__insert_after_child( $args[-1], @args2 );
-            $args[-1]->delete;
+            $parent->__insert_after_child( $list, @args2 );
+            $list->delete;
             @args = @args2;
         }
         $element->{content} = 'is';
@@ -335,8 +340,7 @@ sub map_element {
             $element->{finish}->{content} = q{};
         }
         when (/PPI::Structure::Subscript/xsm) {
-            $element->{start}->{content}  = q{[};
-            $element->{finish}->{content} = q{]};
+            map_subscript($element);
         }
         when (/PPI::Token::Operator/xsm) {
             map_operator($element);
@@ -1002,6 +1006,23 @@ sub map_regex_substitute {
     return;
 }
 
+sub map_subscript {
+    my ($element) = @_;
+    $element->{start}->{content}  = q{[};
+    $element->{finish}->{content} = q{]};
+    my $expression = $element->schild(0);
+    if ($expression) {
+        my $key = $expression->schild(0);
+        if ( $key->isa('PPI::Token::Word') ) {
+            $key->insert_after(
+                PPI::Token::Quote::Double->new( q{"} . $key->{content} . q{"} )
+            );
+            $key->delete;
+        }
+    }
+    return;
+}
+
 sub map_symbol {
     my ($element) = @_;
     if (
@@ -1152,16 +1173,20 @@ sub map_word {
             }
         }
         when ('sprintf') {
-            my $list       = map_built_in($element);
+            my $list = map_built_in($element);
+            if ( not $list ) { return }
             my $expression = $list->schild(0);
             if ( not $expression->isa('PPI::Statement::Expression') ) {
                 $expression = $list;
             }
-            my $format   = $expression->schild(0);
-            my $operator = $expression->schild(1);
+            my @format   = get_argument_for_operator( $element, 1 );
+            my $operator = $format[-1]->snext_sibling;
             $operator->{content} = q{%};
+            for ( 0 .. $#format ) {
+                $format[$_] = $format[$_]->remove;
+            }
             my $parent = $element->parent;
-            $parent->__insert_before_child( $element, $format->remove,
+            $parent->__insert_before_child( $element, @format,
                 PPI::Token::Whitespace->new(q{ }),
                 $operator->remove, PPI::Token::Whitespace->new(q{ }) );
             $element->delete;
@@ -1365,6 +1390,20 @@ sub logger {
     return;
 }
 
+sub get_argument_from_list {
+    my ( $element, $n ) = @_;
+    my @sibling;
+    $element = $element->schild(0);
+    if ( $element->isa('PPI::Statement::Expression') ) {
+        $element = $element->schild(0);
+    }
+    while ( $element and $element ne q{,} ) {
+        push @sibling, $element;
+        $element = $element->snext_sibling;
+    }
+    return @sibling;
+}
+
 sub get_argument_for_operator {
     my ( $element, $n ) = @_;
 
@@ -1378,6 +1417,9 @@ sub get_argument_for_operator {
     }
     while ( $iter = $n == 0 ? $iter->sprevious_sibling : $iter->snext_sibling )
     {
+        if ( $n > 0 and $iter->isa('PPI::Structure::List') ) {
+            return get_argument_from_list( $iter, $n );
+        }
         if ( $element eq q{?} ) {
             if ( $iter eq q{?} ) {
                 push @sibling, get_argument_for_operator( $iter, 1 );
