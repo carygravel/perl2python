@@ -134,6 +134,31 @@ sub map_built_in {
     return $list;
 }
 
+sub map_cast {
+    my ($element) = @_;
+
+    # cast from array to scalar -> len()
+    my $operator = $element->sprevious_sibling;
+    if ( $element eq q{@} and defined $PRECENDENCE{$operator} ) {
+        my $parent = $element->parent;
+        my $block  = $element->snext_sibling;
+        my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $list->{finish} = PPI::Token::Structure->new(')');
+        $parent->__insert_after_child( $element,
+            PPI::Token::Word->new('len'), $list );
+        if ( not $block->isa('PPI::Structure::Block') ) {
+            croak "Expected block, found '$block'\n";
+        }
+        for my $child ( $block->children ) {
+            map_element($child);
+            $list->add_element( $child->remove );
+        }
+        $element->delete;
+        $block->delete;
+    }
+    return;
+}
+
 sub map_compound {
     my ($element) = @_;
     my $conditions = $element->find('PPI::Structure::Condition');
@@ -341,6 +366,9 @@ sub map_element {
         }
         when (/PPI::Structure::Subscript/xsm) {
             map_subscript($element);
+        }
+        when (/PPI::Token::Cast/xsm) {
+            map_cast($element);
         }
         when (/PPI::Token::Operator/xsm) {
             map_operator($element);
@@ -770,7 +798,13 @@ sub map_operator {
             $element->{content} = q{+=};
         }
         when (q{->}) {
-            $element->{content} = q{.};
+            my $next = $element->snext_sibling;
+            if ( $next->isa('PPI::Structure::Subscript') ) {
+                $element->delete;
+            }
+            else {
+                $element->{content} = q{.};
+            }
         }
         when (q{-s}) {
             add_import( $element, 'os' );
@@ -1417,9 +1451,6 @@ sub get_argument_for_operator {
     }
     while ( $iter = $n == 0 ? $iter->sprevious_sibling : $iter->snext_sibling )
     {
-        if ( $n > 0 and $iter->isa('PPI::Structure::List') ) {
-            return get_argument_from_list( $iter, $n );
-        }
         if ( $element eq q{?} ) {
             if ( $iter eq q{?} ) {
                 push @sibling, get_argument_for_operator( $iter, 1 );
@@ -1440,6 +1471,9 @@ sub get_argument_for_operator {
             }
         }
         else {
+            if ( $n > 0 and $iter->isa('PPI::Structure::List') ) {
+                return get_argument_from_list( $iter, $n );
+            }
             if ( $n > 0 and defined $BUILTINS{$iter} ) {
                 push @sibling, $iter, get_argument_for_operator( $iter, $n );
                 $iter = pop @sibling;
