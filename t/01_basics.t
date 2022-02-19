@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 59;
+use Test::More tests => 60;
 
 sub slurp {
     my ($file) = @_;
@@ -591,11 +591,22 @@ if ( defined $ahash{key} ) {do_something()}
 EOS
 
 $expected = <<'EOS';
-if  'key' in ahash :
+if  "key"  in ahash :
     do_something()
 EOS
 
-is map_document( \$script ), $expected, "map key defined";
+is map_document( \$script ), $expected, "map hash key defined";
+
+$script = <<'EOS';
+if ( not defined( $ahash->{key} ) ) {do_something()}
+EOS
+
+$expected = <<'EOS';
+if "key" not  in ahash :
+    do_something()
+EOS
+
+is map_document( \$script ), $expected, "map hash ref key not defined";
 
 #########################
 

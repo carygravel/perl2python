@@ -222,13 +222,32 @@ sub map_defined {
         $element->insert_after($magic);
         push @args, $magic;
     }
+    my $list = $args[-1]->parent;
+    if ( $list ne $parent ) {
+        if ( $list->isa('PPI::Statement::Expression') ) {
+            $list = $list->parent;
+        }
+        my @args2;
+        for my $child (@args) {
+            push @args2, $child->remove;
+        }
+        $parent->__insert_after_child( $list, @args2 );
+        $list->delete;
+        @args = @args2;
+    }
+    for my $child (@args) {
+        map_element($child);
+    }
+    my $not = $element->sprevious_sibling;
     if ( $args[-1]->isa('PPI::Structure::Subscript') ) {
         $element->{content} = 'in';
+        my $insert = $args[0];
+        if ( $not eq 'not' or $not eq q{!} ) {
+            $insert = $not;
+        }
         for my $child ( $args[-1]->children ) {
-            if ( not $child->isa('PPI::Token::Symbol') ) {
-                $child = PPI::Token::Quote::Single->new("'$child'");
-            }
-            $parent->__insert_before_child( $args[0], $child->remove, );
+            $parent->__insert_before_child( $insert, $child->remove,
+                PPI::Token::Whitespace->new(q{ }) );
         }
         $args[-1]->delete;
         $parent->__insert_before_child(
@@ -237,22 +256,7 @@ sub map_defined {
         );
     }
     else {
-        my $list = $args[-1]->parent;
-        if ( $list ne $parent ) {
-            if ( $list->isa('PPI::Statement::Expression') ) {
-                $list = $list->parent;
-            }
-            map_element( $args[-1] );
-            my @args2;
-            for my $child (@args) {
-                push @args2, $child->remove;
-            }
-            $parent->__insert_after_child( $list, @args2 );
-            $list->delete;
-            @args = @args2;
-        }
         $element->{content} = 'is';
-        my $not        = $element->sprevious_sibling;
         my @expression = (
             PPI::Token::Whitespace->new(q{ }),
             $element->remove, PPI::Token::Whitespace->new(q{ }),
