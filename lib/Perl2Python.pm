@@ -803,7 +803,7 @@ sub map_operator {
         }
         when (q{->}) {
             my $next = $element->snext_sibling;
-            if ( $next->isa('PPI::Structure::Subscript') ) {
+            if ( $next and $next->isa('PPI::Structure::Subscript') ) {
                 $element->delete;
             }
             else {
