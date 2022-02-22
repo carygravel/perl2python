@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 61;
+use Test::More tests => 62;
 
 sub slurp {
     my ($file) = @_;
@@ -502,6 +502,16 @@ results = split(var1,hash["key"] % (var2,var3))
 EOS
 
 is map_document( \$script ), $expected, "sprintf with complex arguments";
+
+$script = <<'EOS';
+sprintf __('i %d'), $i;
+EOS
+
+$expected = <<'EOS';
+__('i %d') % (i)  
+EOS
+
+is map_document( \$script ), $expected, "sprintf with complex arguments #2";
 
 #########################
 

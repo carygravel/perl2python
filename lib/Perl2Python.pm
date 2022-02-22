@@ -1475,12 +1475,17 @@ sub get_argument_for_operator {
             }
         }
         else {
-            if ( $n > 0 and $iter->isa('PPI::Structure::List') ) {
-                return get_argument_from_list( $iter, $n );
-            }
-            if ( $n > 0 and defined $BUILTINS{$iter} ) {
-                push @sibling, $iter, get_argument_for_operator( $iter, $n );
-                $iter = pop @sibling;
+            if ( $n > 0 ) {
+                if ( not @sibling
+                    and $iter->isa('PPI::Structure::List') )
+                {
+                    return get_argument_from_list( $iter, $n );
+                }
+                if ( defined $BUILTINS{$iter} ) {
+                    push @sibling, $iter,
+                      get_argument_for_operator( $iter, $n );
+                    $iter = pop @sibling;
+                }
             }
             if ( not has_higher_precedence_than( $element, $iter, $n ) ) {
                 last;
