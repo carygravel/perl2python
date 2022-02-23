@@ -139,9 +139,9 @@ sub map_cast {
 
     # cast from array to scalar -> len()
     my $operator = $element->sprevious_sibling;
+    my $parent   = $element->parent;
+    my $block    = $element->snext_sibling;
     if ( $element eq q{@} and defined $PRECENDENCE{$operator} ) {
-        my $parent = $element->parent;
-        my $block  = $element->snext_sibling;
         my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
         $list->{finish} = PPI::Token::Structure->new(')');
         $parent->__insert_after_child( $element,
@@ -155,6 +155,23 @@ sub map_cast {
         }
         $element->delete;
         $block->delete;
+    }
+
+    # cast from hashref to hash -> remove cast
+    elsif ( $element eq q{%} and $block->isa('PPI::Structure::Block') ) {
+        my $child = $block->schild(0);
+        if ( $child->isa('PPI::Statement') ) {
+            $child = $child->schild(0);
+        }
+        map_element($child);
+        $parent->__insert_after_child( $block, $child->remove );
+        $element->delete;
+        $block->delete;
+    }
+
+    # cast to ref -> remove cast
+    elsif ( $element eq q{\\} ) {
+        $element->delete;
     }
     return;
 }
@@ -449,6 +466,64 @@ sub map_element {
         }
     }
     indent_element($element);
+    return;
+}
+
+sub map_fat_comma {    # =>
+    my ($element)  = @_;
+    my $expression = $element->parent;
+    my $parent     = $expression->parent;
+    my @largument = get_argument_for_operator( $element, 0 );
+    my @rargument = get_argument_for_operator( $element, 1 );
+    if ( @largument == 1 and $largument[0]->isa('PPI::Token::Word') ) {
+        my $key = PPI::Token::Quote::Double->new( q{"} . $largument[0] . q{"} );
+        $expression->__insert_before_child( $largument[0], $key );
+        $largument[0]->delete;
+    }
+    if ( not $parent->isa('PPI::Structure::Constructor') ) {
+        my $prev = $parent->sprevious_sibling;
+        if ( $parent->isa('PPI::Structure::List')
+            and not $prev->isa('PPI::Token::Word') )
+        {
+            if ( $parent->{start} ne '{' ) {
+                $parent->{start}{content}  = '{';
+                $parent->{finish}{content} = '}';
+            }
+        }
+        else {
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('{') );
+            $list->{finish} = PPI::Token::Structure->new('}');
+            $parent->__insert_before_child( $expression, $list );
+            $list->add_element( $expression->remove );
+        }
+    }
+    if (    $rargument[0]->isa('PPI::Token::Word')
+        and $rargument[0] eq 'sub' )
+    {
+        my $name = sprintf 'anonymous_%02d', ++$ANONYMOUS;
+        $expression->__insert_before_child( $rargument[0],
+            PPI::Token::Word->new($name) );
+        my $sub = PPI::Statement::Sub->new;
+        $sub->add_element( $rargument[0]->remove );
+        $sub->add_element( PPI::Token::Whitespace->new(q{ }) );
+        $sub->add_element( PPI::Token::Word->new($name) );
+        $sub->add_element( $rargument[1]->remove );
+        my $document    = $expression;
+        my $subdocument = $element;
+
+        while ( not $document->isa('PPI::Document') ) {
+            $subdocument = $document;
+            $document    = $document->parent;
+        }
+        $document->__insert_before_child( $subdocument, $sub );
+        $document->__insert_before_child( $subdocument,
+            PPI::Token::Whitespace->new("\n") );
+        $document->__insert_before_child( $subdocument,
+            PPI::Token::Whitespace->new("\n") );
+        map_element($sub);
+    }
+    $element->{content} = q{:};
     return;
 }
 
@@ -828,49 +903,7 @@ sub map_operator {
             $element->{content} = q{not};
         }
         when (q{=>}) {
-            my $expression = $element->parent;
-            my $parent     = $expression->parent;
-            my @largument  = get_argument_for_operator( $element, 0 );
-            my @rargument  = get_argument_for_operator( $element, 1 );
-            if ( @largument == 1 and $largument[0]->isa('PPI::Token::Word') ) {
-                my $key =
-                  PPI::Token::Quote::Double->new( q{"} . $largument[0] . q{"} );
-                $expression->__insert_before_child( $largument[0], $key );
-                $largument[0]->delete;
-            }
-            if ( not $parent->isa('PPI::Structure::Constructor') ) {
-                my $list =
-                  PPI::Structure::List->new( PPI::Token::Structure->new('{') );
-                $list->{finish} = PPI::Token::Structure->new('}');
-                $parent->__insert_before_child( $expression, $list );
-                $list->add_element( $expression->remove );
-            }
-            if (    $rargument[0]->isa('PPI::Token::Word')
-                and $rargument[0] eq 'sub' )
-            {
-                my $name = sprintf 'anonymous_%02d', ++$ANONYMOUS;
-                $expression->__insert_before_child( $rargument[0],
-                    PPI::Token::Word->new($name) );
-                my $sub = PPI::Statement::Sub->new;
-                $sub->add_element( $rargument[0]->remove );
-                $sub->add_element( PPI::Token::Whitespace->new(q{ }) );
-                $sub->add_element( PPI::Token::Word->new($name) );
-                $sub->add_element( $rargument[1]->remove );
-                my $document    = $expression;
-                my $subdocument = $element;
-
-                while ( not $document->isa('PPI::Document') ) {
-                    $subdocument = $document;
-                    $document    = $document->parent;
-                }
-                $document->__insert_before_child( $subdocument, $sub );
-                $document->__insert_before_child( $subdocument,
-                    PPI::Token::Whitespace->new("\n") );
-                $document->__insert_before_child( $subdocument,
-                    PPI::Token::Whitespace->new("\n") );
-                map_element($sub);
-            }
-            $element->{content} = q{:};
+            map_fat_comma($element);
         }
         when ('eq') {
             $element->{content} = q{==};
@@ -1476,8 +1509,9 @@ sub get_argument_for_operator {
         }
         else {
             if ( $n > 0 ) {
-                if ( not @sibling
-                    and $iter->isa('PPI::Structure::List') )
+                if (    not @sibling
+                    and $iter->isa('PPI::Structure::List')
+                    and defined $BUILTINS{$element} )
                 {
                     return get_argument_from_list( $iter, $n );
                 }

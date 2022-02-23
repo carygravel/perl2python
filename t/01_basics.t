@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 62;
+use Test::More tests => 63;
 
 sub slurp {
     my ($file) = @_;
@@ -492,6 +492,16 @@ while    ( i <= e and i < len( self["data"] ) ) if step>0  else i >= e :
 EOS
 
 is map_document( \$script ), $expected, "parens in ternary";
+
+$script = <<'EOS';
+my %ahash = ( sentinel => \$sentinel, ( $data ? %{$data} : () ) );
+EOS
+
+$expected = <<'EOS';
+ahash = { "sentinel" : sentinel, (  data if data  else () ) }
+EOS
+
+is map_document( \$script ), $expected, "various casts";
 
 $script = <<'EOS';
 my @results = split $var1, sprintf $hash{key}, $var2, $var3;
