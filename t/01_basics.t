@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 63;
+use Test::More tests => 64;
 
 sub slurp {
     my ($file) = @_;
@@ -876,6 +876,16 @@ EOS
 is map_document( \$script ), $expected, "map hash->dict";
 
 $script = <<'EOS';
+add_column_type('hstring', type => 'Glib::Scalar', attr => 'hidden');
+EOS
+
+$expected = <<'EOS';
+add_column_type('hstring', type = 'Glib::Scalar', attr = 'hidden')
+EOS
+
+is map_document( \$script ), $expected, "hash -> named arguments";
+
+$script = <<'EOS';
 function_with_callback( callback => sub { return "result" } );
 EOS
 
@@ -883,7 +893,7 @@ $expected = <<'EOS';
 def anonymous_01():
     return "result"
 
-function_with_callback( {"callback" : anonymous_01 } )
+function_with_callback( callback = anonymous_01  )
 EOS
 
 is map_document( \$script ), $expected, "name anonymous subs";
@@ -896,7 +906,7 @@ $expected = <<'EOS';
 def anonymous_02(*argv):
     return update_something(*argv)
 
-function_with_callback( {"callback" : anonymous_02 } )
+function_with_callback( callback = anonymous_02  )
 EOS
 
 is map_document( \$script ), $expected, "magic in anonymous subs";
@@ -924,7 +934,7 @@ def anonymous_03(line):
 
 
 cmd(
-    {"callback"     : anonymous_03 }
+    callback     = anonymous_03 
 )
 EOS
 

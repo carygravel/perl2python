@@ -473,15 +473,51 @@ sub map_fat_comma {    # =>
     my ($element)  = @_;
     my $expression = $element->parent;
     my $parent     = $expression->parent;
+    my $prev       = $parent->sprevious_sibling;
     my @largument = get_argument_for_operator( $element, 0 );
     my @rargument = get_argument_for_operator( $element, 1 );
+
+    # function call - map -> name arguments
+    if (    $expression->isa('PPI::Statement::Expression')
+        and $parent->isa('PPI::Structure::List')
+        and $prev->isa('PPI::Token::Word') )
+    {
+        $element->{content} = q{=};
+
+        # anonymous sub
+        if (    $rargument[0]->isa('PPI::Token::Word')
+            and $rargument[0] eq 'sub' )
+        {
+            my $name = sprintf 'anonymous_%02d', ++$ANONYMOUS;
+            $expression->__insert_before_child( $rargument[0],
+                PPI::Token::Word->new($name) );
+            my $sub = PPI::Statement::Sub->new;
+            $sub->add_element( $rargument[0]->remove );
+            $sub->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $sub->add_element( PPI::Token::Word->new($name) );
+            $sub->add_element( $rargument[1]->remove );
+            my $document    = $expression;
+            my $subdocument = $element;
+
+            while ( not $document->isa('PPI::Document') ) {
+                $subdocument = $document;
+                $document    = $document->parent;
+            }
+            $document->__insert_before_child( $subdocument, $sub );
+            $document->__insert_before_child( $subdocument,
+                PPI::Token::Whitespace->new("\n") );
+            $document->__insert_before_child( $subdocument,
+                PPI::Token::Whitespace->new("\n") );
+            map_element($sub);
+        }
+        return;
+    }
     if ( @largument == 1 and $largument[0]->isa('PPI::Token::Word') ) {
         my $key = PPI::Token::Quote::Double->new( q{"} . $largument[0] . q{"} );
         $expression->__insert_before_child( $largument[0], $key );
         $largument[0]->delete;
     }
     if ( not $parent->isa('PPI::Structure::Constructor') ) {
-        my $prev = $parent->sprevious_sibling;
         if ( $parent->isa('PPI::Structure::List')
             and not $prev->isa('PPI::Token::Word') )
         {
@@ -497,31 +533,6 @@ sub map_fat_comma {    # =>
             $parent->__insert_before_child( $expression, $list );
             $list->add_element( $expression->remove );
         }
-    }
-    if (    $rargument[0]->isa('PPI::Token::Word')
-        and $rargument[0] eq 'sub' )
-    {
-        my $name = sprintf 'anonymous_%02d', ++$ANONYMOUS;
-        $expression->__insert_before_child( $rargument[0],
-            PPI::Token::Word->new($name) );
-        my $sub = PPI::Statement::Sub->new;
-        $sub->add_element( $rargument[0]->remove );
-        $sub->add_element( PPI::Token::Whitespace->new(q{ }) );
-        $sub->add_element( PPI::Token::Word->new($name) );
-        $sub->add_element( $rargument[1]->remove );
-        my $document    = $expression;
-        my $subdocument = $element;
-
-        while ( not $document->isa('PPI::Document') ) {
-            $subdocument = $document;
-            $document    = $document->parent;
-        }
-        $document->__insert_before_child( $subdocument, $sub );
-        $document->__insert_before_child( $subdocument,
-            PPI::Token::Whitespace->new("\n") );
-        $document->__insert_before_child( $subdocument,
-            PPI::Token::Whitespace->new("\n") );
-        map_element($sub);
     }
     $element->{content} = q{:};
     return;
