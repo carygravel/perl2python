@@ -478,7 +478,7 @@ sub map_fat_comma {    # =>
     my @rargument = get_argument_for_operator( $element, 1 );
 
     # function call - map -> name arguments
-    if (    $expression->isa('PPI::Statement::Expression')
+    if (    $expression->isa('PPI::Statement')
         and $parent->isa('PPI::Structure::List')
         and $prev->isa('PPI::Token::Word') )
     {
