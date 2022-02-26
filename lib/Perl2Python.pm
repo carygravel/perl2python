@@ -141,32 +141,31 @@ sub map_cast {
     my $operator = $element->sprevious_sibling;
     my $parent   = $element->parent;
     my $block    = $element->snext_sibling;
-    if ( $element eq q{@} and defined $PRECENDENCE{$operator} ) {
-        my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-        $list->{finish} = PPI::Token::Structure->new(')');
-        $parent->__insert_after_child( $element,
-            PPI::Token::Word->new('len'), $list );
-        if ( not $block->isa('PPI::Structure::Block') ) {
-            croak "Expected block, found '$block'\n";
+    if ( $element eq q{@} ) {
+        if ( not $operator ) {
+            remove_cast( $element, $block, $parent );
         }
-        for my $child ( $block->children ) {
-            map_element($child);
-            $list->add_element( $child->remove );
+        elsif ( defined $PRECENDENCE{$operator} ) {
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list->{finish} = PPI::Token::Structure->new(')');
+            $parent->__insert_after_child( $element,
+                PPI::Token::Word->new('len'), $list );
+            if ( not $block->isa('PPI::Structure::Block') ) {
+                croak "Expected block, found '$block'\n";
+            }
+            for my $child ( $block->children ) {
+                map_element($child);
+                $list->add_element( $child->remove );
+            }
+            $element->delete;
+            $block->delete;
         }
-        $element->delete;
-        $block->delete;
     }
 
     # cast from hashref to hash -> remove cast
     elsif ( $element eq q{%} and $block->isa('PPI::Structure::Block') ) {
-        my $child = $block->schild(0);
-        if ( $child->isa('PPI::Statement') ) {
-            $child = $child->schild(0);
-        }
-        map_element($child);
-        $parent->__insert_after_child( $block, $child->remove );
-        $element->delete;
-        $block->delete;
+        remove_cast( $element, $block, $parent );
     }
 
     # cast to ref -> remove cast
@@ -1052,10 +1051,20 @@ sub map_regex_substitute {
     my ($element) = @_;
     add_import( $element, 're' );
     my $operator = $element->sprevious_sibling;
-    if ( $operator ne q{=~} ) {
+    my $target;
+    if ( not $operator ) {
+        $operator = PPI::Token::Operator->new(q{=~});
+        $element->insert_before($operator);
+        $target = PPI::Token::Symbol->new('_');
+        $operator->insert_before($target);
+    }
+    elsif ( $operator ne q{=~} ) {
         warn
           "Unexpected operator '$operator'. Expected '=~' for substitution\n";
         return;
+    }
+    else {
+        $target = $operator->sprevious_sibling;
     }
     $operator->{content} = q{=};
     $element->insert_before( PPI::Token::Word->new('re.sub') );
@@ -1069,7 +1078,6 @@ sub map_regex_substitute {
         $list->add_element( regex2quote( $element, $i ) );
     }
     $list->add_element( PPI::Token::Operator->new(q{,}) );
-    my $target = $operator->sprevious_sibling;
     $list->add_element( PPI::Token::Word->new( $target->{content} ) );
     if ( defined $element->{modifiers}{g} ) {
         delete $element->{modifiers}{g};
@@ -1606,6 +1614,19 @@ sub regex2quote {
         $quote = q{"""};
     }
     return PPI::Token::Quote::Double->new("r$quote$content$quote");
+}
+
+sub remove_cast {
+    my ( $element, $block, $parent ) = @_;
+    my $child = $block->schild(0);
+    if ( $child->isa('PPI::Statement') ) {
+        $child = $child->schild(0);
+    }
+    map_element($child);
+    $parent->__insert_after_child( $block, $child->remove );
+    $element->delete;
+    $block->delete;
+    return;
 }
 
 1;

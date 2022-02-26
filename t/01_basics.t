@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 65;
+use Test::More tests => 66;
 
 sub slurp {
     my ($file) = @_;
@@ -297,6 +297,21 @@ data = re.sub(in,out,data)
 EOS
 
 is map_document( \$script ), $expected, "regex replace variables";
+
+$script = <<'EOS';
+for ( @{$array} ) {
+    s{in}{out}g;
+}
+EOS
+
+$expected = <<'EOS';
+import re
+for _ in  array  :
+    _=re.sub(r"in",r"out",_)
+
+EOS
+
+is map_document( \$script ), $expected, "regex replace magic variables";
 
 #########################
 
