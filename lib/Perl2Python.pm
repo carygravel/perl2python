@@ -77,6 +77,36 @@ my %REGEX_MODIFIERS = (
 
 my $ANONYMOUS = 0;
 
+sub add_anonymous_method {
+    my ( $element, $block, @args ) = @_;
+    my $name = sprintf 'anonymous_%02d', ++$ANONYMOUS;
+    my $sub  = PPI::Statement::Sub->new;
+    $sub->add_element( PPI::Token::Word->new('sub') );
+    $sub->add_element( PPI::Token::Whitespace->new(q{ }) );
+    $sub->add_element( PPI::Token::Word->new($name) );
+    $sub->add_element($block);
+    my $document    = $element;
+    my $subdocument = $element;
+
+    while ( not $document->isa('PPI::Document') ) {
+        $subdocument = $document;
+        $document    = $document->parent;
+    }
+    $document->__insert_before_child( $subdocument, $sub );
+    $document->__insert_before_child( $subdocument,
+        PPI::Token::Whitespace->new("\n") );
+    $document->__insert_before_child( $subdocument,
+        PPI::Token::Whitespace->new("\n") );
+    map_element($sub);
+    if (@args) {
+        my $list = $block->sprevious_sibling;
+        for my $child (@args) {
+            $list->add_element($child);
+        }
+    }
+    return $name;
+}
+
 sub map_built_in {
     my ( $element, @args ) = @_;
     my $statement = $element->parent;
@@ -271,21 +301,28 @@ sub map_defined {
             $element->remove, PPI::Token::Whitespace->new(q{ }),
         );
     }
+
+    # pack in parens to ensure we don't change the precendence
     else {
+        my $parens =
+          PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $parens->{finish} = PPI::Token::Structure->new(')');
+        $parent->__insert_after_child( $args[-1], $parens );
+        for my $child (@args) {
+            $parens->add_element( $child->remove );
+        }
+        $parens->add_element( PPI::Token::Whitespace->new(q{ }) );
         $element->{content} = 'is';
-        my @expression = (
-            PPI::Token::Whitespace->new(q{ }),
-            $element->remove, PPI::Token::Whitespace->new(q{ }),
-        );
+        $parens->add_element( $element->remove );
+        $parens->add_element( PPI::Token::Whitespace->new(q{ }) );
         if ( $not eq 'not' or $not eq q{!} ) {
             $not->delete;
         }
         else {
-            push @expression, PPI::Token::Word->new('not'),
-              PPI::Token::Whitespace->new(q{ });
+            $parens->add_element( PPI::Token::Word->new('not') );
+            $parens->add_element( PPI::Token::Whitespace->new(q{ }) );
         }
-        push @expression, PPI::Token::Word->new('None');
-        $parent->__insert_after_child( $args[-1], @expression );
+        $parens->add_element( PPI::Token::Word->new('None') );
     }
     return;
 }
@@ -487,27 +524,10 @@ sub map_fat_comma {    # =>
         if (    $rargument[0]->isa('PPI::Token::Word')
             and $rargument[0] eq 'sub' )
         {
-            my $name = sprintf 'anonymous_%02d', ++$ANONYMOUS;
+            my $name = add_anonymous_method( $element, $rargument[1]->remove );
             $expression->__insert_before_child( $rargument[0],
                 PPI::Token::Word->new($name) );
-            my $sub = PPI::Statement::Sub->new;
-            $sub->add_element( $rargument[0]->remove );
-            $sub->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $sub->add_element( PPI::Token::Word->new($name) );
-            $sub->add_element( $rargument[1]->remove );
-            my $document    = $expression;
-            my $subdocument = $element;
-
-            while ( not $document->isa('PPI::Document') ) {
-                $subdocument = $document;
-                $document    = $document->parent;
-            }
-            $document->__insert_before_child( $subdocument, $sub );
-            $document->__insert_before_child( $subdocument,
-                PPI::Token::Whitespace->new("\n") );
-            $document->__insert_before_child( $subdocument,
-                PPI::Token::Whitespace->new("\n") );
-            map_element($sub);
+            $rargument[0]->delete;
         }
         return;
     }
@@ -1071,11 +1091,39 @@ sub map_regex_substitute {
     my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
     $list->{finish} = PPI::Token::Structure->new(')');
     $element->insert_after($list);
-    for my $i ( 0 .. 1 ) {
-        if ( $i > 0 ) {
-            $list->add_element( PPI::Token::Operator->new(q{,}) );
+    $list->add_element( regex2quote( $element, 0 ) );
+    $list->add_element( PPI::Token::Operator->new(q{,}) );
+
+    if ( defined $element->{modifiers}{e} ) {
+        my $block =
+          PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+        $block->{finish} = PPI::Token::Structure->new('}');
+        my $section = 'return ' . substr $element->content,
+          $element->{sections}[1]{position}, $element->{sections}[1]{size};
+        my $subdocument = PPI::Document->new( \$section );
+
+        my $magic = $subdocument->find('PPI::Token::Magic');
+        if ($magic) {
+            for my $child ( @{$magic} ) {
+                if ( $child =~ /^\$(\d+)$/xsm ) {
+                    my $parent        = $child->parent;
+                    my $magicstring   = "\$match{$1}";
+                    my $magicdocument = PPI::Document->new( \$magicstring );
+                    $parent->__insert_before_child( $child,
+                        $magicdocument->schild(0)->remove );
+                    $child->delete;
+                }
+            }
         }
-        $list->add_element( regex2quote( $element, $i ) );
+
+        $block->add_element( $subdocument->schild(0)->remove );
+        my $name = add_anonymous_method( $element, $block,
+            PPI::Token::Word->new('match') );
+        $list->add_element( PPI::Token::Word->new($name) );
+        delete $element->{modifiers}{e};
+    }
+    else {
+        $list->add_element( regex2quote( $element, 1 ) );
     }
     $list->add_element( PPI::Token::Operator->new(q{,}) );
     $list->add_element( PPI::Token::Word->new( $target->{content} ) );

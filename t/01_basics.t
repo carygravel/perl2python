@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 66;
+use Test::More tests => 67;
 
 sub slurp {
     my ($file) = @_;
@@ -170,7 +170,7 @@ EOS
 $expected = <<'EOS';
 import re
 regex=re.search(r"(\d+)\n",line)
-if  line is not None and   regex :
+if  (line is not None) and   regex :
     maxval = regex.group(1)
 
 EOS
@@ -312,6 +312,20 @@ for _ in  array  :
 EOS
 
 is map_document( \$script ), $expected, "regex replace magic variables";
+
+$script = <<'EOS';
+$data =~ s{\\(?:([0-7]{1,3})|(.))} {defined($1) ? chr(oct($1)) : $2}eg;
+EOS
+
+$expected = <<'EOS';
+import re
+def anonymous_01(match):
+    return       chr(oct(match[1])) if (match[1] is not None)  else     match[2]
+
+data = re.sub(r"\\(?:([0-7]{1,3})|(.))",anonymous_01,data)
+EOS
+
+is map_document( \$script ), $expected, "substitution with expression";
 
 #########################
 
@@ -818,7 +832,7 @@ EOS
 $expected = <<'EOS';
 import re
 for _ in ["pbm","pgm","ppm"] :
-    if something is not None and re.search(r"(\w)",_) :
+    if (something is not None) and re.search(r"(\w)",_) :
         print(_) 
 
 
@@ -836,7 +850,7 @@ EOS
 
 $expected = <<'EOS';
 for _ in my_list :
-    if  _ is None :
+    if  (_ is None) :
         next()
 
 
@@ -916,10 +930,10 @@ function_with_callback( callback => sub { return "result" } );
 EOS
 
 $expected = <<'EOS';
-def anonymous_01():
+def anonymous_02():
     return "result"
 
-function_with_callback( callback = anonymous_01  )
+function_with_callback( callback = anonymous_02  )
 EOS
 
 is map_document( \$script ), $expected, "name anonymous subs";
@@ -929,10 +943,10 @@ function_with_callback( callback => sub { return update_something(@_) } );
 EOS
 
 $expected = <<'EOS';
-def anonymous_02(*argv):
+def anonymous_03(*argv):
     return update_something(*argv)
 
-function_with_callback( callback = anonymous_02  )
+function_with_callback( callback = anonymous_03  )
 EOS
 
 is map_document( \$script ), $expected, "magic in anonymous subs";
@@ -951,7 +965,7 @@ cmd(
 EOS
 
 $expected = <<'EOS';
-def anonymous_03(line):
+def anonymous_04(line):
         
         
     
@@ -960,7 +974,7 @@ def anonymous_03(line):
 
 
 cmd(
-    callback     = anonymous_03 
+    callback     = anonymous_04 
 )
 EOS
 
