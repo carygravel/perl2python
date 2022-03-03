@@ -1015,7 +1015,14 @@ sub map_regex_match {
     # turn into re.search(regex, string, flags)
     my $expression = $element->parent;
     if ( not $expression ) { return }
-    $expression->add_element( PPI::Token::Word->new('re.search') );
+    my $method;
+    if ( defined $element->{modifiers}{g} ) {
+        $method = 'findall';
+    }
+    else {
+        $method = 'search';
+    }
+    $expression->add_element( PPI::Token::Word->new("re.$method") );
     my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
     $list->{finish} = PPI::Token::Structure->new(')');
     $expression->add_element($list);
@@ -1037,6 +1044,7 @@ sub map_regex_match {
             croak "Argument for operator '$operator' not found\n";
         }
     }
+    my $expression_operator = $argument[0]->sprevious_sibling;
     $list->add_element( regex2quote($element) );
 
     if ( $operator eq q{=~} ) {
@@ -1055,6 +1063,27 @@ sub map_regex_match {
         $list->add_element( $argument->remove );
     }
 
+    # cast () = -> len()
+    if ( defined $element->{modifiers}{g} ) {
+        if ( $expression_operator eq q{=} ) {
+            my @expression_arg =
+              get_argument_for_operator( $expression_operator, 0 );
+            if ( $expression_arg[0] =~ /[(]\s*[)]/xsm ) {
+                my $lenlist =
+                  PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+                $lenlist->{finish} = PPI::Token::Structure->new(')');
+                $expression_arg[0]
+                  ->insert_before( PPI::Token::Word->new('len') );
+                $expression_arg[0]->insert_before($lenlist);
+                while ( my $child = $expression_operator->snext_sibling ) {
+                    $lenlist->add_element( $child->remove );
+                }
+                $expression_operator->delete;
+                $expression_arg[0]->delete;
+            }
+        }
+        delete $element->{modifiers}{g};
+    }
     my $flags = map_modifiers($element);
     if ($flags) {
         $list->add_element( PPI::Token::Operator->new(q{,}) );

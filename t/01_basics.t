@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 67;
+use Test::More tests => 68;
 
 sub slurp {
     my ($file) = @_;
@@ -857,6 +857,17 @@ for _ in my_list :
 EOS
 
 is map_document( \$script ), $expected, "defined + magic";
+
+$script = <<'EOS';
+$count = () = $data =~ /\w/g;
+EOS
+
+$expected = <<'EOS';
+import re
+count = len(re.findall(r"\w",data))    
+EOS
+
+is map_document( \$script ), $expected, "regex count matches";
 
 #########################
 
