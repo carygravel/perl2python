@@ -479,26 +479,8 @@ sub map_element {
             map_operator($element);
         }
 
-        # deal with $line = <$fh>
         when (/PPI::Token::QuoteLike::Readline/xsm) {
-            if ( $element =~ /<\$(\w+)>/xsm ) {
-                my $parent = $element->parent;
-
-                # on a separate line, so map to "line = fh.readline()"
-                if ( $parent->isa('PPI::Statement::Variable') ) {
-                    $parent->__insert_before_child( $element,
-                        PPI::Token::Symbol->new("$1.readline()") );
-                    $element->delete;
-                }
-
-                # we are in a loop, so map to "for line in fh":
-                else {
-                    $element->{content} = $1;
-                }
-            }
-            else {
-                croak "Error parsing '$element\n";
-            }
+            map_readline($element);
         }
         when (/PPI::Token::QuoteLike::Words/xsm) {
             my $list =
@@ -1054,6 +1036,60 @@ sub map_path {
     }
     return File::Spec->catpath( $volume, File::Spec->catdir(@outdirs),
         $outfile );
+}
+
+sub map_readline {
+    my ($element) = @_;
+    my $parent = $element->parent;
+
+    # glob
+    if ( $element =~ /<.*[*].*>/xsm ) {
+        my $prev_op = $element->sprevious_sibling;
+        my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $list->{finish} = PPI::Token::Structure->new(')');
+        $parent->__insert_before_child( $element,
+            PPI::Token::Word->new('glob.glob'), $list );
+        my $string = substr $element->content,
+          $element->{sections}[0]{position},
+          $element->{sections}[0]{size};
+        my $quote = q{"};
+        if ( $string =~ s/\$(\w+)/{$1}/xsm ) {
+            $quote = 'f"';
+        }
+        $list->add_element(
+            PPI::Token::Quote::Double->new( $quote . $string . q{"} ) );
+        if ( $prev_op and $prev_op eq q{,} ) {
+            my $prev_arg = $prev_op->sprevious_sibling;
+            my $arg_list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('[') );
+            $arg_list->{finish} = PPI::Token::Structure->new(']');
+            $prev_arg->insert_before($arg_list);
+            $arg_list->add_element( $prev_arg->remove );
+            $prev_op->{content} = q{+};
+        }
+        add_import( $element, 'glob' );
+        $element->delete;
+    }
+
+    # $line = <$fh>
+    elsif ( $element =~ /<\$(\w+)>/xsm ) {
+
+        # on a separate line, so map to "line = fh.readline()"
+        if ( $parent->isa('PPI::Statement::Variable') ) {
+            $parent->__insert_before_child( $element,
+                PPI::Token::Symbol->new("$1.readline()") );
+            $element->delete;
+        }
+
+        # we are in a loop, so map to "for line in fh":
+        else {
+            $element->{content} = $1;
+        }
+    }
+    else {
+        croak "Error parsing '$element\n";
+    }
+    return;
 }
 
 sub map_regex_match {

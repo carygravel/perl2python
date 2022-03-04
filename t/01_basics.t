@@ -604,6 +604,18 @@ EOS
 
 is map_document( \$script ), $expected, "map while reading a line at a time";
 
+$script = <<'EOS';
+unlink $filename, <$dir/*>;
+EOS
+
+$expected = <<'EOS';
+import glob
+import os
+os.remove([filename]+glob.glob(f"{dir}/*"))  
+EOS
+
+is map_document( \$script ), $expected, "glob + formatted string";
+
 #########################
 
 $script = <<'EOS';
