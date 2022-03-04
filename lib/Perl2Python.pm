@@ -1147,7 +1147,7 @@ sub map_regex_match {
         $list->add_element( $argument->remove );
     }
 
-    # cast () = -> len()
+    # map () = -> len()
     if ( defined $element->{modifiers}{g} ) {
         if ( $expression_operator eq q{=} ) {
             my @expression_arg =
