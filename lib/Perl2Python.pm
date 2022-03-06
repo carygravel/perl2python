@@ -349,6 +349,54 @@ sub map_directory {
     return;
 }
 
+sub map_do {
+    my ($element) = @_;
+
+    # map common slurp one-liner
+    my $block    = $element->snext_sibling;
+    my $operator = $element->sprevious_sibling;
+    my $local    = 'local\s*[(]\s*\@ARGV,\s*\$/\s*[)]';
+    if (    $block =~ /[{]\s*$local\s*=\s*.+\s*;\s*<>\s*[}]/xsm
+        and $operator eq q{=} )
+    {
+        my $argument = $operator->sprevious_sibling;
+        my $op2      = $block->find_first(
+            sub {
+                $_[1]->isa('PPI::Token::Operator')
+                  and $_[1]->content eq q{=};
+            }
+        );
+        my $file = $op2->snext_sibling;
+        my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $list->{finish} = PPI::Token::Structure->new(')');
+        $list->add_element( $file->remove );
+        map_element($file);
+        $list->add_element( PPI::Token::Operator->new(q{,}) );
+        $list->add_element( PPI::Token::Quote::Double->new('"r"') );
+        $argument->insert_before( PPI::Token::Word->new('with') );
+        $argument->insert_before( PPI::Token::Whitespace->new(q{ }) );
+        $argument->insert_before( PPI::Token::Word->new('open') );
+        $argument->insert_before($list);
+        $argument->insert_before( PPI::Token::Whitespace->new(q{ }) );
+        $argument->insert_before( PPI::Token::Word->new('as') );
+        $argument->insert_before( PPI::Token::Whitespace->new(q{ }) );
+        $element->{content} = 'fd';
+
+        for my $child ( $block->children ) {
+            $child->delete;
+        }
+
+        # wrap the contents of the block in a PPI::Statement so that is
+        # correctly indented
+        my $statement = PPI::Statement->new;
+        $block->add_element($statement);
+        $statement->add_element( $argument->remove );
+        $statement->add_element( $operator->remove );
+        $statement->add_element( PPI::Token::Word->new('fd.read()') );
+    }
+    return;
+}
+
 sub map_document {
     my ($string) = @_;
     my $doc = PPI::Document->new($string);
@@ -1242,6 +1290,9 @@ sub map_word {
         }
         when ('defined') {
             map_defined($element);
+        }
+        when ('do') {
+            map_do($element);
         }
         when ('elsif') {
             $element->{content} = 'elif';
