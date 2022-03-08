@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 69;
+use Test::More tests => 71;
 
 sub slurp {
     my ($file) = @_;
@@ -39,6 +39,8 @@ system("perl bin/perl2python $in");
 is slurp($out), $expected, "Hello world";
 unlink $in, $out;
 
+#########################
+
 $script = <<'EOS';
 use Test::More tests => 14;
 is $result, $expected, "comment";
@@ -57,6 +59,18 @@ close $fh;
 system("perl bin/perl2python $in");
 is slurp($out), $expected, "Basic test";
 unlink $in, $out;
+
+$script = <<'EOS';
+if ( not eval { require MyPackage; } ) {
+    plan( skip_all => "MyPackage required to run tests" );
+}
+EOS
+
+$expected = <<'EOS';
+pytest.importorskip('MyPackage')
+EOS
+
+is map_document( \$script ), $expected, "conditionally skip tests";
 
 #########################
 

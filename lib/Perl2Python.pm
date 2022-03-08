@@ -740,7 +740,29 @@ sub map_include {
     }
     $module =~ s/::/./gsm;
     my $import = $element->schild(0);
-    if ( $import ne 'use' ) {
+
+    # map if ( not eval { require Package; } ) -> pytest.importorskip('Package')
+    if ( $import eq 'require' ) {
+        my $block      = $element->parent;
+        my $expression = $block->parent;
+        my $compound   = $expression->parent;
+        if (
+            $expression =~ /not\s+eval\s*[{:]\s*require\s+/xsm
+            and $compound->find_first(
+                sub {
+                    $_[1]->isa('PPI::Token::Word')
+                      and $_[1]->content eq 'skip_all';
+                }
+            )
+          )
+        {
+            $compound->parent->__insert_before_child( $compound,
+                PPI::Token::Word->new("pytest.importorskip('$module')") );
+            $compound->delete;
+            return;
+        }
+    }
+    elsif ( $import ne 'use' ) {
         croak "Unrecognised include $element\n";
     }
     $import->{content} = 'import';
