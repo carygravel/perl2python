@@ -482,6 +482,11 @@ sub map_element {
         when (/PPI::Token::QuoteLike::Readline/xsm) {
             map_readline($element);
         }
+        when (/PPI::Token::QuoteLike::Regexp/xsm) {
+            if ( $element->sprevious_sibling eq q{=~} ) {
+                map_regex_match($element);
+            }
+        }
         when (/PPI::Token::QuoteLike::Words/xsm) {
             my $list =
               PPI::Structure::List->new( PPI::Token::Structure->new('[') );
