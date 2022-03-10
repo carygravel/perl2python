@@ -60,11 +60,16 @@ for my $i ( 0 .. $#PRECENDENCE ) {
 }
 
 # https://perldoc.perl.org/functions
-my @BUILTINS =
-  qw(chmod chown close defined grep join length map next pack open print printf push return reverse say sort split sprintf unlink unshift);
-my %BUILTINS = ();
+my @BUILTINS = qw(defined);
+my ( %BUILTINS, %LIST_OPERATORS );
 for my $op (@BUILTINS) {
     $BUILTINS{$op} = 1;
+}
+my @LIST_OPERATORS =
+  qw(chmod chown close grep join length map next pack open print printf push return reverse say sort split sprintf unlink unshift);
+for my $op (@LIST_OPERATORS) {
+    $BUILTINS{$op}       = 1;
+    $LIST_OPERATORS{$op} = 1;
 }
 
 my %REGEX_MODIFIERS = (
@@ -1688,57 +1693,81 @@ sub get_argument_from_list {
 sub get_argument_for_operator {
     my ( $element, $n ) = @_;
 
-    my @sibling;
-    my $iter = $element;
     if (    not defined $PRECENDENCE{$element}
         and not defined $BUILTINS{$element} )
     {
         warn
 "Called 'get_argument_for_operator()' with for '$element', which is neither an operator, nor a built-in\n";
     }
-    while ( $iter = $n == 0 ? $iter->sprevious_sibling : $iter->snext_sibling )
-    {
-        if ( $element eq q{?} ) {
-            if ( $iter eq q{?} ) {
-                push @sibling, get_argument_for_operator( $iter, 1 );
-                $iter = $sibling[-1];
+    if ( $element eq q{?} ) {
+        return get_argument_for_ternary( $element, $n );
+    }
+    my @sibling;
+    my $iter = $element;
+    while ( $iter = next_sibling( $iter, $n ) ) {
+        if ( $n > 0 ) {
+            if (    not @sibling
+                and $iter->isa('PPI::Structure::List')
+                and defined $BUILTINS{$element} )
+            {
+                return get_argument_from_list( $iter, $n );
             }
-            else {
-                if ( $n == 0 ) {
-                    if ( not has_higher_precedence_than( $element, $iter, $n ) )
-                    {
-                        last;
-                    }
-                    push @sibling, $iter;
-                }
-                else {
-                    if ( $iter eq q{:} ) { last }
-                    push @sibling, $iter;
-                }
+            if ( defined $BUILTINS{$iter} ) {
+                push @sibling, $iter, get_argument_for_operator( $iter, $n );
+                $iter = pop @sibling;
             }
         }
-        else {
-            if ( $n > 0 ) {
-                if (    not @sibling
-                    and $iter->isa('PPI::Structure::List')
-                    and defined $BUILTINS{$element} )
-                {
-                    return get_argument_from_list( $iter, $n );
-                }
-                if ( defined $BUILTINS{$iter} ) {
-                    push @sibling, $iter,
-                      get_argument_for_operator( $iter, $n );
-                    $iter = pop @sibling;
-                }
-            }
-            if ( not has_higher_precedence_than( $element, $iter, $n ) ) {
-                last;
-            }
+        if ( not has_higher_precedence_than( $element, $iter, $n ) ) {
 
+            # ensure we have at least 1 argument
+            if ( @sibling == 0 ) {
+                push @sibling, $iter;
+                while (
+                        ( $iter = next_sibling( $iter, $n ) )
+                    and $iter
+                    and (  $iter->isa('PPI::Structure::Subscript')
+                        or $iter eq '->' )
+                  )
+                {
+                    push @sibling, $iter;
+                }
+            }
+            last;
+        }
+
+        if ( $n == 0 ) {
+            unshift @sibling, $iter;
+        }
+        else {
+            push @sibling, $iter;
+        }
+    }
+    return @sibling;
+}
+
+sub next_sibling {
+    my ( $element, $n ) = @_;
+    return $n == 0 ? $element->sprevious_sibling : $element->snext_sibling;
+}
+
+sub get_argument_for_ternary {
+    my ( $element, $n ) = @_;
+    my @sibling;
+    my $iter = $element;
+    while ( $iter = next_sibling( $iter, $n ) ) {
+        if ( $iter eq q{?} ) {
+            push @sibling, get_argument_for_operator( $iter, 1 );
+            $iter = $sibling[-1];
+        }
+        else {
             if ( $n == 0 ) {
-                unshift @sibling, $iter;
+                if ( not has_higher_precedence_than( $element, $iter, $n ) ) {
+                    last;
+                }
+                push @sibling, $iter;
             }
             else {
+                if ( $iter eq q{:} ) { last }
                 push @sibling, $iter;
             }
         }
@@ -1763,7 +1792,7 @@ sub check_operator {
         $element = $element->{originally};
     }
     if ( not defined $PRECENDENCE{$element} ) {
-        if ( defined $BUILTINS{$element} ) {
+        if ( defined $LIST_OPERATORS{$element} ) {
             if ( $direction > 0 ) {
                 return 'list operator (rightward)';
             }

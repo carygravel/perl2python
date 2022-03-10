@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 72;
+use Test::More tests => 73;
 
 sub slurp {
     my ($file) = @_;
@@ -582,6 +582,27 @@ EOS
 
 is map_document( \$script ), $expected, "sprintf with complex arguments #2";
 
+$script = <<'EOS';
+override(
+    'set_option' => sub {
+        return defined $var ? sprintf( '%d', $var ) : 'false'
+    }
+);
+EOS
+
+$expected = <<'EOS';
+def anonymous_02():
+    return   '%d' % (  var ) if (var is not None)  else 'false'
+
+
+override(
+    'set_option' = anonymous_02 
+)
+EOS
+
+is map_document( \$script ), $expected,
+  "anonymous sub/defined/sprintf/ternary combination";
+
 #########################
 
 $script = <<'EOS';
@@ -983,10 +1004,10 @@ function_with_callback( callback => sub { return "result" } );
 EOS
 
 $expected = <<'EOS';
-def anonymous_02():
+def anonymous_03():
     return "result"
 
-function_with_callback( callback = anonymous_02  )
+function_with_callback( callback = anonymous_03  )
 EOS
 
 is map_document( \$script ), $expected, "name anonymous subs";
@@ -996,10 +1017,10 @@ function_with_callback( callback => sub { return update_something(@_) } );
 EOS
 
 $expected = <<'EOS';
-def anonymous_03(*argv):
+def anonymous_04(*argv):
     return update_something(*argv)
 
-function_with_callback( callback = anonymous_03  )
+function_with_callback( callback = anonymous_04  )
 EOS
 
 is map_document( \$script ), $expected, "magic in anonymous subs";
@@ -1018,7 +1039,7 @@ cmd(
 EOS
 
 $expected = <<'EOS';
-def anonymous_04(line):
+def anonymous_05(line):
         
         
     
@@ -1027,7 +1048,7 @@ def anonymous_04(line):
 
 
 cmd(
-    callback     = anonymous_04 
+    callback     = anonymous_05 
 )
 EOS
 
