@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 73;
+use Test::More tests => 74;
 
 sub slurp {
     my ($file) = @_;
@@ -87,6 +87,23 @@ MyModule.MySubModule.MySubSubModule.my_method()
 EOS
 
 is map_document( \$script ), $expected, "import";
+
+$script = <<'EOS';
+use MyModule 'symbol';
+use MyModule qw(symbol1 symbol2);
+use Glib;
+use Glib qw(TRUE FALSE);    # To get TRUE and FALSE
+EOS
+
+$expected = <<'EOS';
+from MyModule import symbol
+from MyModule import symbol1,symbol2
+from gi.repository import Glib
+    # To get TRUE and FALSE
+EOS
+
+is map_document( \$script ), $expected,
+  "map use with symbol, special casing import Glib";
 
 #########################
 

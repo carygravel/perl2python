@@ -711,6 +711,31 @@ sub map_grep {
     return;
 }
 
+sub map_import_symbols {
+    my ( $import, $path, $module, $symbols ) = @_;
+    $import->{content} = 'from';
+    $path->{content}   = $module;
+    $symbols->insert_before( PPI::Token::Word->new('import') );
+    $symbols->insert_before( PPI::Token::Whitespace->new(q{ }) );
+    if ( $symbols->isa('PPI::Token::Quote') ) {
+        $symbols->{content} = substr $symbols->{content}, 1,
+          length( $symbols->{content} ) - 2;
+    }
+    else {
+        my $string = substr $symbols->content,
+          $symbols->{sections}[0]{position}, $symbols->{sections}[0]{size};
+        my $i = 0;
+        for ( split q{ }, $string ) {
+            if ( $i++ ) {
+                $symbols->insert_before( PPI::Token::Whitespace->new(q{,}) );
+            }
+            $symbols->insert_before( PPI::Token::Word->new($_) );
+        }
+        $symbols->delete;
+    }
+    return;
+}
+
 sub map_include {
     my ($element) = @_;
     my $module = $element->module;
@@ -775,9 +800,26 @@ sub map_include {
     elsif ( $import ne 'use' ) {
         croak "Unrecognised include $element\n";
     }
-    $import->{content} = 'import';
-    $import            = $import->snext_sibling;
-    $import->{content} = $module;
+    my $path    = $import->snext_sibling;
+    my $symbols = $path->snext_sibling;
+    if ( $path eq 'Glib' ) {
+        if ($symbols) {
+            $element->delete;
+        }
+        else {
+            $element->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $symbols = PPI::Token::Quote::Double->new('"Glib"');
+            $element->add_element($symbols);
+            $module = 'gi.repository';
+        }
+    }
+    if ( $symbols and defined $symbols->{content} ) {
+        map_import_symbols( $import, $path, $module, $symbols );
+    }
+    else {
+        $import->{content} = 'import';
+        $path->{content}   = $module;
+    }
     return;
 }
 
