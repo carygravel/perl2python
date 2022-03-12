@@ -813,6 +813,21 @@ sub map_include {
             $module = 'gi.repository';
         }
     }
+    elsif ( $path eq 'Gtk3' ) {
+        add_import( $element, 'gi' );
+        my $parent = $element->parent;
+        $parent->__insert_before_child( $element,
+            PPI::Token::Word->new('gi.require_version("Gtk", "3.0")') );
+        $parent->__insert_before_child( $element,
+            PPI::Token::Whitespace->new("\n") );
+        $element->add_element( PPI::Token::Whitespace->new(q{ }) );
+        while ( $symbols = $path->snext_sibling ) {
+            $symbols->delete;
+        }
+        $symbols = PPI::Token::Quote::Double->new('"Gtk"');
+        $element->add_element($symbols);
+        $module = 'gi.repository';
+    }
     if ( $symbols and defined $symbols->{content} ) {
         map_import_symbols( $import, $path, $module, $symbols );
     }

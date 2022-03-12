@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 74;
+use Test::More tests => 75;
 
 sub slurp {
     my ($file) = @_;
@@ -104,6 +104,18 @@ EOS
 
 is map_document( \$script ), $expected,
   "map use with symbol, special casing import Glib";
+
+$script = <<'EOS';
+use Gtk3 0.028 -init;
+EOS
+
+$expected = <<'EOS';
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository   import Gtk
+EOS
+
+is map_document( \$script ), $expected, "special case import Gtk3";
 
 #########################
 
