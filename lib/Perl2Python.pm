@@ -112,6 +112,14 @@ sub add_anonymous_method {
     return $name;
 }
 
+sub delete_everything_after {
+    my ($element) = @_;
+    while ( my $iter = $element->next_sibling ) {
+        $iter->delete;
+    }
+    return;
+}
+
 sub map_built_in {
     my ( $element, @args ) = @_;
     my $statement = $element->parent;
@@ -821,12 +829,18 @@ sub map_include {
         $parent->__insert_before_child( $element,
             PPI::Token::Whitespace->new("\n") );
         $element->add_element( PPI::Token::Whitespace->new(q{ }) );
-        while ( $symbols = $path->snext_sibling ) {
-            $symbols->delete;
-        }
+        delete_everything_after($path);
+        $element->add_element( PPI::Token::Whitespace->new(q{ }) );
         $symbols = PPI::Token::Quote::Double->new('"Gtk"');
         $element->add_element($symbols);
         $module = 'gi.repository';
+    }
+    elsif ( $path eq 'Set::IntSpan' ) {
+        delete_everything_after($path);
+        $element->add_element( PPI::Token::Whitespace->new(q{ }) );
+        $symbols = PPI::Token::Quote::Double->new('"intspan"');
+        $element->add_element($symbols);
+        $module = 'intspan';
     }
     if ( $symbols and defined $symbols->{content} ) {
         map_import_symbols( $import, $path, $module, $symbols );

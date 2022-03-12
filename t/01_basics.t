@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 75;
+use Test::More tests => 76;
 
 sub slurp {
     my ($file) = @_;
@@ -112,10 +112,20 @@ EOS
 $expected = <<'EOS';
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository   import Gtk
+from gi.repository import Gtk
 EOS
 
 is map_document( \$script ), $expected, "special case import Gtk3";
+
+$script = <<'EOS';
+use Set::IntSpan 1.10;          # For size method for page numbering issues
+EOS
+
+$expected = <<'EOS';
+from intspan import intspan          # For size method for page numbering issues
+EOS
+
+is map_document( \$script ), $expected, "special case import Set::IntSpan";
 
 #########################
 
