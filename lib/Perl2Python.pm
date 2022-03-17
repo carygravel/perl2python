@@ -80,6 +80,9 @@ my %REGEX_MODIFIERS = (
     x => 're.VERBOSE',
 );
 
+my $IGNORED_INCLUDES =
+  q/^(?:warnings|strict|feature|if|Readonly|IPC::System::Simple)$/;
+
 my $ANONYMOUS = 0;
 
 sub add_anonymous_method {
@@ -110,6 +113,41 @@ sub add_anonymous_method {
         }
     }
     return $name;
+}
+
+sub add_import {
+    my ( $element, $from, $module ) = @_;
+    my $document = $element->top;
+    my $search   = "import $from";
+    if ($module) {
+        $search = "from $from import $module";
+    }
+    if (
+        not $document->find_first(
+            sub {
+                $_[1]->isa('PPI::Statement::Include')
+                  and $_[1]->content eq $search;
+            }
+        )
+      )
+    {
+        my $statement = PPI::Statement::Include->new;
+        if ($module) {
+            $statement->add_element( PPI::Token::Word->new('from') );
+            $statement->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $statement->add_element( PPI::Token::Word->new($from) );
+            $statement->add_element( PPI::Token::Whitespace->new(q{ }) );
+        }
+        else {
+            $module = $from;
+        }
+        $statement->add_element( PPI::Token::Word->new('import') );
+        $statement->add_element( PPI::Token::Whitespace->new(q{ }) );
+        $statement->add_element( PPI::Token::Word->new($module) );
+        $document->__insert_before_child( $document->schild(0),
+            $statement, PPI::Token::Whitespace->new("\n") );
+    }
+    return;
 }
 
 sub delete_everything_after {
@@ -675,6 +713,189 @@ sub map_given {
     return;
 }
 
+sub map_gobject_signals {
+    my ( $object, $first_child ) = @_;
+    my $signals_def = $object->snext_sibling->snext_sibling;
+    my $statement   = PPI::Statement::Variable->new;
+    $first_child->insert_before($statement);
+    $statement->add_element( PPI::Token::Word->new('__gsignals__') );
+    $statement->add_element( PPI::Token::Operator->new(q{=}) );
+    my $dict = PPI::Structure::List->new( PPI::Token::Structure->new('{') );
+    $dict->{finish} = PPI::Token::Structure->new('}');
+    $statement->add_element($dict);
+    my $signals = $signals_def->schild(0);
+
+    while ($signals) {
+        my $name = $signals->schild( my $isignal = 0 );
+        if ( not $name ) { last }
+        my $op1 = $signals->schild( ++$isignal );
+        my $def = $signals->schild( ++$isignal );
+        my $op2 = $signals->schild( ++$isignal );
+        $dict->add_element( $name->remove );
+        $dict->add_element( PPI::Token::Operator->new(q{:}) );
+        my $tuple =
+          PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $tuple->{finish} = PPI::Token::Structure->new(')');
+        $dict->add_element($tuple);
+        $tuple->add_element(
+            PPI::Token::Word->new('GObject.SIGNAL_RUN_FIRST') );
+        $tuple->add_element( PPI::Token::Operator->new(q{,}) );
+        $tuple->add_element( PPI::Token::Word->new('None') );
+        $tuple->add_element( PPI::Token::Operator->new(q{,}) );
+        $dict->add_element($tuple);
+        my $def_expression = $def->schild(0);
+
+        while ($def_expression) {
+            my $key = $def_expression->schild( my $idef = 0 );
+            if ( not $key ) { last }
+            my $op3        = $def_expression->schild( ++$idef );
+            my $type_tuple = $def_expression->schild( ++$idef );
+            my $op4        = $def_expression->schild( ++$idef );
+            if ( $key eq 'param_types' ) {
+                $type_tuple->{start}  = PPI::Token::Structure->new('(');
+                $type_tuple->{finish} = PPI::Token::Structure->new(')');
+                $tuple->add_element( $type_tuple->remove );
+                for my $type ( $type_tuple->schild(0)->children ) {
+                    if ( $type->isa('PPI::Token::Quote') ) {
+                        $type->{content} = lc $type;
+                        $type->{content} =~ s/Glib:://ixsm;
+                        $type->insert_before(
+                            PPI::Token::Word->new(
+                                substr $type, 1, length($type) - 2
+                            )
+                        );
+                        $type->insert_before( PPI::Token::Operator->new(q{,}) );
+                    }
+                    $type->delete;
+                }
+            }
+            $key->delete;
+            $op3->delete;
+            if ($op4) {
+                $op4->delete;
+            }
+        }
+        $op1->delete;
+        $def->delete;
+        if ($op2) {
+            $op2->delete;
+        }
+        $dict->add_element( PPI::Token::Operator->new(q{,}) );
+    }
+    indent_element($statement);
+    return $signals_def->snext_sibling;
+}
+
+sub map_gobject_subclass {
+    my ( $element, $import ) = @_;
+    my $parent_package = $import->snext_sibling->snext_sibling;
+    my $object         = $parent_package->snext_sibling->snext_sibling;
+    $parent_package->{content} =~ s/::$//sm;
+    $parent_package->{content} =~ s/::/./gsm;
+    my $document = $element->top;
+    my $class    = $document->find_first(
+        sub {
+            $_[1]->isa('PPI::Token::Word')
+              and $_[1]->content eq 'class';
+        }
+    );
+    my $class_list = $class->snext_sibling->snext_sibling;
+    $class_list->add_element( $parent_package->remove );
+    my $block       = $class_list->snext_sibling;
+    my $first_child = $block->schild(0);
+    add_import( $element, 'gi.repository', 'GObject' );
+    while ($object) {
+        if ( $object eq 'signals' ) {
+            $object = map_gobject_signals( $object, $first_child );
+        }
+        elsif ( $object eq 'properties' ) {
+            my $prop_list = $object->snext_sibling->snext_sibling;
+            for my $spec (
+                @{
+                    $prop_list->find(
+                        sub {
+                            $_[1]->isa('PPI::Token::Word')
+                              and $_[1]->content eq 'Glib::ParamSpec';
+                        }
+                    )
+                }
+              )
+            {
+                my $op    = $spec->snext_sibling;
+                my $type  = $op->snext_sibling;
+                my $struc = $type->snext_sibling;
+                my $expre = $struc->schild(0);
+                my $name  = $expre->schild(0);
+                my $nick  = $name->snext_sibling->snext_sibling;
+                my $blurb = $nick->snext_sibling->snext_sibling;
+                my $default;
+
+                if ( $type eq 'string' ) {
+                    $default = $blurb->snext_sibling->snext_sibling;
+                    $type->{content} = 'str';
+                }
+                elsif ( $type eq 'scalar' ) {
+                    $type->{content} = 'object';
+                }
+                my $statement = PPI::Statement::Variable->new;
+                $first_child->insert_before($statement);
+                $statement->add_element(
+                    PPI::Token::Word->new( substr $name, 1, length($name) - 2 )
+                );
+                $statement->add_element( PPI::Token::Operator->new(q{=}) );
+                $statement->add_element(
+                    PPI::Token::Word->new('GObject.Property') );
+                my $list =
+                  PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+                $list->{finish} = PPI::Token::Structure->new(')');
+                $statement->add_element($list);
+                $list->add_element( PPI::Token::Word->new('type=') );
+                $list->add_element( $type->remove );
+
+                if ( defined $default ) {
+                    $list->add_element( PPI::Token::Operator->new(q{,}) );
+                    $list->add_element( PPI::Token::Word->new('default=') );
+                    $list->add_element( $default->remove );
+                }
+                if ( length $nick > 2 ) {
+                    $list->add_element( PPI::Token::Operator->new(q{,}) );
+                    $list->add_element( PPI::Token::Word->new('nick=') );
+                    $list->add_element( $nick->remove );
+                }
+                if ( length $blurb > 2 ) {
+                    $list->add_element( PPI::Token::Operator->new(q{,}) );
+                    $list->add_element( PPI::Token::Word->new('blurb=') );
+                    $list->add_element( $blurb->remove );
+                }
+                indent_element($statement);
+            }
+        }
+        $object = $object->snext_sibling;
+    }
+    my $init = PPI::Statement::Sub->new;
+    $first_child->insert_before($init);
+    $init->add_element( PPI::Token::Word->new('def') );
+    $init->add_element( PPI::Token::Whitespace->new(q{ }) );
+    $init->add_element( PPI::Token::Word->new('__init__') );
+    my $init_list =
+      PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+    $init_list->{finish} = PPI::Token::Structure->new(')');
+    $init->add_element($init_list);
+    $init_list->add_element( PPI::Token::Word->new('self') );
+    my $init_block =
+      PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+    $init_block->{start}->{content} = q{:};
+    $init->add_element($init_block);
+    my $statement = PPI::Statement->new;
+    $init_block->add_element($statement);
+    $statement->add_element(
+        PPI::Token::Word->new('GObject.GObject.__init__(self)') );
+    indent_element($init);
+    indent_element($statement);
+    $element->delete;
+    return;
+}
+
 sub map_grep {
     my ($element)  = @_;
     my $expression = $element->snext_sibling;
@@ -746,43 +967,48 @@ sub map_import_symbols {
 
 sub map_include {
     my ($element) = @_;
-    my $module = $element->module;
-    if ( $module =~
-        /^(warnings|strict|feature|if|Readonly|IPC::System::Simple)$/xsm )
-    {
-        my $whitespace = $element->next_sibling;
-        if (    defined $whitespace
-            and $whitespace->isa('PPI::Token::Whitespace')
-            and $whitespace =~ /\n/xsm )
-        {
-            $whitespace->delete;
+    my $module    = $element->module;
+    my $import    = $element->schild(0);
+    given ($module) {
+        when (/$IGNORED_INCLUDES/xsm) {
+            my $whitespace = $element->next_sibling;
+            if (    defined $whitespace
+                and $whitespace->isa('PPI::Token::Whitespace')
+                and $whitespace =~ /\n/xsm )
+            {
+                $whitespace->delete;
+            }
+            $element->delete;
+            return;
         }
-        $element->delete;
-        return;
-    }
-    elsif ( $module eq 'Test::More' ) {
-        my $def = PPI::Statement::Sub->new;
-        $def->add_element( PPI::Token::Word->new('def') );
-        $def->add_element( PPI::Token::Whitespace->new(q{ }) );
-        $def->add_element( PPI::Token::Word->new('test_1') );
-        my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-        $list->{finish} = PPI::Token::Structure->new(')');
-        $def->add_element($list);
-        $element->insert_after($def);
-        $element->delete;
+        when ('Test::More') {
+            my $def = PPI::Statement::Sub->new;
+            $def->add_element( PPI::Token::Word->new('def') );
+            $def->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $def->add_element( PPI::Token::Word->new('test_1') );
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list->{finish} = PPI::Token::Structure->new(')');
+            $def->add_element($list);
+            $element->insert_after($def);
+            $element->delete;
 
-        # Add a block to scope and indent things properly
-        my $block =
-          PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
-        $block->{start}->{content} = q{:};
-        $def->add_element($block);
-        while ( my $next = $def->next_sibling ) {
-            $block->add_element( $next->remove );
+            # Add a block to scope and indent things properly
+            my $block =
+              PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+            $block->{start}->{content} = q{:};
+            $def->add_element($block);
+            while ( my $next = $def->next_sibling ) {
+                $block->add_element( $next->remove );
+            }
+            return;
         }
-        return;
+        when ('Glib::Object::Subclass') {
+            map_gobject_subclass( $element, $import );
+            return;
+        }
     }
     $module =~ s/::/./gsm;
-    my $import = $element->schild(0);
 
     # map if ( not eval { require Package; } ) -> pytest.importorskip('Package')
     if ( $import eq 'require' ) {
@@ -1707,28 +1933,6 @@ sub indent_subelement {
                 $element->insert_before( PPI::Token::Whitespace->new("\n") );
             }
         }
-    }
-    return;
-}
-
-sub add_import {
-    my ( $element, $module ) = @_;
-    my $document = $element->top;
-    if (
-        not $document->find_first(
-            sub {
-                $_[1]->isa('PPI::Statement::Include')
-                  and $_[1]->content eq "import $module";
-            }
-        )
-      )
-    {
-        my $statement = PPI::Statement::Include->new;
-        $statement->add_element( PPI::Token::Word->new('import') );
-        $statement->add_element( PPI::Token::Whitespace->new(q{ }) );
-        $statement->add_element( PPI::Token::Word->new($module) );
-        $document->__insert_before_child( $document->schild(0),
-            $statement, PPI::Token::Whitespace->new("\n") );
     }
     return;
 }

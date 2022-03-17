@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 76;
+use Test::More tests => 77;
 
 sub slurp {
     my ($file) = @_;
@@ -116,6 +116,34 @@ from gi.repository import Gtk
 EOS
 
 is map_document( \$script ), $expected, "special case import Gtk3";
+
+$script = <<'EOS';
+package My::Object;
+use Glib::Object::Subclass Parent::Object::, signals => {
+    'signal_with_float' => {
+        param_types => ['Glib::Float'],
+    },
+    'signal_with_ints' => {
+        param_types => [ 'Glib::Int', 'Glib::Int' ],
+    },
+  },
+  properties => [
+    Glib::ParamSpec->scalar('name1', 'Nick1', 'Blurb1', G_PARAM_READWRITE),
+    Glib::ParamSpec->string('name2','Nick2','Blurb2','default',G_PARAM_READWRITE),
+  ];
+EOS
+
+$expected = <<'EOS';
+from gi.repository import GObject
+class Object(Parent.Object):
+    __gsignals__={'signal_with_float':(GObject.SIGNAL_RUN_FIRST,None,(float,)),'signal_with_ints':(GObject.SIGNAL_RUN_FIRST,None,( int,int, )),}
+    name1=GObject.Property(type=object,nick='Nick1',blurb='Blurb1')
+    name2=GObject.Property(type=str,default='default',nick='Nick2',blurb='Blurb2')
+    def __init__(self):
+        GObject.GObject.__init__(self)
+EOS
+
+is map_document( \$script ), $expected, "subclass GObject";
 
 $script = <<'EOS';
 use Set::IntSpan 1.10;          # For size method for page numbering issues
