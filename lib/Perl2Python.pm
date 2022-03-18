@@ -752,27 +752,24 @@ sub map_gobject_signals {
             my $type_tuple = $def_expression->schild( ++$idef );
             my $op4        = $def_expression->schild( ++$idef );
             if ( $key eq 'param_types' ) {
-                $type_tuple->{start}  = PPI::Token::Structure->new('(');
-                $type_tuple->{finish} = PPI::Token::Structure->new(')');
-                $tuple->add_element( $type_tuple->remove );
-                for my $type ( $type_tuple->schild(0)->children ) {
-                    if ( $type->isa('PPI::Token::Quote') ) {
-                        $type->{content} = lc $type;
-                        $type->{content} =~ s/Glib:://ixsm;
-                        $type->insert_before(
-                            PPI::Token::Word->new(
-                                substr $type, 1, length($type) - 2
-                            )
-                        );
-                        $type->insert_before( PPI::Token::Operator->new(q{,}) );
+                my $type_expression = $type_tuple->schild(0);
+                if ($type_expression) {
+                    $type_tuple->{start}  = PPI::Token::Structure->new('(');
+                    $type_tuple->{finish} = PPI::Token::Structure->new(')');
+                    $tuple->add_element( $type_tuple->remove );
+                    for my $type ( $type_expression->children ) {
+                        map_gobject_signal_type($type);
                     }
-                    $type->delete;
+                }
+                else {
+                    $tuple->add_element( PPI::Token::Word->new('None') );
                 }
             }
             $key->delete;
-            $op3->delete;
-            if ($op4) {
-                $op4->delete;
+            for my $op ( $op3, $op4 ) {
+                if ($op) {
+                    $op->delete;
+                }
             }
         }
         $op1->delete;
@@ -784,6 +781,19 @@ sub map_gobject_signals {
     }
     indent_element($statement);
     return $signals_def->snext_sibling;
+}
+
+sub map_gobject_signal_type {
+    my ($type) = @_;
+    if ( $type->isa('PPI::Token::Quote') ) {
+        $type->{content} =~ s/Glib:://xsm;
+        $type->{content} = lc $type;
+        $type->insert_before(
+            PPI::Token::Word->new( substr $type, 1, length($type) - 2 ) );
+        $type->insert_before( PPI::Token::Operator->new(q{,}) );
+    }
+    $type->delete;
+    return;
 }
 
 sub map_gobject_subclass {
@@ -830,7 +840,7 @@ sub map_gobject_subclass {
                     my $name  = $expre->schild(0);
                     my $nick  = $name->snext_sibling->snext_sibling;
                     my $blurb = $nick->snext_sibling->snext_sibling;
-                    my $default;
+                    my ( $min, $max, $default );
 
                     if ( $type eq 'string' ) {
                         $default = $blurb->snext_sibling->snext_sibling;
@@ -838,6 +848,11 @@ sub map_gobject_subclass {
                     }
                     elsif ( $type eq 'scalar' ) {
                         $type->{content} = 'object';
+                    }
+                    elsif ( $type eq 'int' ) {
+                        $min     = $blurb->snext_sibling->snext_sibling;
+                        $max     = $min->snext_sibling->snext_sibling;
+                        $default = $max->snext_sibling->snext_sibling;
                     }
                     my $statement = PPI::Statement::Variable->new;
                     $first_child->insert_before($statement);
@@ -857,6 +872,16 @@ sub map_gobject_subclass {
                     $list->add_element( PPI::Token::Word->new('type=') );
                     $list->add_element( $type->remove );
 
+                    if ( defined $min ) {
+                        $list->add_element( PPI::Token::Operator->new(q{,}) );
+                        $list->add_element( PPI::Token::Word->new('min=') );
+                        $list->add_element( $min->remove );
+                    }
+                    if ( defined $max ) {
+                        $list->add_element( PPI::Token::Operator->new(q{,}) );
+                        $list->add_element( PPI::Token::Word->new('max=') );
+                        $list->add_element( $max->remove );
+                    }
                     if ( defined $default ) {
                         $list->add_element( PPI::Token::Operator->new(q{,}) );
                         $list->add_element( PPI::Token::Word->new('default=') );
