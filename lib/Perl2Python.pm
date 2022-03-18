@@ -789,7 +789,7 @@ sub map_gobject_signals {
 sub map_gobject_subclass {
     my ( $element, $import ) = @_;
     my $parent_package = $import->snext_sibling->snext_sibling;
-    my $object         = $parent_package->snext_sibling->snext_sibling;
+    my $operator       = $parent_package->snext_sibling;
     $parent_package->{content} =~ s/::$//sm;
     $parent_package->{content} =~ s/::/./gsm;
     my $document = $element->top;
@@ -804,73 +804,79 @@ sub map_gobject_subclass {
     my $block       = $class_list->snext_sibling;
     my $first_child = $block->schild(0);
     add_import( $element, 'gi.repository', 'GObject' );
-    while ($object) {
-        if ( $object eq 'signals' ) {
-            $object = map_gobject_signals( $object, $first_child );
-        }
-        elsif ( $object eq 'properties' ) {
-            my $prop_list = $object->snext_sibling->snext_sibling;
-            for my $spec (
-                @{
-                    $prop_list->find(
-                        sub {
-                            $_[1]->isa('PPI::Token::Word')
-                              and $_[1]->content eq 'Glib::ParamSpec';
-                        }
-                    )
-                }
-              )
-            {
-                my $op    = $spec->snext_sibling;
-                my $type  = $op->snext_sibling;
-                my $struc = $type->snext_sibling;
-                my $expre = $struc->schild(0);
-                my $name  = $expre->schild(0);
-                my $nick  = $name->snext_sibling->snext_sibling;
-                my $blurb = $nick->snext_sibling->snext_sibling;
-                my $default;
-
-                if ( $type eq 'string' ) {
-                    $default = $blurb->snext_sibling->snext_sibling;
-                    $type->{content} = 'str';
-                }
-                elsif ( $type eq 'scalar' ) {
-                    $type->{content} = 'object';
-                }
-                my $statement = PPI::Statement::Variable->new;
-                $first_child->insert_before($statement);
-                $statement->add_element(
-                    PPI::Token::Word->new( substr $name, 1, length($name) - 2 )
-                );
-                $statement->add_element( PPI::Token::Operator->new(q{=}) );
-                $statement->add_element(
-                    PPI::Token::Word->new('GObject.Property') );
-                my $list =
-                  PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-                $list->{finish} = PPI::Token::Structure->new(')');
-                $statement->add_element($list);
-                $list->add_element( PPI::Token::Word->new('type=') );
-                $list->add_element( $type->remove );
-
-                if ( defined $default ) {
-                    $list->add_element( PPI::Token::Operator->new(q{,}) );
-                    $list->add_element( PPI::Token::Word->new('default=') );
-                    $list->add_element( $default->remove );
-                }
-                if ( length $nick > 2 ) {
-                    $list->add_element( PPI::Token::Operator->new(q{,}) );
-                    $list->add_element( PPI::Token::Word->new('nick=') );
-                    $list->add_element( $nick->remove );
-                }
-                if ( length $blurb > 2 ) {
-                    $list->add_element( PPI::Token::Operator->new(q{,}) );
-                    $list->add_element( PPI::Token::Word->new('blurb=') );
-                    $list->add_element( $blurb->remove );
-                }
-                indent_element($statement);
+    if ($operator) {
+        my $object = $operator->snext_sibling;
+        while ($object) {
+            if ( $object eq 'signals' ) {
+                $object = map_gobject_signals( $object, $first_child );
             }
+            elsif ( $object eq 'properties' ) {
+                my $prop_list = $object->snext_sibling->snext_sibling;
+                for my $spec (
+                    @{
+                        $prop_list->find(
+                            sub {
+                                $_[1]->isa('PPI::Token::Word')
+                                  and $_[1]->content eq 'Glib::ParamSpec';
+                            }
+                        )
+                    }
+                  )
+                {
+                    my $op    = $spec->snext_sibling;
+                    my $type  = $op->snext_sibling;
+                    my $struc = $type->snext_sibling;
+                    my $expre = $struc->schild(0);
+                    my $name  = $expre->schild(0);
+                    my $nick  = $name->snext_sibling->snext_sibling;
+                    my $blurb = $nick->snext_sibling->snext_sibling;
+                    my $default;
+
+                    if ( $type eq 'string' ) {
+                        $default = $blurb->snext_sibling->snext_sibling;
+                        $type->{content} = 'str';
+                    }
+                    elsif ( $type eq 'scalar' ) {
+                        $type->{content} = 'object';
+                    }
+                    my $statement = PPI::Statement::Variable->new;
+                    $first_child->insert_before($statement);
+                    $statement->add_element(
+                        PPI::Token::Word->new(
+                            substr $name, 1, length($name) - 2
+                        )
+                    );
+                    $statement->add_element( PPI::Token::Operator->new(q{=}) );
+                    $statement->add_element(
+                        PPI::Token::Word->new('GObject.Property') );
+                    my $list =
+                      PPI::Structure::List->new(
+                        PPI::Token::Structure->new('(') );
+                    $list->{finish} = PPI::Token::Structure->new(')');
+                    $statement->add_element($list);
+                    $list->add_element( PPI::Token::Word->new('type=') );
+                    $list->add_element( $type->remove );
+
+                    if ( defined $default ) {
+                        $list->add_element( PPI::Token::Operator->new(q{,}) );
+                        $list->add_element( PPI::Token::Word->new('default=') );
+                        $list->add_element( $default->remove );
+                    }
+                    if ( length $nick > 2 ) {
+                        $list->add_element( PPI::Token::Operator->new(q{,}) );
+                        $list->add_element( PPI::Token::Word->new('nick=') );
+                        $list->add_element( $nick->remove );
+                    }
+                    if ( length $blurb > 2 ) {
+                        $list->add_element( PPI::Token::Operator->new(q{,}) );
+                        $list->add_element( PPI::Token::Word->new('blurb=') );
+                        $list->add_element( $blurb->remove );
+                    }
+                    indent_element($statement);
+                }
+            }
+            $object = $object->snext_sibling;
         }
-        $object = $object->snext_sibling;
     }
     my $init = PPI::Statement::Sub->new;
     $first_child->insert_before($init);

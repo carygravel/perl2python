@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 77;
+use Test::More tests => 78;
 
 sub slurp {
     my ($file) = @_;
@@ -119,6 +119,20 @@ is map_document( \$script ), $expected, "special case import Gtk3";
 
 $script = <<'EOS';
 package My::Object;
+use Glib::Object::Subclass Parent::Object::;
+EOS
+
+$expected = <<'EOS';
+from gi.repository import GObject
+class Object(Parent.Object):
+    def __init__(self):
+        GObject.GObject.__init__(self)
+EOS
+
+is map_document( \$script ), $expected, "subclass basic GObject";
+
+$script = <<'EOS';
+package My::Object;
 use Glib::Object::Subclass Parent::Object::, signals => {
     'signal_with_float' => {
         param_types => ['Glib::Float'],
@@ -143,7 +157,8 @@ class Object(Parent.Object):
         GObject.GObject.__init__(self)
 EOS
 
-is map_document( \$script ), $expected, "subclass GObject";
+is map_document( \$script ), $expected,
+  "subclass GObject with signals and properties";
 
 $script = <<'EOS';
 use Set::IntSpan 1.10;          # For size method for page numbering issues
