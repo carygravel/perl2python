@@ -725,12 +725,41 @@ sub map_gobject_signals {
     $statement->add_element($dict);
     my $signals = $signals_def->schild(0);
 
+    my @connections;
     while ($signals) {
         my $name = $signals->schild( my $isignal = 0 );
         if ( not $name ) { last }
+        if ( not $name->isa('PPI::Token::Quote') ) {
+            my $new_name =
+              PPI::Token::Quote::Double->new( q{"} . $name . q{"} );
+            $name->insert_before($new_name);
+            $name->delete;
+            $name = $new_name;
+        }
         my $op1 = $signals->schild( ++$isignal );
         my $def = $signals->schild( ++$isignal );
         my $op2 = $signals->schild( ++$isignal );
+        if ( $def eq q{\\} ) {
+            my $connection = PPI::Statement->new;
+            push @connections, $connection;
+            $connection->add_element( PPI::Token::Word->new('self.connect') );
+            my $connect_tuple =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $connect_tuple->{finish} = PPI::Token::Structure->new(')');
+            $connection->add_element($connect_tuple);
+            $connect_tuple->add_element( $name->remove );
+            $connect_tuple->add_element( PPI::Token::Operator->new(q{,}) );
+            $connect_tuple->add_element( $op2->remove );
+            $op2->{content} =~ s/^&//xsm;
+            $op2 = $def->snext_sibling;
+            $op1->delete;
+            $def->delete;
+
+            if ($op2) {
+                $op2->delete;
+            }
+            next;
+        }
         $dict->add_element( $name->remove );
         $dict->add_element( PPI::Token::Operator->new(q{:}) );
         my $tuple =
@@ -745,6 +774,7 @@ sub map_gobject_signals {
         $dict->add_element($tuple);
         my $def_expression = $def->schild(0);
 
+        my $type_expression;
         while ($def_expression) {
             my $key = $def_expression->schild( my $idef = 0 );
             if ( not $key ) { last }
@@ -752,7 +782,7 @@ sub map_gobject_signals {
             my $type_tuple = $def_expression->schild( ++$idef );
             my $op4        = $def_expression->schild( ++$idef );
             if ( $key eq 'param_types' ) {
-                my $type_expression = $type_tuple->schild(0);
+                $type_expression = $type_tuple->schild(0);
                 if ($type_expression) {
                     $type_tuple->{start}  = PPI::Token::Structure->new('(');
                     $type_tuple->{finish} = PPI::Token::Structure->new(')');
@@ -760,9 +790,6 @@ sub map_gobject_signals {
                     for my $type ( $type_expression->children ) {
                         map_gobject_signal_type($type);
                     }
-                }
-                else {
-                    $tuple->add_element( PPI::Token::Word->new('None') );
                 }
             }
             $key->delete;
@@ -772,6 +799,9 @@ sub map_gobject_signals {
                 }
             }
         }
+        if ( not $type_expression ) {
+            $tuple->add_element( PPI::Token::Word->new('None') );
+        }
         $op1->delete;
         $def->delete;
         if ($op2) {
@@ -780,7 +810,7 @@ sub map_gobject_signals {
         $dict->add_element( PPI::Token::Operator->new(q{,}) );
     }
     indent_element($statement);
-    return $signals_def->snext_sibling;
+    return $signals_def->snext_sibling, @connections;
 }
 
 sub map_gobject_signal_type {
@@ -814,11 +844,13 @@ sub map_gobject_subclass {
     my $block       = $class_list->snext_sibling;
     my $first_child = $block->schild(0);
     add_import( $element, 'gi.repository', 'GObject' );
+    my @connections;
     if ($operator) {
         my $object = $operator->snext_sibling;
         while ($object) {
             if ( $object eq 'signals' ) {
-                $object = map_gobject_signals( $object, $first_child );
+                ( $object, @connections ) =
+                  map_gobject_signals( $object, $first_child );
             }
             elsif ( $object eq 'properties' ) {
                 my $prop_list = $object->snext_sibling->snext_sibling;
@@ -924,6 +956,11 @@ sub map_gobject_subclass {
     indent_element($init);
     indent_element($statement);
     $element->delete;
+
+    for my $connection (@connections) {
+        $init_block->add_element($connection);
+        indent_element($connection);
+    }
     return;
 }
 

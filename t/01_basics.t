@@ -141,6 +141,8 @@ use Glib::Object::Subclass Parent::Object::, signals => {
         param_types => [ 'Glib::Int', 'Glib::Int' ],
     },
     'signal_without_value' => { param_types => [], },
+    'signal_without_param_types' => {},
+    show                  => \&show,
   },
   properties => [
     Glib::ParamSpec->scalar('name1', 'Nick1', 'Blurb1', G_PARAM_READWRITE),
@@ -152,12 +154,13 @@ EOS
 $expected = <<'EOS';
 from gi.repository import GObject
 class Object(Parent.Object):
-    __gsignals__={'signal_with_float':(GObject.SIGNAL_RUN_FIRST,None,(float,)),'signal_with_ints':(GObject.SIGNAL_RUN_FIRST,None,( int,int, )),'signal_without_value':(GObject.SIGNAL_RUN_FIRST,None,None),}
+    __gsignals__={'signal_with_float':(GObject.SIGNAL_RUN_FIRST,None,(float,)),'signal_with_ints':(GObject.SIGNAL_RUN_FIRST,None,( int,int, )),'signal_without_value':(GObject.SIGNAL_RUN_FIRST,None,None),'signal_without_param_types':(GObject.SIGNAL_RUN_FIRST,None,None),}
     name1=GObject.Property(type=object,nick='Nick1',blurb='Blurb1')
     name2=GObject.Property(type=str,default='default',nick='Nick2',blurb='Blurb2')
     name3=GObject.Property(type=int,min=1,max=999,default=1,nick='Nick3',blurb='Blurb3')
     def __init__(self):
         GObject.GObject.__init__(self)
+        self.connect("show",show)
 EOS
 
 is map_document( \$script ), $expected,
