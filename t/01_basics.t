@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 78;
+use Test::More tests => 79;
 
 sub slurp {
     my ($file) = @_;
@@ -87,6 +87,16 @@ MyModule.MySubModule.MySubSubModule.my_method()
 EOS
 
 is map_document( \$script ), $expected, "import";
+
+$script = <<'EOS';
+use MyModule::MySubModule::MySubSubModule 2.40;
+EOS
+
+$expected = <<'EOS';
+import MyModule.MySubModule.MySubSubModule 
+EOS
+
+is map_document( \$script ), $expected, "import ignore version";
 
 $script = <<'EOS';
 use MyModule 'symbol';

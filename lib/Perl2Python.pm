@@ -1136,6 +1136,10 @@ sub map_include {
         $element->add_element($symbols);
         $module = 'intspan';
     }
+    if ( $symbols and $symbols->isa('PPI::Token::Number') ) {
+        $symbols->delete;
+        undef $symbols;
+    }
     if ( $symbols and defined $symbols->{content} ) {
         map_import_symbols( $import, $path, $module, $symbols );
     }
