@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 79;
+use Test::More tests => 80;
 
 sub slurp {
     my ($file) = @_;
@@ -728,6 +728,16 @@ os.remove(filename)
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";
+
+$script = <<'EOS';
+eval "1 + 1"
+EOS
+
+$expected = <<'EOS';
+eval("1 + 1") 
+EOS
+
+is map_document( \$script ), $expected, "eval";
 
 $script = <<'EOS';
 my $pdfobj = PDF::Builder->open( $options{info}{path} );

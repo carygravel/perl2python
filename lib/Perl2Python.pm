@@ -60,7 +60,7 @@ for my $i ( 0 .. $#PRECENDENCE ) {
 }
 
 # https://perldoc.perl.org/functions
-my @BUILTINS = qw(defined);
+my @BUILTINS = qw(defined eval);
 my ( %BUILTINS, %LIST_OPERATORS );
 for my $op (@BUILTINS) {
     $BUILTINS{$op} = 1;
@@ -1081,10 +1081,11 @@ sub map_include {
     # map if ( not eval { require Package; } ) -> pytest.importorskip('Package')
     if ( $import eq 'require' ) {
         my $block      = $element->parent;
-        my $expression = $block->parent;
+        my $list       = $block->parent;
+        my $expression = $list->parent;
         my $compound   = $expression->parent;
         if (
-            $expression =~ /not\s+eval\s*[{:]\s*require\s+/xsm
+            $expression =~ /not\s+eval\s*[(]\s*[{:]\s*require\s+/xsm
             and $compound->find_first(
                 sub {
                     $_[1]->isa('PPI::Token::Word')
@@ -1733,6 +1734,9 @@ sub map_word {
         }
         when ('elsif') {
             $element->{content} = 'elif';
+        }
+        when ('eval') {
+            map_built_in($element);
         }
         when ('grep') {
             map_grep($element);
