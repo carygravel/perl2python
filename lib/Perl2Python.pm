@@ -591,6 +591,78 @@ sub map_element {
     return;
 }
 
+sub map_eval {
+    my ($element) = @_;
+
+    # map
+    #   if ( not eval { require Package; } ) {plan(skip_all)}
+    # or
+    #   eval "use Package";
+    #   plan skip_all => "Package required" if $@;
+    # -> pytest.importorskip('Package')
+    my $arg = $element->snext_sibling;
+    my ( $module, $expression, $compound, $statement1, $statement2 );
+    if (
+        $arg->isa('PPI::Structure::Block')
+        and my $import = $arg->find_first(
+            sub {
+                $_[1]->isa('PPI::Token::Word')
+                  and $_[1]->content =~ /^(?:require|use)/xsm;
+            }
+        )
+      )
+    {
+        $module = $import->snext_sibling;
+    }
+    elsif ( $arg->isa('PPI::Token::Quote')
+        and $arg =~ /^["'](?:require|use)\s+([\w:]+)/xsm )
+    {
+        $module = $1;
+    }
+    if ($module) {
+        if (
+                $expression = $element->parent
+            and $expression->isa('PPI::Statement::Expression')
+            and $compound = $expression->parent
+            and $compound->isa('PPI::Statement::Compound')
+            and $compound->find_first(
+                sub {
+                    $_[1]->isa('PPI::Token::Word')
+                      and $_[1]->content eq 'skip_all';
+                }
+            )
+          )
+        {
+            $compound->parent->__insert_before_child( $compound,
+                PPI::Token::Word->new("pytest.importorskip('$module')") );
+            $compound->delete;
+            return;
+        }
+        elsif (
+                $statement1 = $element->parent
+            and $statement1->isa('PPI::Statement')
+            and $statement2 = $statement1->snext_sibling
+            and $statement2->isa('PPI::Statement')
+            and $statement2->find_first(
+                sub {
+                    $_[1]->isa('PPI::Token::Word')
+                      and $_[1]->content eq 'skip_all';
+                }
+            )
+          )
+        {
+            $statement1->parent->__insert_before_child( $statement1,
+                PPI::Token::Word->new("pytest.importorskip('$module')") );
+            $statement1->delete;
+            $statement2->delete;
+            return;
+        }
+    }
+
+    map_built_in($element);
+    return;
+}
+
 sub map_fat_comma {    # =>
     my ($element)  = @_;
     my $expression = $element->parent;
@@ -1078,29 +1150,7 @@ sub map_include {
     }
     $module =~ s/::/./gsm;
 
-    # map if ( not eval { require Package; } ) -> pytest.importorskip('Package')
-    if ( $import eq 'require' ) {
-        my $block      = $element->parent;
-        my $list       = $block->parent;
-        my $expression = $list->parent;
-        my $compound   = $expression->parent;
-        if (
-            $expression =~ /not\s+eval\s*[(]\s*[{:]\s*require\s+/xsm
-            and $compound->find_first(
-                sub {
-                    $_[1]->isa('PPI::Token::Word')
-                      and $_[1]->content eq 'skip_all';
-                }
-            )
-          )
-        {
-            $compound->parent->__insert_before_child( $compound,
-                PPI::Token::Word->new("pytest.importorskip('$module')") );
-            $compound->delete;
-            return;
-        }
-    }
-    elsif ( $import ne 'use' ) {
+    if ( $import ne 'use' ) {
         croak "Unrecognised include $element\n";
     }
     my $path    = $import->snext_sibling;
@@ -1736,7 +1786,7 @@ sub map_word {
             $element->{content} = 'elif';
         }
         when ('eval') {
-            map_built_in($element);
+            map_eval($element);
         }
         when ('grep') {
             map_grep($element);
