@@ -508,6 +508,9 @@ sub map_element {
         when (/PPI::Statement::Compound/xsm) {
             map_compound($element);
         }
+        when (/PPI::Statement::Variable/xsm) {
+            map_variable($element);
+        }
         when (/PPI::Statement/xsm) {
             if ( not $element->isa('PPI::Statement::Expression')
                 and $element eq '1' )
@@ -1744,6 +1747,50 @@ sub map_symbol {
     }
     else {
         $element->{content} =~ s/^[\$@%]//smx;
+    }
+    return;
+}
+
+sub map_variable {
+    my ($element) = @_;
+    if (
+        not $element->find_first(
+            sub {
+                $_[1]->isa('PPI::Token::Operator')
+                  and $_[1]->content eq q{=};
+            }
+        )
+      )
+    {
+        $element->add_element( PPI::Token::Operator->new(q{=}) );
+
+        # map my ($var1, $var2) -> (var1, var2) = (None, None)
+        if (
+            my $list = $element->find_first(
+                sub {
+                    $_[1]->isa('PPI::Structure::List');
+                }
+            )
+          )
+        {
+            my $dest_list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $dest_list->{finish} = PPI::Token::Structure->new(')');
+            $element->add_element($dest_list);
+            for my $child ( $list->schild(0)->children ) {
+                if ( $child->isa('PPI::Token::Symbol') ) {
+                    $dest_list->add_element( PPI::Token::Word->new('None') );
+                }
+                elsif ( $child eq q{,} ) {
+                    $dest_list->add_element( PPI::Token::Operator->new(q{,}) );
+                }
+            }
+        }
+
+        # map my $var1 -> var1 = None
+        else {
+            $element->add_element( PPI::Token::Word->new('None') );
+        }
     }
     return;
 }

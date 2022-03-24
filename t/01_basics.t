@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 81;
+use Test::More tests => 82;
 
 sub slurp {
     my ($file) = @_;
@@ -266,6 +266,20 @@ def function(array) :
 EOS
 
 is map_document( \$script ), $expected, "sub + array";
+
+#########################
+
+$script = <<'EOS';
+my ($var1, $var2);
+my $var3;
+EOS
+
+$expected = <<'EOS';
+(var1, var2)=(None,None)
+var3=None
+EOS
+
+is map_document( \$script ), $expected, "declare variables";
 
 #########################
 
