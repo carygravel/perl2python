@@ -45,12 +45,14 @@ $script = <<'EOS';
 use Test::More tests => 14;
 is $result, $expected, "comment";
 is_deeply \@result, \@expected, "comment";
+method_with_is();
 EOS
 
 $expected = <<'EOS';
 def test_1():
     assert result== expected #  "comment"
     assert result== expected #  "comment"
+    method_with_is()
 EOS
 
 $in  = 'test.t';
