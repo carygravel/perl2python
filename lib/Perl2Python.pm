@@ -490,20 +490,7 @@ sub map_element {
             $element->delete
         }
         when (/PPI::Statement::Sub/xsm) {
-            my $name = $element->name;
-            if ( not defined $name or $name eq q{} ) {
-                croak "Anonymous subs not yet supported\n";
-            }
-            my $child = $element->schild(0);
-            if ( $child ne 'sub' ) {
-                croak "Unknown sub: $element\n";
-            }
-            $child->{content} = 'def';
-            $child = $child->snext_sibling;
-            my $list =
-              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-            $list->{finish} = PPI::Token::Structure->new(')');
-            $child->insert_after($list);
+            map_sub($element);
         }
         when (/PPI::Statement::Compound/xsm) {
             map_compound($element);
@@ -1429,31 +1416,65 @@ sub map_operator {
 
 sub map_package {
     my ($element) = @_;
-    my $package = $element->schild(0);
-    $package->{content} = 'class';
-    my $name = $element->schild(1);
-    $name->{content} =~ s/.*:://xsm;
+    my $new;
 
-    # convert to a sub, which is similar and has a block
-    my $class = PPI::Statement::Sub->new;
-    for my $child ( $element->children ) {
-        $class->add_element( $child->remove );
-    }
-    $element->insert_after($class);
-    $element->delete;
-    my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-    $list->{finish} = PPI::Token::Structure->new(')');
-    $name->insert_after($list);
-
-    # Add a block to scope and indent things properly
-    my $block = PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
-    $block->{start}->{content} = q{:};
-    $class->add_element($block);
-    my $next;
-    while ( ( $next = $class->next_sibling )
-        and not $next->isa('PPI::Statement::Package') )
+    # Look for use Glib::Object::Subclass
+    if (
+        $element->top->find_first(
+            sub {
+                $_[1]->isa('PPI::Statement::Include')
+                  and $_[1]->content =~ /Glib::Object::Subclass/xsm;
+            }
+        )
+      )
     {
-        $block->add_element( $next->remove );
+        $new = 1;
+    }
+    else {
+
+        # Look for new or INIT_INSTANCE methods
+        my $subs = $element->parent->find('PPI::Statement::Sub');
+        if ($subs) {
+            for my $sub ( @{$subs} ) {
+                if ( $sub->schild(1) =~ /(?:new|INIT_INSTANCE)/xsm ) {
+                    $new = 1;
+                    last;
+                }
+            }
+        }
+    }
+
+    if ($new) {
+        my $package = $element->schild(0);
+        $package->{content} = 'class';
+        my $name = $element->schild(1);
+        $name->{content} =~ s/.*:://xsm;
+
+        # convert to a sub, which is similar and has a block
+        my $class = PPI::Statement::Sub->new;
+        for my $child ( $element->children ) {
+            $class->add_element( $child->remove );
+        }
+        $element->insert_after($class);
+        $element->delete;
+        my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $list->{finish} = PPI::Token::Structure->new(')');
+        $name->insert_after($list);
+
+        # Add a block to scope and indent things properly
+        my $block =
+          PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+        $block->{start}->{content} = q{:};
+        $class->add_element($block);
+        my $next;
+        while ( ( $next = $class->next_sibling )
+            and not $next->isa('PPI::Statement::Package') )
+        {
+            $block->add_element( $next->remove );
+        }
+    }
+    else {
+        $element->delete;
     }
     return;
 }
@@ -1709,6 +1730,39 @@ sub map_regex_substitute {
         $list->add_element($flags);
     }
     $element->delete;
+    return;
+}
+
+sub map_sub {
+    my ($element) = @_;
+    my $name = $element->name;
+    if ( not defined $name or $name eq q{} ) {
+        croak "Anonymous subs not yet supported\n";
+    }
+    my $child = $element->schild(0);
+    if ( $child ne 'sub' ) {
+        croak "Unknown sub: $element\n";
+    }
+    $child->{content} = 'def';
+    $child = $child->snext_sibling;
+
+    # new -> __init__ for classes
+    if ( $child eq 'new' ) {
+        my $parent = $child;
+        while ( $parent = $parent->parent ) {
+            if (    $parent->isa('PPI::Statement::Sub')
+                and $parent->schild(0) eq 'class' )
+            {
+                $child->{content} = '__init__';
+                last;
+            }
+        }
+
+    }
+
+    my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+    $list->{finish} = PPI::Token::Structure->new(')');
+    $child->insert_after($list);
     return;
 }
 
