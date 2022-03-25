@@ -1838,7 +1838,7 @@ sub map_word {
         when ('grep') {
             map_grep($element);
         }
-        when ('is') {
+        when (/is(?:_deeply)?/xsm) {
 
             # ignore 'is' created by previously mapping defined
             if ( $element->snext_sibling =~ /(None|not)/xsm ) {
