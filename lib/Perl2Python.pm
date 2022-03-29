@@ -24,38 +24,42 @@ our $LINENUMBER;
 our $DEBUG;
 
 # https://perldoc.perl.org/perlop#Operator-Precedence-and-Associativity
-my @PRECENDENCE = (
-    [qw{or xor}],
-    [qw{and}],
-    [qw{not}],
-    ['list operator (rightward)'],
-    [ q{,}, q{=>} ],
-    [qw{= += -= *= /=}],
-    [qw{? :}],
-    [qw{.. ...}],
-    [qw{|| //}],
-    [qw{&&}],
-    [qw{| |. ^ ^.}],
-    [qw{& &.}],
-    [qw{== != eq ne <=> cmp ~~}],
-    [qw{< > <= >= lt gt le ge}],
+my @PRECEDENCE = (
+    [ 'left',     qw{or xor} ],
+    [ 'left',     qw{and} ],
+    [ 'right',    qw{not} ],
+    [ 'nonassoc', 'list operator (rightward)' ],
+    [ 'left',     q{,}, q{=>} ],
+    [ 'right',    qw{= += -= *= /=} ],
+    [ 'right',    qw{? :} ],
+    [ 'nonassoc', qw{.. ...} ],
+    [ 'left',     qw{|| //} ],
+    [ 'left',     qw{&&} ],
+    [ 'left',     qw{| |. ^ ^.} ],
+    [ 'left',     qw{& &.} ],
+    [ 'chain/na', qw{== != eq ne <=> cmp ~~} ],
+    [ 'chained',  qw{< > <= >= lt gt le ge} ],
     [
+        'nonassoc',
         qw{-r -w -x -o -R -W -X -O -e -z -s -f -d -l -p -S -b -c -t -u -g -k -T -B -M -A -C}
     ],
-    [qw{<< >>}],
-    [qw{+ - .}],
-    [qw{* / % x}],
-    [qw{=~ !~}],
-    [qw{! ~ ~. \\}],
-    [qw{**}],
-    [qw{++ --}],
-    [qw{->}],
-    [ 'term', 'list operator (leftward)' ],
+    [ 'left',     qw{<< >>} ],
+    [ 'left',     qw{+ - .} ],
+    [ 'left',     qw{* / % x} ],
+    [ 'left',     qw{=~ !~} ],
+    [ 'right',    qw{! ~ ~. \\} ],
+    [ 'right',    qw{**} ],
+    [ 'nonassoc', qw{++ --} ],
+    [ 'left',     qw{->} ],
+    [ 'left', 'term', 'list operator (leftward)' ],
 );
-my %PRECENDENCE = ();
-for my $i ( 0 .. $#PRECENDENCE ) {
-    for my $op ( @{ $PRECENDENCE[$i] } ) {
-        $PRECENDENCE{$op} = $i;
+my %PRECEDENCE    = ();
+my %ASSOCIATIVITY = ();
+for my $i ( 0 .. $#PRECEDENCE ) {
+    my $ass = shift @{ $PRECEDENCE[$i] };
+    for my $op ( @{ $PRECEDENCE[$i] } ) {
+        $PRECEDENCE{$op}    = $i;
+        $ASSOCIATIVITY{$op} = $ass;
     }
 }
 
@@ -226,7 +230,7 @@ sub map_cast {
         if ( not $operator ) {
             remove_cast( $element, $block, $parent );
         }
-        elsif ( defined $PRECENDENCE{$operator} ) {
+        elsif ( defined $PRECEDENCE{$operator} ) {
             my $list =
               PPI::Structure::List->new( PPI::Token::Structure->new('(') );
             $list->{finish} = PPI::Token::Structure->new(')');
@@ -1604,7 +1608,9 @@ sub map_regex_match {
             croak "Argument for operator '$operator' not found\n";
         }
     }
-    my $expression_operator = $argument[0]->sprevious_sibling;
+
+    my ( $expression_operator, @expression_arg ) =
+      parse_subexpression( \@argument );
     $list->add_element( regex2quote($element) );
 
     if ( $operator eq q{=~} ) {
@@ -1626,20 +1632,17 @@ sub map_regex_match {
     # map () = -> len()
     if ( defined $element->{modifiers}{g} ) {
         if ( $expression_operator eq q{=} ) {
-            my @expression_arg =
-              get_argument_for_operator( $expression_operator, 0 );
-            if ( $expression_arg[0] =~ /[(]\s*[)]/xsm ) {
+            if ( $expression_arg[-1] =~ /[(]\s*[)]/xsm ) {
                 my $lenlist =
                   PPI::Structure::List->new( PPI::Token::Structure->new('(') );
                 $lenlist->{finish} = PPI::Token::Structure->new(')');
-                $expression_arg[0]
-                  ->insert_before( PPI::Token::Word->new('len') );
-                $expression_arg[0]->insert_before($lenlist);
-                while ( my $child = $expression_operator->snext_sibling ) {
+                $element->insert_before( PPI::Token::Word->new('len') );
+                $element->insert_before($lenlist);
+                while ( my $child = $element->snext_sibling ) {
                     $lenlist->add_element( $child->remove );
                 }
                 $expression_operator->delete;
-                $expression_arg[0]->delete;
+                $expression_arg[-1]->delete;
             }
         }
         delete $element->{modifiers}{g};
@@ -1901,17 +1904,14 @@ sub map_word {
 
             # we've got a unit test - map to assert
             $element->{content} = 'assert';
-            my $statement = $element->parent;
-            my $operators = $statement->find(
-                sub {
-                    $_[1]->isa('PPI::Token::Operator')
-                      and $_[1]->content eq q{,};
-                }
-            );
-            $operators->[0]->{content} = q{==};
-            my $comment = PPI::Token::Comment->new(' # ');
-            $statement->__insert_after_child( $operators->[1], $comment );
-            $operators->[1]->delete;
+            my @result   = get_argument_for_operator( $element, 1 );
+            my $operator = $result[-1]->snext_sibling;
+            $operator->{content} = q{==};
+            my @expected = get_argument_for_operator( $operator, 1 );
+            my $comment  = PPI::Token::Comment->new(' # ');
+            $expected[-1]->insert_after($comment);
+            $operator = $expected[-1]->snext_sibling;
+            $operator->delete;
         }
         when ('length') {
             my $list = map_built_in($element);
@@ -2050,6 +2050,21 @@ sub nest_level {
         $element = $parent;
     }
     return $level;
+}
+
+sub parse_subexpression {
+    my ($argument) = @_;
+    my ( @expression_arg, $expression_operator );
+    while ( "@{$argument}" =~ /=/xsm ) {
+        my $item = shift @{$argument};
+        if ( "@{$argument}" =~ /=/xsm ) {
+            push @expression_arg, $item;
+        }
+        else {
+            $expression_operator = $item;
+        }
+    }
+    return $expression_operator, @expression_arg;
 }
 
 sub remove_trailing_semicolon {
@@ -2195,12 +2210,6 @@ sub get_argument_from_list {
 sub get_argument_for_operator {
     my ( $element, $n ) = @_;
 
-    if (    not defined $PRECENDENCE{$element}
-        and not defined $BUILTINS{$element} )
-    {
-        warn
-"Called 'get_argument_for_operator()' with for '$element', which is neither an operator, nor a built-in\n";
-    }
     if ( $element eq q{?} ) {
         return get_argument_for_ternary( $element, $n );
     }
@@ -2219,10 +2228,20 @@ sub get_argument_for_operator {
                 $iter = pop @sibling;
             }
         }
-        if ( not has_higher_precedence_than( $element, $iter, $n ) ) {
+        if (
+            not has_higher_precedence_than( $element, $iter, $n )
+            and ( not defined $ASSOCIATIVITY{$iter}
+                or $ASSOCIATIVITY{$iter} ne 'right' )
+          )
+        {
 
             # ensure we have at least 1 argument
-            if ( @sibling == 0 ) {
+            if (
+                @sibling == 0
+                or ( defined $ASSOCIATIVITY{ $sibling[-1] }
+                    and $ASSOCIATIVITY{ $sibling[-1] } eq 'right' )
+              )
+            {
                 push @sibling, $iter;
                 while (
                         ( $iter = next_sibling( $iter, $n ) )
@@ -2285,7 +2304,7 @@ sub has_higher_precedence_than {
 
     $op1 = check_operator( $op1, $direction );
     $op2 = check_operator( $op2, $direction );
-    return $PRECENDENCE{$op1} < $PRECENDENCE{$op2};
+    return $PRECEDENCE{$op1} < $PRECEDENCE{$op2};
 }
 
 sub check_operator {
@@ -2293,7 +2312,7 @@ sub check_operator {
     if ( defined $element->{originally} ) {
         $element = $element->{originally};
     }
-    if ( not defined $PRECENDENCE{$element} ) {
+    if ( not defined $PRECEDENCE{$element} ) {
         if ( defined $LIST_OPERATORS{$element} ) {
             if ( $direction > 0 ) {
                 return 'list operator (rightward)';

@@ -45,6 +45,9 @@ $script = <<'EOS';
 use Test::More tests => 14;
 is $result, $expected, "comment";
 is_deeply \@result, \@expected, "comment";
+            is_deeply [ 1, 2, 3 ],
+              [ 4, 5, 6 ],
+              "comment";
 method_with_is();
 EOS
 
@@ -52,6 +55,9 @@ $expected = <<'EOS';
 def test_1():
     assert result== expected #  "comment"
     assert result== expected #  "comment"
+    assert [
+    1, 2, 3 ]==               [
+    4, 5, 6 ] #                "comment"
     method_with_is()
 EOS
 
@@ -1094,7 +1100,7 @@ EOS
 
 $expected = <<'EOS';
 import re
-count = len(re.findall(r"\w",data))    
+count =     len(re.findall(r"\w",data))
 EOS
 
 is map_document( \$script ), $expected, "regex count matches";
