@@ -978,11 +978,15 @@ is map_document( \$script ), $expected, "operators";
 $script = <<'EOS';
 use IPC::System::Simple qw(system);
 system( qw(ls -l) );
+system( 'ls', '-l' );
+system( qw(ls -l), 'file with a space' );
 EOS
 
 $expected = <<'EOS';
 import subprocess
-subprocess.run( ["ls","-l"] )
+subprocess.run([ "ls","-l" ])
+subprocess.run([ 'ls', '-l' ])
+subprocess.run([ "ls","-l", 'file with a space' ])
 EOS
 
 is map_document( \$script ), $expected, "subprocess";

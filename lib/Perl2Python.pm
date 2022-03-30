@@ -1808,6 +1808,38 @@ sub map_symbol {
     return;
 }
 
+sub map_system {
+    my ($element) = @_;
+    add_import( $element, 'subprocess' );
+    $element->{content} = 'subprocess.run';
+    my $args = map_built_in($element);
+    map_element($args);
+    my $list = PPI::Structure::List->new( PPI::Token::Structure->new('[') );
+    $list->{finish} = PPI::Token::Structure->new(']');
+    my @children = $args->children;
+
+    while (@children) {
+        my $child = shift @children;
+        if (   $child->isa('PPI::Structure::List')
+            or $child->isa('PPI::Statement::Expression') )
+        {
+            my @gchildren = $child->children;
+            if (@gchildren) {
+                unshift @children, @gchildren;
+            }
+        }
+        else {
+            my $parent = $child->parent;
+            $list->add_element( $child->remove );
+            if ( $parent eq '[]' ) {
+                $parent->delete;
+            }
+        }
+    }
+    $args->add_element($list);
+    return;
+}
+
 sub map_variable {
     my ($element) = @_;
     if (
@@ -2002,8 +2034,7 @@ sub map_word {
             $element->delete;
         }
         when ('system') {
-            add_import( $element, 'subprocess' );
-            $element->{content} = 'subprocess.run';
+            map_system($element);
         }
         when ('unlink') {
             my $list = map_built_in($element);
