@@ -980,6 +980,7 @@ use IPC::System::Simple qw(system);
 system( qw(ls -l) );
 system( 'ls', '-l' );
 system( qw(ls -l), 'file with a space' );
+system( qw(ls -l), $variable );
 EOS
 
 $expected = <<'EOS';
@@ -987,6 +988,7 @@ import subprocess
 subprocess.run([ "ls","-l" ])
 subprocess.run([ 'ls', '-l' ])
 subprocess.run([ "ls","-l", 'file with a space' ])
+subprocess.run([ "ls","-l", str(variable) ])
 EOS
 
 is map_document( \$script ), $expected, "subprocess";

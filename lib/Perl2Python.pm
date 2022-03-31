@@ -1830,7 +1830,22 @@ sub map_system {
         }
         else {
             my $parent = $child->parent;
-            $list->add_element( $child->remove );
+
+            # run() takes a string or list of strings
+            if (   $child->isa('PPI::Token::Quote')
+                or $child->isa('PPI::Token::Operator')
+                or $child->isa('PPI::Token::Whitespace') )
+            {
+                $list->add_element( $child->remove );
+            }
+            else {
+                $list->add_element( PPI::Token::Word->new('str') );
+                my $strlist =
+                  PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+                $strlist->{finish} = PPI::Token::Structure->new(')');
+                $list->add_element($strlist);
+                $strlist->add_element( $child->remove );
+            }
             if ( $parent eq '[]' ) {
                 $parent->delete;
             }
