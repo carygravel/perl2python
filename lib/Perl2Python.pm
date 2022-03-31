@@ -1964,6 +1964,10 @@ sub map_word {
             my $list = map_built_in($element);
             $element->{content} = 'len';
         }
+        when ('log') {
+            add_import( $element, 'math' );
+            $element->{content} = 'math.log';
+        }
         when (/^(?:my|our)$/xsm) {
             $element->delete;
         }
