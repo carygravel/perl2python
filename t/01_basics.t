@@ -776,6 +776,7 @@ open my $fh, '<', $filename or return;
 close($fh);
 l = length $line;
 unlink $filename;
+last
 EOS
 
 $expected = <<'EOS';
@@ -790,6 +791,7 @@ except:
 fh.close()
 l = len(line) 
 os.remove(filename) 
+break
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";

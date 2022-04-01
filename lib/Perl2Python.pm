@@ -1960,6 +1960,9 @@ sub map_word {
             $operator = $expected[-1]->snext_sibling;
             $operator->delete;
         }
+        when ('last') {
+            $element->{content} = 'break';
+        }
         when ('length') {
             my $list = map_built_in($element);
             $element->{content} = 'len';
