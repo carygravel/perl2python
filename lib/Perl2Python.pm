@@ -1238,45 +1238,12 @@ sub map_magic {
         # sub argument usage
         $element->{content} = '*argv';
         $dest_list->add_element( PPI::Token::Symbol->new('*argv') );
-        return;
     }
 
     # magic defined in regex capture, move capture out of condition
     # and use it to fetch group
     elsif ( $element =~ /^\$(\d+)$/xsm ) {
-        my $compound = $element->parent;
-
-        # split + regex capture group test otherwise falls over here
-        if ( not $compound ) { return }
-
-        my $search;
-        while (
-            not $search = $compound->find_first(
-                sub {
-                    $_[1]->isa('PPI::Token::Word')
-                      and $_[1]->content eq 're.search';
-                }
-            )
-          )
-        {
-            $compound = $compound->parent;
-        }
-        if ( $search and $compound->isa('PPI::Statement::Compound') ) {
-            my $list      = $search->snext_sibling;
-            my $regex_var = PPI::Statement::Variable->new;
-            $regex_var->add_element( PPI::Token::Symbol->new('regex') );
-            $regex_var->add_element( PPI::Token::Operator->new(q{=}) );
-            $compound->insert_before($regex_var);
-            $search->insert_before( PPI::Token::Symbol->new('regex') );
-            $regex_var->add_element( $search->remove );
-            $regex_var->add_element( $list->remove );
-            $compound->insert_before( PPI::Token::Whitespace->new("\n") );
-            indent_element($regex_var);
-        }
-
-        # replace the magic with the regex group
-        $element->insert_before( PPI::Token::Word->new("regex.group($1)") );
-        $element->delete;
+        map_regex_group( $element, $1 );
     }
     else {
         map_symbol($element);
@@ -1569,6 +1536,60 @@ sub map_readline {
     else {
         croak "Error parsing '$element\n";
     }
+    return;
+}
+
+sub map_regex_group {
+    my ( $element, $group ) = @_;
+    my $compound = $element->parent;
+
+    # split + regex capture group test otherwise falls over here
+    if ( not $compound ) { return }
+
+    my $search;
+    while (
+        not $search = $compound->find_first(
+            sub {
+                $_[1]->isa('PPI::Token::Word')
+                  and $_[1]->content eq 're.search';
+            }
+        )
+      )
+    {
+        $compound = $compound->parent;
+    }
+    my $i = q{};
+    if ( $search and $compound->isa('PPI::Statement::Compound') ) {
+        my $list      = $search->snext_sibling;
+        my $regex_var = PPI::Statement::Variable->new;
+        my $parent    = $compound->parent;
+        while (
+            $parent->find_first(
+                sub {
+                    $_[1]->isa('PPI::Token::Symbol')
+                      and $_[1]->content eq "regex$i";
+                }
+            )
+          )
+        {
+            if ( $i eq q{} ) {
+                $i = 1;
+            }
+            $i++;
+        }
+        $regex_var->add_element( PPI::Token::Symbol->new("regex$i") );
+        $regex_var->add_element( PPI::Token::Operator->new(q{=}) );
+        $compound->insert_before($regex_var);
+        $search->insert_before( PPI::Token::Symbol->new("regex$i") );
+        $regex_var->add_element( $search->remove );
+        $regex_var->add_element( $list->remove );
+        $compound->insert_before( PPI::Token::Whitespace->new("\n") );
+        indent_element($regex_var);
+    }
+
+    # replace the magic with the regex group
+    $element->insert_before( PPI::Token::Word->new("regex$i.group($group)") );
+    $element->delete;
     return;
 }
 
