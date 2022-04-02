@@ -503,8 +503,11 @@ sub map_element {
             map_variable($element);
         }
         when (/PPI::Statement/xsm) {
-            if ( not $element->isa('PPI::Statement::Expression')
-                and $element eq '1' )
+            if (
+                $element =~ /Log::Log4perl->easy_init/xsm
+                or ( not $element->isa('PPI::Statement::Expression')
+                    and $element eq '1' )
+              )
             {
                 $element->delete;
                 return;
@@ -1115,6 +1118,10 @@ sub map_include {
             $element->delete;
             return;
         }
+        when ('Glib::Object::Subclass') {
+            map_gobject_subclass( $element, $import );
+            return;
+        }
         when ('Test::More') {
             my $def = PPI::Statement::Sub->new;
             $def->add_element( PPI::Token::Word->new('def') );
@@ -1137,10 +1144,6 @@ sub map_include {
             }
             return;
         }
-        when ('Glib::Object::Subclass') {
-            map_gobject_subclass( $element, $import );
-            return;
-        }
     }
     $module =~ s/::/./gsm;
 
@@ -1149,37 +1152,45 @@ sub map_include {
     }
     my $path    = $import->snext_sibling;
     my $symbols = $path->snext_sibling;
-    if ( $path eq 'Glib' ) {
-        if ($symbols) {
-            $element->delete;
+    given ("$path") {
+        when ('Glib') {
+            if ($symbols) {
+                $element->delete;
+            }
+            else {
+                $element->add_element( PPI::Token::Whitespace->new(q{ }) );
+                $symbols = PPI::Token::Quote::Double->new('"Glib"');
+                $element->add_element($symbols);
+                $module = 'gi.repository';
+            }
         }
-        else {
+        when ('Gtk3') {
+            add_import( $element, 'gi' );
+            my $parent = $element->parent;
+            $parent->__insert_before_child( $element,
+                PPI::Token::Word->new('gi.require_version("Gtk", "3.0")') );
+            $parent->__insert_before_child( $element,
+                PPI::Token::Whitespace->new("\n") );
             $element->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $symbols = PPI::Token::Quote::Double->new('"Glib"');
+            delete_everything_after($path);
+            $element->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $symbols = PPI::Token::Quote::Double->new('"Gtk"');
             $element->add_element($symbols);
             $module = 'gi.repository';
         }
-    }
-    elsif ( $path eq 'Gtk3' ) {
-        add_import( $element, 'gi' );
-        my $parent = $element->parent;
-        $parent->__insert_before_child( $element,
-            PPI::Token::Word->new('gi.require_version("Gtk", "3.0")') );
-        $parent->__insert_before_child( $element,
-            PPI::Token::Whitespace->new("\n") );
-        $element->add_element( PPI::Token::Whitespace->new(q{ }) );
-        delete_everything_after($path);
-        $element->add_element( PPI::Token::Whitespace->new(q{ }) );
-        $symbols = PPI::Token::Quote::Double->new('"Gtk"');
-        $element->add_element($symbols);
-        $module = 'gi.repository';
-    }
-    elsif ( $path eq 'Set::IntSpan' ) {
-        delete_everything_after($path);
-        $element->add_element( PPI::Token::Whitespace->new(q{ }) );
-        $symbols = PPI::Token::Quote::Double->new('"intspan"');
-        $element->add_element($symbols);
-        $module = 'intspan';
+        when ('Log::Log4perl') {
+            delete_everything_after($path);
+            $module = 'logger';
+            $symbols->delete;
+            undef $symbols;
+        }
+        when ('Set::IntSpan') {
+            delete_everything_after($path);
+            $element->add_element( PPI::Token::Whitespace->new(q{ }) );
+            $symbols = PPI::Token::Quote::Double->new('"intspan"');
+            $element->add_element($symbols);
+            $module = 'intspan';
+        }
     }
     if ( $symbols and $symbols->isa('PPI::Token::Number') ) {
         $symbols->delete;

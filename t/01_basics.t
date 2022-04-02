@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 85;
+use Test::More tests => 86;
 
 sub slurp {
     my ($file) = @_;
@@ -1283,6 +1283,20 @@ math.log(variable)
 EOS
 
 is map_document( \$script ), $expected, "maths functions";
+
+#########################
+
+$script = <<'EOS';
+use Log::Log4perl qw(:easy);
+Log::Log4perl->easy_init($ERROR);
+EOS
+
+$expected = <<'EOS';
+import logger
+
+EOS
+
+is map_document( \$script ), $expected, "map log4perl -> logger";
 
 #########################
 
