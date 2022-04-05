@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 86;
+use Test::More tests => 87;
 
 sub slurp {
     my ($file) = @_;
@@ -224,6 +224,16 @@ VARIABLE          = 4
 EOS
 
 is map_document( \$script ), $expected, "readonly";
+
+$script = <<'EOS';
+my $EMPTY         = q{};
+EOS
+
+$expected = <<'EOS';
+EMPTY         = ""
+EOS
+
+is map_document( \$script ), $expected, "literal quotes";
 
 #########################
 

@@ -526,7 +526,20 @@ sub map_element {
         when (/PPI::Token::Operator/xsm) {
             map_operator($element);
         }
-
+        when (/PPI::Token::Quote::Literal/xsm) {
+            $element->insert_after(
+                PPI::Token::Quote::Double->new(
+                    q{"}
+                      . substr(
+                        $element->content,
+                        $element->{sections}[0]{position},
+                        $element->{sections}[0]{size}
+                      )
+                      . q{"}
+                )
+            );
+            $element->delete;
+        }
         when (/PPI::Token::QuoteLike::Readline/xsm) {
             map_readline($element);
         }
