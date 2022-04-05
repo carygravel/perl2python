@@ -1107,7 +1107,9 @@ sub map_include {
     my $module    = $element->module;
     my $import    = $element->schild(0);
     given ($module) {
-        when (/$IGNORED_INCLUDES/xsm) {
+
+        # empty string matches cases like "use 5.008005;"
+        when (/(?:$IGNORED_INCLUDES|^$)/xsm) {
             my $whitespace = $element->next_sibling;
             if (    defined $whitespace
                 and $whitespace->isa('PPI::Token::Whitespace')

@@ -99,6 +99,7 @@ is map_document( \$script ), $expected, "conditionally skip more tests";
 #########################
 
 $script = <<'EOS';
+use 5.008005;
 use feature 'switch';
 no if $] >= 5.018, warnings => 'experimental::smartmatch';
 use MyModule::MySubModule::MySubSubModule;
