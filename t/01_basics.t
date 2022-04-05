@@ -49,6 +49,7 @@ is_deeply \@result, \@expected, "comment";
               [ 4, 5, 6 ],
               "comment";
 method_with_is();
+is_deeply(\@result, \@expected, "comment");
 EOS
 
 $expected = <<'EOS';
@@ -59,6 +60,7 @@ def test_1():
     1, 2, 3 ]==               [
     4, 5, 6 ] #                "comment"
     method_with_is()
+    assert result== expected #  "comment"
 EOS
 
 $in  = 'test.t';

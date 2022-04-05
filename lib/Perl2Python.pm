@@ -1206,6 +1206,39 @@ sub map_include {
     return;
 }
 
+sub map_is {
+    my ($element) = @_;
+    my $next = $element->snext_sibling;
+
+    # assert doesn't use parens, so remove any
+    if ( $next->isa('PPI::Structure::List') ) {
+        for my $child ( $next->schild(0)->children ) {
+            $next->insert_before( $child->remove );
+            map_element($child);
+        }
+        $next->delete;
+        $next = $element->snext_sibling;
+        $element->insert_after( PPI::Token::Whitespace->new(q{ }) );
+    }
+
+    # ignore 'is' created by previously mapping defined
+    if ( $next =~ /(None|not)/xsm ) {
+        return;
+    }
+
+    # we've got a unit test - map to assert
+    $element->{content} = 'assert';
+    my @result   = get_argument_for_operator( $element, 1 );
+    my $operator = $result[-1]->snext_sibling;
+    $operator->{content} = q{==};
+    my @expected = get_argument_for_operator( $operator, 1 );
+    my $comment  = PPI::Token::Comment->new(' # ');
+    $expected[-1]->insert_after($comment);
+    $operator = $expected[-1]->snext_sibling;
+    $operator->delete;
+    return;
+}
+
 sub map_magic {
     my ($element) = @_;
 
@@ -1975,22 +2008,7 @@ sub map_word {
             map_grep($element);
         }
         when (/^is(?:_deeply)?$/xsm) {
-
-            # ignore 'is' created by previously mapping defined
-            if ( $element->snext_sibling =~ /(None|not)/xsm ) {
-                return;
-            }
-
-            # we've got a unit test - map to assert
-            $element->{content} = 'assert';
-            my @result   = get_argument_for_operator( $element, 1 );
-            my $operator = $result[-1]->snext_sibling;
-            $operator->{content} = q{==};
-            my @expected = get_argument_for_operator( $operator, 1 );
-            my $comment  = PPI::Token::Comment->new(' # ');
-            $expected[-1]->insert_after($comment);
-            $operator = $expected[-1]->snext_sibling;
-            $operator->delete;
+            map_is($element);
         }
         when ('last') {
             $element->{content} = 'break';
