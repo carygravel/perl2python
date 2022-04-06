@@ -227,10 +227,12 @@ is map_document( \$script ), $expected, "readonly";
 
 $script = <<'EOS';
 my $EMPTY         = q{};
+my $DOUBLE_QUOTES = q{"};
 EOS
 
 $expected = <<'EOS';
 EMPTY         = ""
+DOUBLE_QUOTES = "\""
 EOS
 
 is map_document( \$script ), $expected, "literal quotes";

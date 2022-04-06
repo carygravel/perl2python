@@ -527,17 +527,13 @@ sub map_element {
             map_operator($element);
         }
         when (/PPI::Token::Quote::Literal/xsm) {
+            my $content = substr
+              $element->content,
+              $element->{sections}[0]{position},
+              $element->{sections}[0]{size};
+            $content =~ s/"/\\"/xsm;
             $element->insert_after(
-                PPI::Token::Quote::Double->new(
-                    q{"}
-                      . substr(
-                        $element->content,
-                        $element->{sections}[0]{position},
-                        $element->{sections}[0]{size}
-                      )
-                      . q{"}
-                )
-            );
+                PPI::Token::Quote::Double->new( q{"} . $content . q{"} ) );
             $element->delete;
         }
         when (/PPI::Token::QuoteLike::Readline/xsm) {
