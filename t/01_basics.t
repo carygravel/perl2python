@@ -653,6 +653,7 @@ package MyModule::MyPackage;
 $CLASS_VAR          = 4;
 our $VERSION = 1;
 sub new {
+    my ( $class, %options ) = @_;
     return
 }
 1;
@@ -663,7 +664,8 @@ $expected = <<'EOS';
 class MyPackage():
     CLASS_VAR          = 4
     VERSION = 1
-    def __init__() :
+    def __init__(  options ) :
+    
         return
 
 

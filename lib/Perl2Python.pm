@@ -1272,6 +1272,17 @@ sub map_magic {
         {
             my $source_list = $expression->find_first('PPI::Structure::List');
             if ($source_list) {
+
+                # new() sub pick up the class name as the first argument.
+                # This isn't necessary in python, so remove it.
+                my $subname = $sub->schild(1);
+                if ( $subname eq '__init__' ) {
+                    my $class    = $source_list->schild(0)->schild(0);
+                    my $operator = $class->snext_sibling;
+                    $class->delete;
+                    $operator->delete;
+                }
+
                 for my $child ( $source_list->children ) {
                     $dest_list->add_element( $child->remove );
                 }
