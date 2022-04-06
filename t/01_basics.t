@@ -103,6 +103,7 @@ use 5.008005;
 use feature 'switch';
 no if $] >= 5.018, warnings => 'experimental::smartmatch';
 use English qw( -no_match_vars );
+use Exporter ();
 use MyModule::MySubModule::MySubSubModule;
 MyModule::MySubModule::MySubSubModule::my_method();
 EOS
