@@ -2014,6 +2014,9 @@ sub map_word {
             $fh->{content} .= q{.};
             $element->insert_before( $fh->remove );
         }
+        when ('croak') {
+            $element->{content} = 'raise';
+        }
         when ('defined') {
             map_defined($element);
         }
