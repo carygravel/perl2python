@@ -2042,6 +2042,13 @@ sub map_word {
         when (/^is(?:_deeply)?$/xsm) {
             map_is($element);
         }
+        when ('keys') {
+            my $list = map_built_in($element);
+            for my $child ( $list->children ) {
+                $element->insert_before( $child->remove );
+            }
+            $element->insert_before( PPI::Token::Operator->new(q{.}) );
+        }
         when ('last') {
             $element->{content} = 'break';
         }

@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 89;
+use Test::More tests => 90;
 
 sub slurp {
     my ($file) = @_;
@@ -1213,6 +1213,20 @@ my_hash = {
 EOS
 
 is map_document( \$script ), $expected, "map hash->dict";
+
+$script = <<'EOS';
+for ( keys %options ) {
+    print $_;
+}
+EOS
+
+$expected = <<'EOS';
+for _ in  options.keys()   :
+    print(_) 
+
+EOS
+
+is map_document( \$script ), $expected, "keys()";
 
 $script = <<'EOS';
 add_column_type('hstring', type => 'Glib::Scalar', attr => 'hidden');
