@@ -178,43 +178,42 @@ sub map_built_in {
             $list->add_element( $child->remove );
         }
         $element->insert_after($list);
+    }
 
-        # deal with return value from built-in
-        my $child = $list->snext_sibling;
-        if ( $child eq 'or' ) {
-            $child->delete;
-            my $try    = PPI::Statement::Compound->new;
-            my $parent = $statement->parent;
-            $parent->__insert_before_child( $statement, $try );
-            $try->add_element( PPI::Token::Word->new('try') );
-            my $block =
-              PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
-            $block->{start}->{content} = q{:};
-            $try->add_element($block);
-            $block->add_element( PPI::Token::Whitespace->new("\n") );
-            $block->add_element( $statement->remove );
+    # deal with return value from built-in
+    my $child = $list->snext_sibling;
+    if ( $child eq 'or' ) {
+        $child->delete;
+        my $try    = PPI::Statement::Compound->new;
+        my $parent = $statement->parent;
+        $parent->__insert_before_child( $statement, $try );
+        $try->add_element( PPI::Token::Word->new('try') );
+        my $block =
+          PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+        $block->{start}->{content} = q{:};
+        $try->add_element($block);
+        $block->add_element( PPI::Token::Whitespace->new("\n") );
+        $block->add_element( $statement->remove );
 
-            my $except = PPI::Statement::Compound->new;
-            $parent->__insert_after_child( $try,
-                PPI::Token::Whitespace->new("\n"), $except );
-            $except->add_element( PPI::Token::Word->new('except') );
-            $block =
-              PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
-            $block->{start}->{content} = q{:};
-            $except->add_element($block);
-            $block->add_element( PPI::Token::Whitespace->new("\n") );
-            $statement = PPI::Statement->new;
-            $block->add_element($statement);
+        my $except = PPI::Statement::Compound->new;
+        $parent->__insert_after_child( $try,
+            PPI::Token::Whitespace->new("\n"), $except );
+        $except->add_element( PPI::Token::Word->new('except') );
+        $block = PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+        $block->{start}->{content} = q{:};
+        $except->add_element($block);
+        $block->add_element( PPI::Token::Whitespace->new("\n") );
+        $statement = PPI::Statement->new;
+        $block->add_element($statement);
 
-            while ( my $rest = $list->next_sibling ) {
-                $statement->add_element( $rest->remove );
-            }
-
-            # indent the added code explicitly
-            indent_element($try);
-            indent_element($except);
-            indent_element($statement);
+        while ( my $rest = $list->next_sibling ) {
+            $statement->add_element( $rest->remove );
         }
+
+        # indent the added code explicitly
+        indent_element($try);
+        indent_element($except);
+        indent_element($statement);
     }
     return $list;
 }
@@ -2059,6 +2058,20 @@ sub map_word {
         when ('log') {
             add_import( $element, 'math' );
             $element->{content} = 'math.log';
+        }
+        when ('move') {
+            add_import( $element, 'os' );
+            my $list = map_built_in($element);
+            $element->{content} = 'os.rename';
+            my $op   = $list->snext_sibling;
+            my @dest = get_argument_for_operator( $op, 1 );
+            $list->add_element( $op->remove );
+            for my $arg (@dest) {
+                $list->add_element( $arg->remove );
+            }
+
+            # repeat map_built_in call to catch return value
+            $list = map_built_in($element);
         }
         when (/^(?:my|our)$/xsm) {
             $element->delete;

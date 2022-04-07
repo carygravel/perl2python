@@ -818,7 +818,8 @@ open my $fh, '<', $filename or return;
 close($fh);
 l = length $line;
 unlink $filename;
-last
+move $old, $new or return;
+last;
 EOS
 
 $expected = <<'EOS';
@@ -833,6 +834,10 @@ except:
 fh.close()
 l = len(line) 
 os.remove(filename) 
+try:
+    os.rename(old,new)
+except:
+    return
 break
 EOS
 
