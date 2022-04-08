@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 90;
+use Test::More tests => 91;
 
 sub slurp {
     my ($file) = @_;
@@ -818,8 +818,6 @@ open my $fh, '<', $filename or return;
 close($fh);
 l = length $line;
 unlink $filename;
-move $old, $new or return;
-move($old, $new);
 last;
 EOS
 
@@ -835,11 +833,6 @@ except:
 fh.close()
 l = len(line) 
 os.remove(filename) 
-try:
-    os.rename(old,new)
-except:
-    return
-os.rename(old, new)
 break
 EOS
 
@@ -1362,6 +1355,28 @@ raise 'Error: filename not supplied'
 EOS
 
 is map_document( \$script ), $expected, "map croak -> raise";
+
+#########################
+
+$script = <<'EOS';
+use File::Copy;
+move $old, $new or return;
+move($old, $new);
+copy($old, $new);
+EOS
+
+$expected = <<'EOS';
+import shutil
+import os
+try:
+    os.rename(old,new)
+except:
+    return
+os.rename(old, new)
+shutil.copy2(old, new)
+EOS
+
+is map_document( \$script ), $expected, "map File::Copy";
 
 #########################
 

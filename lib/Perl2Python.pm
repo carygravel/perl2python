@@ -85,7 +85,7 @@ my %REGEX_MODIFIERS = (
 );
 
 my $IGNORED_INCLUDES =
-q/^(?:warnings|strict|feature|if|Readonly|English|Exporter|IPC::System::Simple)$/;
+q/^(?:warnings|strict|feature|if|Readonly|English|Exporter|IPC::System::Simple|File::Copy)$/;
 
 my $ANONYMOUS = 0;
 
@@ -1335,11 +1335,17 @@ sub map_modifiers {
     return;
 }
 
-sub map_move {
+sub map_move_copy {
     my ($element) = @_;
-    add_import( $element, 'os' );
-    my $list = map_built_in($element);
-    $element->{content} = 'os.rename';
+    my $list      = map_built_in($element);
+    my $module    = 'os';
+    my $method    = 'os.rename';
+    if ( $element eq 'copy' ) {
+        $module = 'shutil';
+        $method = 'shutil.copy2';
+    }
+    add_import( $element, $module );
+    $element->{content} = $method;
     if ( not $list->find_first('PPI::Token::Operator') ) {
         my $op   = $list->snext_sibling;
         my @dest = get_argument_for_operator( $op, 1 );
@@ -2078,8 +2084,8 @@ sub map_word {
             add_import( $element, 'math' );
             $element->{content} = 'math.log';
         }
-        when ('move') {
-            map_move($element);
+        when (/^(?:copy|move)$/xsm) {
+            map_move_copy($element);
         }
         when (/^(?:my|our)$/xsm) {
             $element->delete;
