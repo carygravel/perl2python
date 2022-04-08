@@ -1335,6 +1335,25 @@ sub map_modifiers {
     return;
 }
 
+sub map_move {
+    my ($element) = @_;
+    add_import( $element, 'os' );
+    my $list = map_built_in($element);
+    $element->{content} = 'os.rename';
+    if ( not $list->find_first('PPI::Token::Operator') ) {
+        my $op   = $list->snext_sibling;
+        my @dest = get_argument_for_operator( $op, 1 );
+        $list->add_element( $op->remove );
+        for my $arg (@dest) {
+            $list->add_element( $arg->remove );
+        }
+
+        # repeat map_built_in call to catch return value
+        $list = map_built_in($element);
+    }
+    return;
+}
+
 sub map_open {
     my ($element) = @_;
     my $list      = map_built_in($element);
@@ -2060,18 +2079,7 @@ sub map_word {
             $element->{content} = 'math.log';
         }
         when ('move') {
-            add_import( $element, 'os' );
-            my $list = map_built_in($element);
-            $element->{content} = 'os.rename';
-            my $op   = $list->snext_sibling;
-            my @dest = get_argument_for_operator( $op, 1 );
-            $list->add_element( $op->remove );
-            for my $arg (@dest) {
-                $list->add_element( $arg->remove );
-            }
-
-            # repeat map_built_in call to catch return value
-            $list = map_built_in($element);
+            map_move($element);
         }
         when (/^(?:my|our)$/xsm) {
             $element->delete;

@@ -819,6 +819,7 @@ close($fh);
 l = length $line;
 unlink $filename;
 move $old, $new or return;
+move($old, $new);
 last;
 EOS
 
@@ -838,6 +839,7 @@ try:
     os.rename(old,new)
 except:
     return
+os.rename(old, new)
 break
 EOS
 
