@@ -654,6 +654,8 @@ $CLASS_VAR          = 4;
 our $VERSION = 1;
 sub new {
     my ( $class, %options ) = @_;
+    my $self = {};
+    bless $self, $class;
     return
 }
 1;
@@ -664,7 +666,9 @@ $expected = <<'EOS';
 class MyPackage():
     CLASS_VAR          = 4
     VERSION = 1
-    def __init__(  options ) :
+    def __init__( self, options ) :
+    
+    
     
         return
 

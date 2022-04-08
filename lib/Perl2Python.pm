@@ -1273,13 +1273,11 @@ sub map_magic {
             if ($source_list) {
 
                 # new() sub pick up the class name as the first argument.
-                # This isn't necessary in python, so remove it.
+                # python requires here self
                 my $subname = $sub->schild(1);
                 if ( $subname eq '__init__' ) {
-                    my $class    = $source_list->schild(0)->schild(0);
-                    my $operator = $class->snext_sibling;
-                    $class->delete;
-                    $operator->delete;
+                    my $class = $source_list->schild(0)->schild(0);
+                    $class->{content} = 'self';
                 }
 
                 for my $child ( $source_list->children ) {
@@ -1386,6 +1384,7 @@ sub map_open {
 
 sub map_operator {
     my ($element) = @_;
+    if ( not $element->{content} ) { return }
     $element->{originally} = $element->{content};
     given ("$element") {
         when (q{?}) {
@@ -1854,6 +1853,37 @@ sub map_regex_substitute {
     return;
 }
 
+sub map_split {
+    my ($element) = @_;
+    my $list      = map_built_in($element);
+    my $sep       = $list->schild(0);
+    if ($sep) {
+        my $str;
+        my $op = $sep->snext_sibling;
+        if ($op) {
+            $str = $op->snext_sibling;
+            map_element($str);
+        }
+        else {
+            $op  = PPI::Token::Operator->new(q{,});
+            $str = PPI::Token::Symbol->new('_');
+            $list->__insert_after_child( $sep, $op, $str );
+        }
+        if ( $sep->isa('PPI::Token::Quote') ) {
+            $element->{content} = "$str.$element->{content}";
+            $op->delete;
+            $str->delete;
+        }
+        elsif ( $sep->isa('PPI::Token::Regexp::Match') ) {
+            add_import( $element, 're' );
+            $element->{content} = "re.$element->{content}";
+            $sep->insert_after( regex2quote($sep) );
+            $sep->delete;
+        }
+    }
+    return;
+}
+
 sub map_sub {
     my ($element) = @_;
     my $name = $element->name;
@@ -1906,6 +1936,7 @@ sub map_subscript {
 
 sub map_symbol {
     my ($element) = @_;
+    if ( not $element->{content} ) { return }
     if (
         $element eq '$SIG'    ## no critic (RequireInterpolationOfMetachars)
         and $element->snext_sibling eq '{__WARN__}'
@@ -2035,6 +2066,9 @@ sub map_word {
             $operator->{content} = q{=};
             $element->delete;
         }
+        when ('bless') {
+            $element->parent->delete;
+        }
         when ('close') {
             my $list = map_built_in($element);
             my $fh   = $list->schild(0);
@@ -2088,7 +2122,13 @@ sub map_word {
             map_move_copy($element);
         }
         when (/^(?:my|our)$/xsm) {
-            $element->delete;
+            my $symbol = $element->snext_sibling;
+            if ( $symbol eq '$self' ) {
+                $element->parent->delete;
+            }
+            else {
+                $element->delete;
+            }
         }
         when ('next') {
             map_built_in($element);
@@ -2125,32 +2165,7 @@ sub map_word {
             }
         }
         when ('split') {
-            my $list = map_built_in($element);
-            my $sep  = $list->schild(0);
-            if ($sep) {
-                my $str;
-                my $op = $sep->snext_sibling;
-                if ($op) {
-                    $str = $op->snext_sibling;
-                    map_element($str);
-                }
-                else {
-                    $op  = PPI::Token::Operator->new(q{,});
-                    $str = PPI::Token::Symbol->new('_');
-                    $list->__insert_after_child( $sep, $op, $str );
-                }
-                if ( $sep->isa('PPI::Token::Quote') ) {
-                    $element->{content} = "$str.$element->{content}";
-                    $op->delete;
-                    $str->delete;
-                }
-                elsif ( $sep->isa('PPI::Token::Regexp::Match') ) {
-                    add_import( $element, 're' );
-                    $element->{content} = "re.$element->{content}";
-                    $sep->insert_after( regex2quote($sep) );
-                    $sep->delete;
-                }
-            }
+            map_split($element);
         }
         when ('sprintf') {
             my $list = map_built_in($element);
