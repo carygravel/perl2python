@@ -1438,6 +1438,9 @@ sub map_operator {
         when (q{.=}) {
             $element->{content} = q{+=};
         }
+        when (q{.}) {
+            $element->{content} = q{+};
+        }
         when (q{->}) {
             my $next = $element->snext_sibling;
             if ( $next and $next->isa('PPI::Structure::Subscript') ) {

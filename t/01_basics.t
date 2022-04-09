@@ -1013,10 +1013,14 @@ is map_document( \$script ), $expected, "nested given";
 
 $script = <<'EOS';
 $line .= 'string';
+$line = $line . 'string';
+$line = 'string' . $line;
 EOS
 
 $expected = <<'EOS';
 line += 'string'
+line = line + 'string'
+line = 'string' + line
 EOS
 
 is map_document( \$script ), $expected, "operators";
