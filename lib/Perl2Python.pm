@@ -162,6 +162,68 @@ sub delete_everything_after {
     return;
 }
 
+sub get_argument_for_operator {
+    my ( $element, $n ) = @_;
+
+    if ( $element eq q{?} ) {
+        return get_argument_for_ternary( $element, $n );
+    }
+    my @sibling;
+    my $iter = $element;
+    while ( $iter = next_sibling( $iter, $n ) ) {
+        if ( $n > 0 ) {
+            if (    not @sibling
+                and $iter->isa('PPI::Structure::List')
+                and defined $BUILTINS{$element} )
+            {
+                return get_argument_from_list( $iter, $n );
+            }
+            if ( defined $BUILTINS{$iter} ) {
+                push @sibling, $iter, get_argument_for_operator( $iter, $n );
+                $iter = pop @sibling;
+            }
+        }
+        if (
+            not(   has_higher_precedence_than( $element, $iter, $n )
+                or has_rh_associativity($iter) )
+          )
+        {
+
+            # ensure we have at least 1 argument
+            if ( @sibling == 0 or has_rh_associativity( $sibling[-1] ) ) {
+                push @sibling, $iter;
+                while (
+                        ( $iter = next_sibling( $iter, $n ) )
+                    and $iter
+                    and (  $iter->isa('PPI::Structure::Subscript')
+                        or $iter eq '->' )
+                  )
+                {
+                    push @sibling, $iter;
+                }
+            }
+            last;
+        }
+
+        if ( $n == 0 ) {
+            unshift @sibling, $iter;
+        }
+        else {
+            push @sibling, $iter;
+        }
+    }
+    return @sibling;
+}
+
+sub has_rh_associativity {
+    my ($iter) = @_;
+    return (
+        $iter->isa('PPI::Token::Cast')
+          or
+          ( defined $ASSOCIATIVITY{$iter} and $ASSOCIATIVITY{$iter} eq 'right' )
+    );
+}
+
 sub map_built_in {
     my ( $element, @args ) = @_;
     my $statement = $element->parent;
@@ -2390,65 +2452,6 @@ sub get_argument_from_list {
     while ( $element and $element ne q{,} ) {
         push @sibling, $element;
         $element = $element->snext_sibling;
-    }
-    return @sibling;
-}
-
-sub get_argument_for_operator {
-    my ( $element, $n ) = @_;
-
-    if ( $element eq q{?} ) {
-        return get_argument_for_ternary( $element, $n );
-    }
-    my @sibling;
-    my $iter = $element;
-    while ( $iter = next_sibling( $iter, $n ) ) {
-        if ( $n > 0 ) {
-            if (    not @sibling
-                and $iter->isa('PPI::Structure::List')
-                and defined $BUILTINS{$element} )
-            {
-                return get_argument_from_list( $iter, $n );
-            }
-            if ( defined $BUILTINS{$iter} ) {
-                push @sibling, $iter, get_argument_for_operator( $iter, $n );
-                $iter = pop @sibling;
-            }
-        }
-        if (
-            not has_higher_precedence_than( $element, $iter, $n )
-            and ( not defined $ASSOCIATIVITY{$iter}
-                or $ASSOCIATIVITY{$iter} ne 'right' )
-          )
-        {
-
-            # ensure we have at least 1 argument
-            if (
-                @sibling == 0
-                or ( defined $ASSOCIATIVITY{ $sibling[-1] }
-                    and $ASSOCIATIVITY{ $sibling[-1] } eq 'right' )
-              )
-            {
-                push @sibling, $iter;
-                while (
-                        ( $iter = next_sibling( $iter, $n ) )
-                    and $iter
-                    and (  $iter->isa('PPI::Structure::Subscript')
-                        or $iter eq '->' )
-                  )
-                {
-                    push @sibling, $iter;
-                }
-            }
-            last;
-        }
-
-        if ( $n == 0 ) {
-            unshift @sibling, $iter;
-        }
-        else {
-            push @sibling, $iter;
-        }
     }
     return @sibling;
 }

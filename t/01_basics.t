@@ -1226,9 +1226,15 @@ $script = <<'EOS';
 for ( keys %options ) {
     print $_;
 }
+for ( keys %{$options} ) {
+    print $_;
+}
 EOS
 
 $expected = <<'EOS';
+for _ in  options.keys()   :
+    print(_) 
+
 for _ in  options.keys()   :
     print(_) 
 
