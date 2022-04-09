@@ -471,7 +471,9 @@ sub map_do {
     # map common slurp one-liner
     my $block    = $element->snext_sibling;
     my $operator = $element->sprevious_sibling;
-    my $local    = 'local\s*[(]\s*\@ARGV,\s*\$/\s*[)]';
+    my $local =
+      'local\s*[(]\s*\@ARGV,\s*\$/\s*[)]' ## no critic (RequireInterpolationOfMetachars)
+      ;
     if (    $block =~ /[{]\s*$local\s*=\s*.+\s*;\s*<>\s*[}]/xsm
         and $operator eq q{=} )
     {
@@ -2115,6 +2117,7 @@ sub map_variable {
 
 sub map_word {
     my ($element) = @_;
+    if ( not $element->{content} ) { return }
     $element->{content} =~ s/::/./gsm;
     given ("$element") {
         when ('FALSE') {    # special-case common bare words
@@ -2188,7 +2191,9 @@ sub map_word {
         }
         when (/^(?:my|our)$/xsm) {
             my $symbol = $element->snext_sibling;
-            if ( $symbol eq '$self' ) {
+            if ( $symbol eq
+                '$self' )    ## no critic (RequireInterpolationOfMetachars)
+            {
                 $element->parent->delete;
             }
             else {
