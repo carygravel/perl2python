@@ -2020,6 +2020,7 @@ sub map_symbol {
     }
     else {
         $element->{content} =~ s/^[\$@%]//smx;
+        $element->{content} =~ s/::/./gsmx;
     }
     return;
 }

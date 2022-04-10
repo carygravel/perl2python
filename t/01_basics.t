@@ -106,11 +106,13 @@ use English qw( -no_match_vars );
 use Exporter ();
 use MyModule::MySubModule::MySubSubModule;
 MyModule::MySubModule::MySubSubModule::my_method();
+my $var = $MyModule::MySubModule::MODULE_CONSTANT;
 EOS
 
 $expected = <<'EOS';
 import MyModule.MySubModule.MySubSubModule
 MyModule.MySubModule.MySubSubModule.my_method()
+var = MyModule.MySubModule.MODULE_CONSTANT
 EOS
 
 is map_document( \$script ), $expected, "import";
