@@ -1017,12 +1017,24 @@ $script = <<'EOS';
 $line .= 'string';
 $line = $line . 'string';
 $line = 'string' . $line;
+print $var1 ne $var2, "\n";
+print $var1 eq $var2, "\n";
+print $var1 ge $var2, "\n";
+print $var1 le $var2, "\n";
+print $var1 lt $var2, "\n";
+print $var1 gt $var2, "\n";
 EOS
 
 $expected = <<'EOS';
 line += 'string'
 line = line + 'string'
 line = 'string' + line
+print(var1!=var2)    
+print(var1==var2)    
+print(var1>=var2)    
+print(var1<=var2)    
+print(var1<var2)    
+print(var1>var2)    
 EOS
 
 is map_document( \$script ), $expected, "operators";

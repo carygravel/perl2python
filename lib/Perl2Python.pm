@@ -1505,6 +1505,24 @@ sub map_operator {
         when (q{.}) {
             $element->{content} = q{+};
         }
+        when ('ne') {
+            $element->{content} = q{!=};
+        }
+        when ('eq') {
+            $element->{content} = q{==};
+        }
+        when ('le') {
+            $element->{content} = q{<=};
+        }
+        when ('ge') {
+            $element->{content} = q{>=};
+        }
+        when ('lt') {
+            $element->{content} = q{<};
+        }
+        when ('gt') {
+            $element->{content} = q{>};
+        }
         when (q{->}) {
             my $next = $element->snext_sibling;
             if ( $next and $next->isa('PPI::Structure::Subscript') ) {
@@ -2212,6 +2230,13 @@ sub map_word {
             my $quote = $list->schild($LAST);
             if ( $quote->isa('PPI::Token::Quote::Double') ) {
                 $quote->{content} =~ s/\\n"$/"/gsmx;
+                if ( $quote eq q{""} ) {
+                    my $operator = $quote->sprevious_sibling;
+                    $quote->delete;
+                    if ($operator) {
+                        $operator->delete;
+                    }
+                }
             }
         }
         when ('shift') {
