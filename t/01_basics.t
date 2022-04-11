@@ -1243,6 +1243,9 @@ for ( keys %options ) {
 for ( keys %{$options} ) {
     print $_;
 }
+for ( values %options ) {
+    print $_;
+}
 EOS
 
 $expected = <<'EOS';
@@ -1252,9 +1255,12 @@ for _ in  options.keys()   :
 for _ in  options.keys()   :
     print(_) 
 
+for _ in  options.values()   :
+    print(_) 
+
 EOS
 
-is map_document( \$script ), $expected, "keys()";
+is map_document( \$script ), $expected, "keys() & values()";
 
 $script = <<'EOS';
 add_column_type('hstring', type => 'Glib::Scalar', attr => 'hidden');

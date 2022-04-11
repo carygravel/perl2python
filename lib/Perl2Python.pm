@@ -2187,7 +2187,7 @@ sub map_word {
         when (/^is(?:_deeply)?$/xsm) {
             map_is($element);
         }
-        when ('keys') {
+        when (/^(?:keys|values)$/xsm) {
             my $list = map_built_in($element);
             for my $child ( $list->children ) {
                 $element->insert_before( $child->remove );
