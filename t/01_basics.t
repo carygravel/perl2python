@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 92;
+use Test::More tests => 93;
 
 sub slurp {
     my ($file) = @_;
@@ -1405,6 +1405,29 @@ raise 'Error: filename not supplied'
 EOS
 
 is map_document( \$script ), $expected, "map croak -> raise";
+
+#########################
+
+$script = <<'EOS';
+    try {
+        some_method_that_can_fail();
+    }
+    catch {
+        print "failed\n";
+    };
+EOS
+
+$expected = <<'EOS';
+
+try :
+    some_method_that_can_fail()
+ 
+except :
+    print("failed") 
+
+EOS
+
+is map_document( \$script ), $expected, "map try/catch->try/except";
 
 #########################
 

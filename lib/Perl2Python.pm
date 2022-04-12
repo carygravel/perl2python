@@ -2187,6 +2187,9 @@ sub map_word {
         when ('bless') {
             $element->parent->delete;
         }
+        when ('catch') {
+            $element->{content} = 'except';
+        }
         when ('close') {
             my $list = map_built_in($element);
             my $fh   = $list->schild(0);
@@ -2419,17 +2422,15 @@ sub indent_element {
         indent_subelement($element);
 
         # and inside compound statements
-        if ( $element->isa('PPI::Statement::Compound') ) {
-            my $substatements = $element->find(
-                sub {
-                    $_[1]->isa('PPI::Token::Word')
-                      and $_[1]->content =~ /(?:elif|else)/xsm;
-                }
-            );
-            if ($substatements) {
-                for my $child ( @{$substatements} ) {
-                    indent_subelement($child);
-                }
+        my $substatements = $element->find(
+            sub {
+                $_[1]->isa('PPI::Token::Word')
+                  and $_[1]->content =~ /(?:elif|else|except)/xsm;
+            }
+        );
+        if ($substatements) {
+            for my $child ( @{$substatements} ) {
+                indent_subelement($child);
             }
         }
     }
