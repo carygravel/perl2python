@@ -538,6 +538,9 @@ sub map_element {
             }
             $element->delete;
         }
+        when (/PPI::Statement::Expression/xsm) {
+            map_expression($element);
+        }
         when (/PPI::Statement::Given/xsm) {
             map_given($element);
         }
@@ -729,6 +732,34 @@ sub map_eval {
     }
 
     map_built_in($element);
+    return;
+}
+
+sub map_expression {
+    my ($element) = @_;
+
+    # remove any newlines that aren't enclosed by parens
+    my $newlines = $element->find(
+        sub {
+            $_[1]->isa('PPI::Token::Whitespace')
+              and $_[1]->content =~ /\n/xsm;
+        }
+    );
+    if ($newlines) {
+        for my $newline ( @{$newlines} ) {
+            my $list;
+            my $parent = $newline;
+            while ( $parent = $parent->parent ) {
+                if (   $parent->isa('PPI::Structure::List')
+                    or $parent->isa('PPI::Structure::Constructor') )
+                {
+                    $list = $parent;
+                    break;
+                }
+            }
+            if ( not $list ) { $newline->delete }
+        }
+    }
     return;
 }
 

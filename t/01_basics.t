@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 91;
+use Test::More tests => 92;
 
 sub slurp {
     my ($file) = @_;
@@ -552,6 +552,22 @@ if 1 :
 EOS
 
 is map_document( \$script ), $expected, "indenting of new lines";
+
+$script = <<'EOS';
+if ( $cond1
+     and $cond2 ) {
+    print "true\n";
+}
+EOS
+
+$expected = <<'EOS';
+if cond1     and cond2 :
+    print("true") 
+
+EOS
+
+is map_document( \$script ), $expected,
+  "remove new lines that aren't enclosed by parens";
 
 $script = <<'EOS';
 if ( $obj->Get('version') =~ /(\d+)\n/ ) { return }
