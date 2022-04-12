@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 93;
+use Test::More tests => 94;
 
 sub slurp {
     my ($file) = @_;
@@ -1451,6 +1451,30 @@ shutil.copy2(old, new)
 EOS
 
 is map_document( \$script ), $expected, "map File::Copy";
+
+#########################
+
+$script = <<'EOS';
+use File::Temp;
+$filename = File::Temp->new;
+$filename2 = File::Temp->new(
+    DIR    => $dir,
+    SUFFIX => $suffix,
+    UNLINK => FALSE,
+);
+EOS
+
+$expected = <<'EOS';
+import tempfile
+filename = tempfile.TemporaryFile()
+filename2 = tempfile.NamedTemporaryFile(
+    dir    = dir,
+    suffix = suffix,
+    delete = False,
+)
+EOS
+
+is map_document( \$script ), $expected, "map File::Temp";
 
 #########################
 

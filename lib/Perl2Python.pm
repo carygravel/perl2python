@@ -162,6 +162,16 @@ sub delete_everything_after {
     return;
 }
 
+sub find_first_isa_content {
+    my ( $element, $isa, $content ) = @_;
+    return $element->find_first(
+        sub {
+            $_[1]->isa($isa)
+              and $_[1]->content eq $content;
+        }
+    );
+}
+
 sub get_argument_for_operator {
     my ( $element, $n ) = @_;
 
@@ -835,7 +845,44 @@ sub map_file {
     }
     open my $fh, '>', $outfile or croak "Error opening $outfile";
     print {$fh} $doc or croak "Error writing to $outfile";
-    close $fh or croak "Error closing $outfile";
+    close $fh        or croak "Error closing $outfile";
+    return;
+}
+
+sub map_file_temp {
+    my ($element) = @_;
+    $element->{content} = 'tempfile';
+    my $method = $element->snext_sibling->snext_sibling;
+    if ( $method eq 'new' ) {
+        my $list = $method->snext_sibling;
+        my ( $unlink, $dir, $suffix );
+        if ($list) {
+            $dir = find_first_isa_content( $list, 'PPI::Token::Word', 'DIR' );
+            $suffix =
+              find_first_isa_content( $list, 'PPI::Token::Word', 'SUFFIX' );
+            $unlink =
+              find_first_isa_content( $list, 'PPI::Token::Word', 'UNLINK' );
+        }
+        else {
+            $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list->{finish} = PPI::Token::Structure->new(')');
+            $method->insert_after($list);
+        }
+        if ($unlink) {
+            $method->{content} = 'NamedTemporaryFile';
+            $unlink->{content} = 'delete';
+        }
+        else {
+            $method->{content} = 'TemporaryFile';
+        }
+        if ($dir) {
+            $dir->{content} = 'dir';
+        }
+        if ($suffix) {
+            $suffix->{content} = 'suffix';
+        }
+    }
     return;
 }
 
@@ -1258,6 +1305,9 @@ sub map_include {
     my $path    = $import->snext_sibling;
     my $symbols = $path->snext_sibling;
     given ("$path") {
+        when ('File::Temp') {
+            $module = 'tempfile';
+        }
         when ('Glib') {
             if ($symbols) {
                 $element->delete;
@@ -2173,8 +2223,8 @@ sub map_word {
         when ('FALSE') {    # special-case common bare words
             $element->{content} = 'False';
         }
-        when ('TRUE') {
-            $element->{content} = 'True';
+        when ('File.Temp') {
+            map_file_temp($element);
         }
         when ('Readonly') {
             my $operator = $element->parent->find_first('PPI::Token::Operator');
@@ -2183,6 +2233,9 @@ sub map_word {
             }
             $operator->{content} = q{=};
             $element->delete;
+        }
+        when ('TRUE') {
+            $element->{content} = 'True';
         }
         when ('bless') {
             $element->parent->delete;
