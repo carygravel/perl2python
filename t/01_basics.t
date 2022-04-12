@@ -104,6 +104,7 @@ use feature 'switch';
 no if $] >= 5.018, warnings => 'experimental::smartmatch';
 use English qw( -no_match_vars );
 use Exporter ();
+use Carp;
 use MyModule::MySubModule::MySubSubModule;
 MyModule::MySubModule::MySubSubModule::my_method();
 my $var = $MyModule::MySubModule::MODULE_CONSTANT;

@@ -85,7 +85,7 @@ my %REGEX_MODIFIERS = (
 );
 
 my $IGNORED_INCLUDES =
-q/^(?:warnings|strict|feature|if|Readonly|English|Exporter|IPC::System::Simple|File::Copy)$/;
+q/^(?:warnings|strict|feature|if|Carp|English|Exporter|File::Copy|IPC::System::Simple|Readonly)$/;
 
 my $ANONYMOUS = 0;
 
