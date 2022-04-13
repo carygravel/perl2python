@@ -1410,6 +1410,7 @@ is map_document( \$script ), $expected, "map croak -> raise";
 #########################
 
 $script = <<'EOS';
+use Try::Tiny;
     try {
         some_method_that_can_fail();
     }
