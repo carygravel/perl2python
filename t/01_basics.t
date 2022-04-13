@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 94;
+use Test::More tests => 95;
 
 sub slurp {
     my ($file) = @_;
@@ -1475,7 +1475,21 @@ filename2 = tempfile.NamedTemporaryFile(
 )
 EOS
 
-is map_document( \$script ), $expected, "map File::Temp";
+is map_document( \$script ), $expected, "map File::Temp->tempfile";
+
+#########################
+
+$script = <<'EOS';
+use Image::Magick;
+my $image  = Image::Magick->new;
+EOS
+
+$expected = <<'EOS';
+import PythonMagick
+image  = PythonMagick.Image()
+EOS
+
+is map_document( \$script ), $expected, "map Image::Magick->PythonMagick";
 
 #########################
 

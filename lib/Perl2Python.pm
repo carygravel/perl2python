@@ -1227,6 +1227,23 @@ sub map_grep {
     return;
 }
 
+sub map_image_magick {
+    my ($element) = @_;
+    $element->{content} = 'PythonMagick';
+    my $method = $element->snext_sibling->snext_sibling;
+    if ( $method eq 'new' ) {
+        $method->{content} = 'Image';
+        my $list = $method->snext_sibling;
+        if ( not $list ) {
+            $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list->{finish} = PPI::Token::Structure->new(')');
+            $method->insert_after($list);
+        }
+    }
+    return;
+}
+
 sub map_import_symbols {
     my ( $import, $path, $module, $symbols ) = @_;
     $import->{content} = 'from';
@@ -1332,6 +1349,9 @@ sub map_include {
             $symbols = PPI::Token::Quote::Double->new('"Gtk"');
             $element->add_element($symbols);
             $module = 'gi.repository';
+        }
+        when ('Image::Magick') {
+            $module = 'PythonMagick';
         }
         when ('Log::Log4perl') {
             delete_everything_after($path);
@@ -2225,6 +2245,9 @@ sub map_word {
         }
         when ('File.Temp') {
             map_file_temp($element);
+        }
+        when ('Image.Magick') {
+            map_image_magick($element);
         }
         when ('Readonly') {
             my $operator = $element->parent->find_first('PPI::Token::Operator');
