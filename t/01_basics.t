@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 95;
+use Test::More tests => 96;
 
 sub slurp {
     my ($file) = @_;
@@ -1490,6 +1490,20 @@ image  = PythonMagick.Image()
 EOS
 
 is map_document( \$script ), $expected, "map Image::Magick->PythonMagick";
+
+#########################
+
+$script = <<'EOS';
+use POSIX qw(locale_h);
+setlocale( LC_NUMERIC, 'C' );
+EOS
+
+$expected = <<'EOS';
+import locale
+locale.setlocale( locale.LC_NUMERIC, 'C' )
+EOS
+
+is map_document( \$script ), $expected, "map locale";
 
 #########################
 

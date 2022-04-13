@@ -1359,6 +1359,14 @@ sub map_include {
             $symbols->delete;
             undef $symbols;
         }
+        when ('POSIX') {
+            if ( $symbols =~ /locale_h/xsm ) {
+                delete_everything_after($path);
+                $module = 'locale';
+                $symbols->delete;
+                undef $symbols;
+            }
+        }
         when ('Set::IntSpan') {
             delete_everything_after($path);
             $element->add_element( PPI::Token::Whitespace->new(q{ }) );
@@ -2039,6 +2047,20 @@ sub map_regex_substitute {
     return;
 }
 
+sub map_setlocale {
+    my ($element) = @_;
+    $element->{content} = 'locale.' . $element->{content};
+    my $list       = map_built_in($element);
+    my $expression = $list->schild(0);
+    if ($expression) {
+        my $arg = $expression->schild(0);
+        if ( $expression and $expression =~ /^LC_/xsm ) {
+            $arg->{content} = 'locale.' . $arg->{content};
+        }
+    }
+    return;
+}
+
 sub map_split {
     my ($element) = @_;
     my $list      = map_built_in($element);
@@ -2348,6 +2370,9 @@ sub map_word {
                     }
                 }
             }
+        }
+        when ('setlocale') {
+            map_setlocale($element);
         }
         when ('shift') {
             my $argument = $element->snext_sibling;
