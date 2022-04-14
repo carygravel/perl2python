@@ -2230,15 +2230,21 @@ sub map_data_uuid {
 
 sub map_variable {
     my ($element) = @_;
-    if (
-        not $element->find_first(
-            sub {
-                $_[1]->isa('PPI::Token::Operator')
-                  and $_[1]->content eq q{=};
+    my $operator = $element->find_first('PPI::Token::Operator');
+    if ( $operator eq 'in' ) {
+        my $iter = $operator->snext_sibling;
+        if ($iter) {
+            my $operator2 = $iter->snext_sibling;
+            if ( $operator2 eq '->' ) {
+                my $list = $operator2->snext_sibling;
+                if ( $list eq '()' ) {
+                    $list->delete;
+                    $operator2->delete;
+                }
             }
-        )
-      )
-    {
+        }
+    }
+    elsif ( $operator ne q{=} ) {
         $element->add_element( PPI::Token::Operator->new(q{=}) );
 
         # map my ($var1, $var2) -> (var1, var2) = (None, None)
