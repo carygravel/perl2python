@@ -1322,6 +1322,9 @@ sub map_include {
     my $path    = $import->snext_sibling;
     my $symbols = $path->snext_sibling;
     given ("$path") {
+        when ('Data::UUID') {
+            $module = 'uuid';
+        }
         when ('File::Temp') {
             $module = 'tempfile';
         }
@@ -2213,6 +2216,18 @@ sub map_system {
     return;
 }
 
+sub map_data_uuid {
+    my ($element) = @_;
+    $element->{content} = 'uuid';
+    my $method = $element->snext_sibling->snext_sibling;
+    if ( $method eq 'new' ) {
+        $method->{content} = 'uuid1';
+        my $list = $method->snext_sibling;
+        if ($list) { $list->delete }
+    }
+    return;
+}
+
 sub map_variable {
     my ($element) = @_;
     if (
@@ -2265,6 +2280,9 @@ sub map_word {
         when ('FALSE') {    # special-case common bare words
             $element->{content} = 'False';
         }
+        when ('Data.UUID') {
+            map_data_uuid($element);
+        }
         when ('File.Temp') {
             map_file_temp($element);
         }
@@ -2297,6 +2315,18 @@ sub map_word {
             }
             $fh->{content} .= q{.};
             $element->insert_before( $fh->remove );
+        }
+        when ('create_str') {
+            $element->{content} = 'str';
+            my $operator = $element->sprevious_sibling;
+            my $object   = $operator->sprevious_sibling;
+            my $list     = map_built_in($element);
+            $list->add_element( $object->remove );
+            my $list2 =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list2->{finish} = PPI::Token::Structure->new(')');
+            $list->add_element($list2);
+            $operator->delete;
         }
         when ('croak') {
             $element->{content} = 'raise';

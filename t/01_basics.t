@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 96;
+use Test::More tests => 97;
 
 sub slurp {
     my ($file) = @_;
@@ -1504,6 +1504,22 @@ locale.setlocale( locale.LC_NUMERIC, 'C' )
 EOS
 
 is map_document( \$script ), $expected, "map locale";
+
+#########################
+
+$script = <<'EOS';
+use Data::UUID;
+my $uuid_obj = Data::UUID->new;
+$uuid_str = $uuid_obj->create_str();
+EOS
+
+$expected = <<'EOS';
+import uuid
+uuid_obj = uuid.uuid1
+uuid_str = str(uuid_obj())
+EOS
+
+is map_document( \$script ), $expected, "map Data::UUID->uuid";
 
 #########################
 
