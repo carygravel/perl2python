@@ -534,6 +534,8 @@ sub map_document {
 
 sub map_element {
     my ($element) = @_;
+    if ( defined $element->{mapped} ) { return }
+    $element->{mapped} = 1;
     logger($element);
     remove_trailing_semicolon($element);
     given ( ref $element ) {
@@ -2406,6 +2408,15 @@ sub map_word {
                     }
                 }
             }
+        }
+        when ('push') {
+            my $list = map_built_in($element);
+            map_element($list);
+            $element->insert_before( $list->schild(0)->remove );    # array
+            my $operator = $list->schild(0);
+            $operator->{content} = q{.};
+            $element->insert_before( $operator->remove );
+            $element->{content} = 'append';
         }
         when ('setlocale') {
             map_setlocale($element);

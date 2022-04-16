@@ -842,6 +842,7 @@ close($fh);
 l = length $line;
 unlink $filename;
 last;
+push @my_array, $item;
 EOS
 
 $expected = <<'EOS';
@@ -857,6 +858,7 @@ fh.close()
 l = len(line) 
 os.remove(filename) 
 break
+my_array.append(item)  
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";
