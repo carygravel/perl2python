@@ -843,6 +843,7 @@ l = length $line;
 unlink $filename;
 last;
 push @my_array, $item;
+delete $ahash{key}
 EOS
 
 $expected = <<'EOS';
@@ -859,6 +860,7 @@ l = len(line)
 os.remove(filename) 
 break
 my_array.append(item)  
+del(ahash["key"]) 
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";

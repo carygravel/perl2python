@@ -2342,6 +2342,12 @@ sub map_word {
         when ('defined') {
             map_defined($element);
         }
+        when ('delete') {
+            if ( not $element->parent->isa('PPI::Statement::Expression') ) {
+                map_built_in($element);
+                $element->{content} = 'del';
+            }
+        }
         when ('do') {
             map_do($element);
         }
