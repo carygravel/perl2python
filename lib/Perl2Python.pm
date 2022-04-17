@@ -1780,6 +1780,26 @@ sub map_path {
         $outfile );
 }
 
+sub map_push {
+    my ($element) = @_;
+    my $list = map_built_in($element);
+    map_element($list);
+    $element->insert_before( $list->schild(0)->remove );    # array
+    my $operator = $list->schild(0);
+    $operator->{content} = q{.};
+    $element->insert_before( $operator->remove );
+    if ( $element eq 'push' ) {
+        $element->{content} = 'append';
+    }
+    else {
+        $element->{content} = 'insert';
+        my $child = $list->schild(0);
+        $child->insert_before( PPI::Token::Number->new(0) );
+        $child->insert_before( PPI::Token::Operator->new(q{,}) );
+    }
+    return;
+}
+
 sub map_readline {
     my ($element) = @_;
     my $parent = $element->parent;
@@ -2415,14 +2435,8 @@ sub map_word {
                 }
             }
         }
-        when ('push') {
-            my $list = map_built_in($element);
-            map_element($list);
-            $element->insert_before( $list->schild(0)->remove );    # array
-            my $operator = $list->schild(0);
-            $operator->{content} = q{.};
-            $element->insert_before( $operator->remove );
-            $element->{content} = 'append';
+        when (/^(?:push|unshift)$/xsm) {
+            map_push($element);
         }
         when ('setlocale') {
             map_setlocale($element);

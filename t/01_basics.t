@@ -843,6 +843,7 @@ l = length $line;
 unlink $filename;
 last;
 push @my_array, $item;
+unshift @my_array, $item;
 delete $ahash{key}
 EOS
 
@@ -860,6 +861,7 @@ l = len(line)
 os.remove(filename) 
 break
 my_array.append(item)  
+my_array.insert(0,item)  
 del(ahash["key"]) 
 EOS
 
