@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 98;
+use Test::More tests => 99;
 
 sub slurp {
     my ($file) = @_;
@@ -1528,6 +1528,18 @@ locale.setlocale( locale.LC_NUMERIC, 'C' )
 EOS
 
 is map_document( \$script ), $expected, "map locale";
+
+$script = <<'EOS';
+use POSIX qw(strftime);
+my $result = POSIX::strftime($template, $sec, $min, $hour, $day, $month, $year);
+EOS
+
+$expected = <<'EOS';
+import datetime
+result = datetime.datetime.date(year ,month ,day ,hour ,min ,sec ).strftime(template)
+EOS
+
+is map_document( \$script ), $expected, "map POSIX::strftime()->datetime";
 
 #########################
 

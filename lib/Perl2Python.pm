@@ -85,7 +85,7 @@ my %REGEX_MODIFIERS = (
 );
 
 my $IGNORED_INCLUDES =
-q/^(?:warnings|strict|feature|if|Carp|English|Exporter|File::Copy|IPC::System::Simple|Readonly|Try::Tiny)$/;
+q/^(?:warnings|strict|feature|if|Carp|English|Exporter|File::Copy|IPC::System::Simple|POSIX|Readonly|Try::Tiny)$/;
 
 my $ANONYMOUS = 0;
 
@@ -1364,14 +1364,6 @@ sub map_include {
             $symbols->delete;
             undef $symbols;
         }
-        when ('POSIX') {
-            if ( $symbols =~ /locale_h/xsm ) {
-                delete_everything_after($path);
-                $module = 'locale';
-                $symbols->delete;
-                undef $symbols;
-            }
-        }
         when ('Set::IntSpan') {
             delete_everything_after($path);
             $element->add_element( PPI::Token::Whitespace->new(q{ }) );
@@ -2074,6 +2066,7 @@ sub map_regex_substitute {
 
 sub map_setlocale {
     my ($element) = @_;
+    add_import( $element, 'locale' );
     $element->{content} = 'locale.' . $element->{content};
     my $list       = map_built_in($element);
     my $expression = $list->schild(0);
@@ -2250,6 +2243,29 @@ sub map_data_uuid {
     return;
 }
 
+sub map_posix_strftime {
+    my ($element) = @_;
+    add_import( $element, 'datetime' );
+    my $list = map_built_in($element);
+    $element->{content} = 'datetime.datetime.date';
+    my $op = PPI::Token::Operator->new(q{.});
+    $list->insert_after($op);
+    my $strftime = PPI::Token::Word->new('strftime');
+    $op->insert_after($strftime);
+    my $list2 = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+    $list2->{finish} = PPI::Token::Structure->new(')');
+    $strftime->insert_after($list2);
+    my $xpression = $list->schild(0);
+    $list2->add_element( $xpression->schild(0)->remove );    #template
+    map_element($list2);
+    $xpression->schild(0)->delete;                           # comma
+
+    for my $arg ( reverse $xpression->children ) {
+        $xpression->add_element( $arg->remove );
+    }
+    return;
+}
+
 sub map_variable {
     my ($element) = @_;
     my $operator = $element->find_first('PPI::Token::Operator');
@@ -2316,6 +2332,9 @@ sub map_word {
         }
         when ('Image.Magick') {
             map_image_magick($element);
+        }
+        when ('POSIX.strftime') {
+            map_posix_strftime($element);
         }
         when ('Readonly') {
             my $operator = $element->parent->find_first('PPI::Token::Operator');
