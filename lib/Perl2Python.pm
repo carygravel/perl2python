@@ -2531,6 +2531,13 @@ sub map_word {
                 $quote->{content} =~ s/::/./gsm;
             }
         }
+        when ('waitpid') {
+            add_import( $element, 'os' );
+            my $list = map_built_in($element);
+            $element->{content} = 'os.waitpid';
+            $list->add_element( $list->snext_sibling->remove );    #comma
+            $list->add_element( $list->snext_sibling->remove );    #flags
+        }
     }
     return;
 }
