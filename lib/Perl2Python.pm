@@ -2282,18 +2282,19 @@ sub map_variable {
             }
         }
     }
-    elsif ( $operator ne q{=} ) {
+    elsif (
+        not $element->find_first(
+            sub {
+                $_[1]->isa('PPI::Token::Operator')
+                  and $_[1]->content eq q{=};
+            }
+        )
+      )
+    {
         $element->add_element( PPI::Token::Operator->new(q{=}) );
 
         # map my ($var1, $var2) -> (var1, var2) = (None, None)
-        if (
-            my $list = $element->find_first(
-                sub {
-                    $_[1]->isa('PPI::Structure::List');
-                }
-            )
-          )
-        {
+        if ( my $list = $element->find_first('PPI::Structure::List') ) {
             my $dest_list =
               PPI::Structure::List->new( PPI::Token::Structure->new('(') );
             $dest_list->{finish} = PPI::Token::Structure->new(')');
