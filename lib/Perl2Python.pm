@@ -1252,9 +1252,11 @@ sub map_import_symbols {
     $path->{content}   = $module;
     $symbols->insert_before( PPI::Token::Word->new('import') );
     $symbols->insert_before( PPI::Token::Whitespace->new(q{ }) );
+    my @symbols;
     if ( $symbols->isa('PPI::Token::Quote') ) {
         $symbols->{content} = substr $symbols->{content}, 1,
           length( $symbols->{content} ) - 2;
+        push @symbols, $symbols;
     }
     else {
         my $string = substr $symbols->content,
@@ -1262,13 +1264,15 @@ sub map_import_symbols {
         my $i = 0;
         for ( split q{ }, $string ) {
             if ( $i++ ) {
-                $symbols->insert_before( PPI::Token::Whitespace->new(q{,}) );
+                push @symbols, PPI::Token::Whitespace->new(q{,});
+                $symbols->insert_before( $symbols[-1] );
             }
-            $symbols->insert_before( PPI::Token::Word->new($_) );
+            push @symbols, PPI::Token::Word->new($_);
+            $symbols->insert_before( $symbols[-1] );
         }
         $symbols->delete;
     }
-    return;
+    return @symbols;
 }
 
 sub map_include {
@@ -1370,6 +1374,29 @@ sub map_include {
             $symbols = PPI::Token::Quote::Double->new('"intspan"');
             $element->add_element($symbols);
             $module = 'intspan';
+        }
+        when ('base') {
+            my $class = $element->top->find_first(
+                sub {
+                    $_[1]->isa('PPI::Statement::Sub')
+                      and $_[1]->schild(0) eq 'class';
+                }
+            );
+            my $list = $class->schild(0)->snext_sibling->snext_sibling;
+            my @symbols =
+              map_import_symbols( $import, $path, $module, $symbols );
+            if ( $symbols[0] eq 'Exporter' ) {
+                shift @symbols;
+                if ( @symbols > 0 ) {
+                    shift @symbols;
+                }
+            }
+            for my $symbol (@symbols) {
+                map_element($symbol);
+                $list->add_element( $symbol->remove );
+            }
+            $element->delete;
+            return;
         }
     }
     if ( $symbols and $symbols->isa('PPI::Token::Number') ) {

@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 100;
+use Test::More tests => 101;
 
 sub slurp {
     my ($file) = @_;
@@ -697,6 +697,38 @@ class MyPackage():
 EOS
 
 is map_document( \$script ), $expected, "package -> class";
+
+$script = <<'EOS';
+package MyModule::MyPackage;
+$CLASS_VAR          = 4;
+our $VERSION = 1;
+use Exporter ();
+use base qw(Exporter My::ParentPackage);
+sub new {
+    my ( $class, %options ) = @_;
+    my $self = {};
+    bless $self, $class;
+    return
+}
+1;
+__END__
+EOS
+
+$expected = <<'EOS';
+class MyPackage(My.ParentPackage):
+    CLASS_VAR          = 4
+    VERSION = 1
+
+    def __init__( self, options ) :
+    
+    
+    
+        return
+
+
+EOS
+
+is map_document( \$script ), $expected, "package -> class+subclass";
 
 #########################
 
