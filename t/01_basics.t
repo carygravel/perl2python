@@ -844,7 +844,8 @@ unlink $filename;
 last;
 push @my_array, $item;
 unshift @my_array, $item;
-delete $ahash{key}
+delete $ahash{key};
+$HEX_FF = hex 'ff';
 EOS
 
 $expected = <<'EOS';
@@ -863,6 +864,7 @@ break
 my_array.append(item)  
 my_array.insert(0,item)  
 del(ahash["key"]) 
+HEX_FF = hex('ff') 
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";

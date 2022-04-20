@@ -2399,6 +2399,9 @@ sub map_word {
         when ('grep') {
             map_grep($element);
         }
+        when ('hex') {
+            map_built_in($element);
+        }
         when (/^is(?:_deeply)?$/xsm) {
             map_is($element);
         }
