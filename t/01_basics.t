@@ -232,14 +232,16 @@ is map_document( \$script ), $expected, "readonly";
 $script = <<'EOS';
 my $EMPTY         = q{};
 my $DOUBLE_QUOTES = q{"};
+my $regex = qr{(\d{4})-(\d\d)-(\d\d)}xsm;
 EOS
 
 $expected = <<'EOS';
 EMPTY         = ""
 DOUBLE_QUOTES = "\""
+regex = r"(\d{4})-(\d\d)-(\d\d)"
 EOS
 
-is map_document( \$script ), $expected, "literal quotes";
+is map_document( \$script ), $expected, "more quotes";
 
 #########################
 

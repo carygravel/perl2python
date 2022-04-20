@@ -621,6 +621,16 @@ sub map_element {
             if ( $element->sprevious_sibling eq q{=~} ) {
                 map_regex_match($element);
             }
+            else {
+                my $content = substr
+                  $element->content,
+                  $element->{sections}[0]{position},
+                  $element->{sections}[0]{size};
+                $content =~ s/"/\\"/xsm;
+                $element->insert_after(
+                    PPI::Token::Quote::Double->new( q{r"} . $content . q{"} ) );
+                $element->delete;
+            }
         }
         when (/PPI::Token::QuoteLike::Words/xsm) {
             my $list =
