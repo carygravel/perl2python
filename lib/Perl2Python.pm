@@ -1266,6 +1266,9 @@ sub map_import_symbols {
     if ( $symbols->isa('PPI::Token::Quote') ) {
         $symbols->{content} = substr $symbols->{content}, 1,
           length( $symbols->{content} ) - 2;
+        if ( $symbols eq ':all' ) {
+            $symbols->{content} = q{*};
+        }
         push @symbols, $symbols;
     }
     else {

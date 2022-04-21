@@ -130,6 +130,7 @@ is map_document( \$script ), $expected, "import ignore version";
 
 $script = <<'EOS';
 use MyModule 'symbol';
+use MyModule ':all';
 use MyModule qw(symbol1 symbol2);
 use Glib;
 use Glib qw(TRUE FALSE);    # To get TRUE and FALSE
@@ -137,6 +138,7 @@ EOS
 
 $expected = <<'EOS';
 from MyModule import symbol
+from MyModule import *
 from MyModule import symbol1,symbol2
 from gi.repository import Glib
     # To get TRUE and FALSE
