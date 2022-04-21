@@ -1375,6 +1375,12 @@ sub map_include {
         when ('Image::Magick') {
             $module = 'PythonMagick';
         }
+        when ('Image::Sane') {
+            delete_everything_after($path);
+            $module = 'sane';
+            $symbols->delete;
+            undef $symbols;
+        }
         when ('Log::Log4perl') {
             delete_everything_after($path);
             $module = 'logger';

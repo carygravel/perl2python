@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 101;
+use Test::More tests => 102;
 
 sub slurp {
     my ($file) = @_;
@@ -217,6 +217,16 @@ from intspan import intspan          # For size method for page numbering issues
 EOS
 
 is map_document( \$script ), $expected, "special case import Set::IntSpan";
+
+$script = <<'EOS';
+use Image::Sane ':all';
+EOS
+
+$expected = <<'EOS';
+import sane
+EOS
+
+is map_document( \$script ), $expected, "special case import Image::Sane";
 
 #########################
 
