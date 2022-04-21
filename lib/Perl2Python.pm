@@ -1489,10 +1489,10 @@ sub map_magic {
             my $source_list = $expression->find_first('PPI::Structure::List');
             if ($source_list) {
 
-                # new() sub pick up the class name as the first argument.
+                # new() subs pick up the class name as the first argument.
                 # python requires here self
                 my $subname = $sub->schild(1);
-                if ( $subname eq '__init__' ) {
+                if ( $subname eq '__init__' or $subname =~ /^new/xsm ) {
                     my $class = $source_list->schild(0)->schild(0);
                     $class->{content} = 'self';
                 }
@@ -1572,6 +1572,20 @@ sub map_move_copy {
         # repeat map_built_in call to catch return value
         $list = map_built_in($element);
     }
+    return;
+}
+
+# map class->new() -> class()
+sub map_new {
+    my ($element) = @_;
+    map_built_in($element);
+    my $op    = $element->sprevious_sibling;
+    my $class = $op->sprevious_sibling;
+    if ( $class eq 'class' ) {
+        $class->{content} = '__class__';
+    }
+    $op->delete;
+    $element->delete;
     return;
 }
 
@@ -2487,6 +2501,10 @@ sub map_word {
         }
         when ('next') {
             map_built_in($element);
+        }
+
+        when ('new') {
+            map_new($element);
         }
         when ('open') {
             map_open($element);

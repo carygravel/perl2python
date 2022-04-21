@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 103;
+use Test::More tests => 104;
 
 sub slurp {
     my ($file) = @_;
@@ -728,6 +728,32 @@ class MyPackage():
 EOS
 
 is map_document( \$script ), $expected, "package -> class";
+
+$script = <<'EOS';
+package MyModule::MyPackage;
+$CLASS_VAR          = 4;
+our $VERSION = 1;
+sub new_from_data {
+    my ( $class, $data ) = @_;
+    return $class->new();
+}
+1;
+__END__
+EOS
+
+$expected = <<'EOS';
+class MyPackage():
+    CLASS_VAR          = 4
+    VERSION = 1
+    def new_from_data( self, data ) :
+    
+        return __class__()
+
+
+EOS
+
+is map_document( \$script ), $expected,
+  "package -> class with more types of new()";
 
 $script = <<'EOS';
 package MyModule::MyPackage;
