@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 102;
+use Test::More tests => 103;
 
 sub slurp {
     my ($file) = @_;
@@ -172,6 +172,23 @@ class Object(Parent.Object):
 EOS
 
 is map_document( \$script ), $expected, "subclass basic GObject";
+
+$script = <<'EOS';
+package My::Package;
+use Some::Other::Package;
+use Glib::Object::Subclass Glib::Object::;
+EOS
+
+$expected = <<'EOS';
+from gi.repository import GObject
+class Package(Glib.Object):
+    def __init__(self):
+        GObject.GObject.__init__(self)
+    import Some.Other.Package
+
+EOS
+
+is map_document( \$script ), $expected, "subclass basic GObject #2";
 
 $script = <<'EOS';
 package My::Object;

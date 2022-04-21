@@ -1187,6 +1187,7 @@ sub map_gobject_subclass {
     indent_element($init);
     indent_element($statement);
     $element->delete;
+    indent_element( $init->snext_sibling );
 
     for my $connection (@connections) {
         $init_block->add_element($connection);
@@ -2639,6 +2640,7 @@ sub remove_trailing_semicolon {
 # Python can parse it.
 sub indent_element {
     my ($element) = @_;
+    if ( not $element ) { return }
     if (
         (
             $element->isa('PPI::Statement')
