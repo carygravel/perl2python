@@ -873,10 +873,12 @@ is map_document( \$script ), $expected, "parens in ternary";
 
 $script = <<'EOS';
 my %ahash = ( sentinel => \$sentinel, ( $data ? %{$data} : () ) );
+my $last_index = $#{$array};
 EOS
 
 $expected = <<'EOS';
 ahash = { "sentinel" : sentinel, (  data if data  else () ) }
+last_index = len(array)-1
 EOS
 
 is map_document( \$script ), $expected, "various casts";

@@ -297,7 +297,9 @@ sub map_cast {
     my $operator = $element->sprevious_sibling;
     my $parent   = $element->parent;
     my $block    = $element->snext_sibling;
-    if ( $element eq q{@} ) {
+    if (   $element eq q{@}
+        or $element eq q{$#} )    ## no critic (RequireInterpolationOfMetachars)
+    {
         if ( not $operator ) {
             remove_cast( $element, $block, $parent );
         }
@@ -313,6 +315,12 @@ sub map_cast {
             for my $child ( $block->children ) {
                 map_element($child);
                 $list->add_element( $child->remove );
+            }
+            if ( $element eq
+                q{$#} )    ## no critic (RequireInterpolationOfMetachars)
+            {
+                $list->insert_after( PPI::Token::Number->new(1) );
+                $list->insert_after( PPI::Token::Operator->new(q{-}) );
             }
             $element->delete;
             $block->delete;
