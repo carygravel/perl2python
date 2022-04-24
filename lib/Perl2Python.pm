@@ -606,6 +606,25 @@ sub map_element {
         when (/PPI::Structure::Subscript/xsm) {
             map_subscript($element);
         }
+
+        # $# -> len()
+        when (/PPI::Token::ArrayIndex/xsm) {
+            $element->insert_before( PPI::Token::Word->new('len') );
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list->{finish} = PPI::Token::Structure->new(')');
+            $element->insert_before($list);
+            $list->add_element(
+                PPI::Token::Word->new(
+                    substr $element->{content},
+                    2,
+                    length $element->{content}
+                )
+            );
+            $list->insert_after( PPI::Token::Number->new(1) );
+            $list->insert_after( PPI::Token::Operator->new(q{+}) );
+            $element->delete;
+        }
         when (/PPI::Token::Cast/xsm) {
             map_cast($element);
         }
@@ -1679,6 +1698,30 @@ sub map_operator {
         }
         when (q{.}) {
             $element->{content} = q{+};
+        }
+        when (q{..}) {
+            my @start = get_argument_for_operator( $element, 0 );
+            my @stop  = get_argument_for_operator( $element, 1 );
+            $start[0]->insert_before( PPI::Token::Word->new('range') );
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list->{finish} = PPI::Token::Structure->new(')');
+            $start[0]->insert_before($list);
+            if ( $start[0] eq '0' ) {
+                $start[0]->delete;
+            }
+            else {
+                for my $child (@start) {
+                    $list->add_element( $child->remove );
+                }
+                $list->add_element( PPI::Token::Operator->new(q{,}) );
+            }
+            for my $child (@stop) {
+                $list->add_element( $child->remove );
+            }
+            $list->add_element( PPI::Token::Operator->new(q{-}) );
+            $list->add_element( PPI::Token::Number->new(1) );
+            $element->delete;
         }
         when ('ne') {
             $element->{content} = q{!=};

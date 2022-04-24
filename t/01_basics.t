@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 104;
+use Test::More tests => 105;
 
 sub slurp {
     my ($file) = @_;
@@ -674,6 +674,20 @@ for _ in  array  :
 EOS
 
 is map_document( \$script ), $expected, "split magic on regex";
+
+$script = <<'EOS';
+for my $i ( 0 .. $#array ) {
+    print $i,"\n";
+}
+EOS
+
+$expected = <<'EOS';
+for  i in  range(len(array)+1-1)    :
+    print(i) 
+
+EOS
+
+is map_document( \$script ), $expected, "map magic array length";
 
 #########################
 
