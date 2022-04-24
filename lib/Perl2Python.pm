@@ -300,10 +300,16 @@ sub map_cast {
     if (   $element eq q{@}
         or $element eq q{$#} )    ## no critic (RequireInterpolationOfMetachars)
     {
-        if ( not $operator ) {
+        if ( not $operator
+            and $element ne
+            q{$#} )               ## no critic (RequireInterpolationOfMetachars)
+        {
             remove_cast( $element, $block, $parent );
         }
-        elsif ( defined $PRECEDENCE{$operator} ) {
+        elsif ( defined $PRECEDENCE{$operator}
+            or $element eq
+            q{$#} )               ## no critic (RequireInterpolationOfMetachars)
+        {
             my $list =
               PPI::Structure::List->new( PPI::Token::Structure->new('(') );
             $list->{finish} = PPI::Token::Structure->new(')');
@@ -622,7 +628,7 @@ sub map_element {
                 )
             );
             $list->insert_after( PPI::Token::Number->new(1) );
-            $list->insert_after( PPI::Token::Operator->new(q{+}) );
+            $list->insert_after( PPI::Token::Operator->new(q{-}) );
             $element->delete;
         }
         when (/PPI::Token::Cast/xsm) {
@@ -1719,7 +1725,7 @@ sub map_operator {
             for my $child (@stop) {
                 $list->add_element( $child->remove );
             }
-            $list->add_element( PPI::Token::Operator->new(q{-}) );
+            $list->add_element( PPI::Token::Operator->new(q{+}) );
             $list->add_element( PPI::Token::Number->new(1) );
             $element->delete;
         }
@@ -2928,9 +2934,6 @@ sub regex2quote {
 sub remove_cast {
     my ( $element, $block, $parent ) = @_;
     my $child = $block->schild(0);
-    if ( $child->isa('PPI::Statement') ) {
-        $child = $child->schild(0);
-    }
     map_element($child);
     $parent->__insert_after_child( $block, $child->remove );
     $element->delete;

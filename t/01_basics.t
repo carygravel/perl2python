@@ -676,13 +676,13 @@ EOS
 is map_document( \$script ), $expected, "split magic on regex";
 
 $script = <<'EOS';
-for my $i ( 0 .. $#array ) {
+for my $i ( 0 .. $#{ $self->{array} } ) {
     print $i,"\n";
 }
 EOS
 
 $expected = <<'EOS';
-for  i in  range(len(array)+1-1)    :
+for  i in  range(len( self["array"] )-1+1)    :
     print(i) 
 
 EOS
@@ -887,12 +887,16 @@ is map_document( \$script ), $expected, "parens in ternary";
 
 $script = <<'EOS';
 my %ahash = ( sentinel => \$sentinel, ( $data ? %{$data} : () ) );
-my $last_index = $#{$array};
+$last_index = $#array;
+$last_index = $#{$array};
+$last_index = $#{ $self->{array} };
 EOS
 
 $expected = <<'EOS';
 ahash = { "sentinel" : sentinel, (  data if data  else () ) }
 last_index = len(array)-1
+last_index = len(array)-1
+last_index = len( self["array"] )-1
 EOS
 
 is map_document( \$script ), $expected, "various casts";
