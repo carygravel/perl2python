@@ -202,12 +202,8 @@ sub get_argument_for_operator {
             # ensure we have at least 1 argument
             if ( @sibling == 0 or has_rh_associativity( $sibling[-1] ) ) {
                 push @sibling, $iter;
-                while (
-                        ( $iter = next_sibling( $iter, $n ) )
-                    and $iter
-                    and (  $iter->isa('PPI::Structure::Subscript')
-                        or $iter eq '->' )
-                  )
+                while ( ( $iter = next_sibling( $iter, $n ) )
+                    and has_rh_associativity2( $iter, $sibling[-1] ) )
                 {
                     push @sibling, $iter;
                 }
@@ -231,6 +227,20 @@ sub has_rh_associativity {
         $iter->isa('PPI::Token::Cast')
           or
           ( defined $ASSOCIATIVITY{$iter} and $ASSOCIATIVITY{$iter} eq 'right' )
+    );
+}
+
+sub has_rh_associativity2 {
+    my ( $iter, $prev ) = @_;
+    return (
+        $iter
+          and (
+               $iter->isa('PPI::Structure::Subscript')
+            or $iter eq '->'
+            or $prev eq '->'
+            or (    $prev->isa('PPI::Token::Word')
+                and $iter->isa('PPI::Structure::List') )
+          )
     );
 }
 

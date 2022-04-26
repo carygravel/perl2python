@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 105;
+use Test::More tests => 106;
 
 sub slurp {
     my ($file) = @_;
@@ -941,6 +941,21 @@ EOS
 
 is map_document( \$script ), $expected,
   "anonymous sub/defined/sprintf/ternary combination";
+
+$script = <<'EOS';
+if ( defined $self->by_name('source') ) {
+    $self->{source} = $self->by_name('source');
+}
+EOS
+
+$expected = <<'EOS';
+if  (self.by_name('source') is not None) :
+    self["source"] = self.by_name('source')
+
+EOS
+
+is map_document( \$script ), $expected,
+  "precendency/associativity defined + oo method call";
 
 #########################
 
