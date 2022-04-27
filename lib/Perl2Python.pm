@@ -2394,6 +2394,25 @@ sub map_posix_strftime {
     return;
 }
 
+sub map_postfix_if {
+    my ($element) = @_;
+    my $prev = $element->sprevious_sibling;
+    if ( not $prev ) { return }
+    my $cstatement = PPI::Statement::Compound->new;
+    my $ostatement = $element->parent;
+    my $condition  = $element->snext_sibling;
+    my $expression = $condition->schild(0);
+    $ostatement->insert_before($cstatement);
+    my $block = PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+    $block->{start}->{content} = q{:};
+    $cstatement->add_element( $element->remove );
+    $cstatement->add_element( PPI::Token::Whitespace->new(q{ }) );
+    $cstatement->add_element( $condition->remove );
+    $condition->insert_after($block);
+    $block->add_element( $ostatement->remove );
+    return;
+}
+
 sub map_variable {
     my ($element) = @_;
     my $operator = $element->find_first('PPI::Token::Operator');
@@ -2530,6 +2549,9 @@ sub map_word {
         }
         when ('hex') {
             map_built_in($element);
+        }
+        when ('if') {
+            map_postfix_if($element);
         }
         when (/^is(?:_deeply)?$/xsm) {
             map_is($element);

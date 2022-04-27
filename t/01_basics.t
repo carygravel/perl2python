@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 106;
+use Test::More tests => 107;
 
 sub slurp {
     my ($file) = @_;
@@ -1071,6 +1071,17 @@ if 1 :
 EOS
 
 is map_document( \$script ), $expected, "indent else2";
+
+$script = <<'EOS';
+return $result if ( defined $result );
+EOS
+
+$expected = <<'EOS';
+if (  (result is not None) ):
+    return result  
+EOS
+
+is map_document( \$script ), $expected, "postfix if";
 
 $script = <<'EOS';
 if ( defined $ahash{key} ) {do_something()}
