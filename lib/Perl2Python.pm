@@ -2414,6 +2414,21 @@ sub map_postfix_if {
     return;
 }
 
+sub map_undef {
+    my ($element) = @_;
+    my $prev = $element->sprevious_sibling;
+    if ($prev) {
+        $element->{content} = 'None';
+    }
+    else {
+        my @arg = get_argument_for_operator( $element, 1 );
+        $arg[-1]->insert_after( PPI::Token::Word->new('None') );
+        $arg[-1]->insert_after( PPI::Token::Operator->new(q{=}) );
+        $element->delete;
+    }
+    return;
+}
+
 sub map_variable {
     my ($element) = @_;
     my $operator = $element->find_first('PPI::Token::Operator');
@@ -2664,6 +2679,9 @@ sub map_word {
         }
         when ('system') {
             map_system($element);
+        }
+        when ('undef') {
+            map_undef($element);
         }
         when ('unlink') {
             my $list = map_built_in($element);

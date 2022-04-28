@@ -971,6 +971,8 @@ last;
 push @my_array, $item;
 unshift @my_array, $item;
 delete $ahash{key};
+undef $ahash{key};
+$ahash{key} = undef;
 $HEX_FF = hex 'ff';
 EOS
 
@@ -990,6 +992,8 @@ break
 my_array.append(item)  
 my_array.insert(0,item)  
 del(ahash["key"]) 
+ahash["key"]=None
+ahash["key"] = None
 HEX_FF = hex('ff') 
 EOS
 
