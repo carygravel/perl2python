@@ -2410,6 +2410,7 @@ sub map_postfix_if {
     $cstatement->add_element( $condition->remove );
     $condition->insert_after($block);
     $block->add_element( $ostatement->remove );
+    indent_element($cstatement);
     return;
 }
 

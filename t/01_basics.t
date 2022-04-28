@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 107;
+use Test::More tests => 108;
 
 sub slurp {
     my ($file) = @_;
@@ -1082,6 +1082,35 @@ if (  (result is not None) ):
 EOS
 
 is map_document( \$script ), $expected, "postfix if";
+
+$script = <<'EOS';
+package Gscan2pdf::Scanner::Options;
+use Glib::Object::Subclass Glib::Object::;
+sub by_title {
+    my ( $self, $title ) = @_;
+    for ( @{ $self->{array} } ) {
+        return $_ if ( defined $_->{title}  );
+    }
+    return;
+}
+EOS
+
+$expected = <<'EOS';
+from gi.repository import GObject
+class Options(Glib.Object):
+    def __init__(self):
+        GObject.GObject.__init__(self)
+    def by_title( self, title ) :
+    
+        for _ in          self["array"]  :
+            if (  "title"  in _  ):
+                return _  
+
+        return
+
+EOS
+
+is map_document( \$script ), $expected, "postfix if/subclass combination";
 
 $script = <<'EOS';
 if ( defined $ahash{key} ) {do_something()}
