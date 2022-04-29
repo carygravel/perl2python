@@ -2279,9 +2279,13 @@ sub map_subscript {
     if ($expression) {
         my $key = $expression->schild(0);
         if ( $key->isa('PPI::Token::Word') ) {
-            $key->insert_after(
-                PPI::Token::Quote::Double->new( q{"} . $key->{content} . q{"} )
-            );
+            if ( $key ne 'scalar' ) {
+                $key->insert_after(
+                    PPI::Token::Quote::Double->new(
+                        q{"} . $key->{content} . q{"}
+                    )
+                );
+            }
             $key->delete;
         }
     }

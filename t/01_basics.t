@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 108;
+use Test::More tests => 109;
 
 sub slurp {
     my ($file) = @_;
@@ -1148,6 +1148,17 @@ if "key" not  in ahash :
 EOS
 
 is map_document( \$script ), $expected, "map hashref key not defined";
+
+$script = <<'EOS';
+if ( defined( $ahash->{scalar IMPORTED_SYMBOL} ) ) {do_something()}
+EOS
+
+$expected = <<'EOS';
+if  IMPORTED_SYMBOL  in ahash :
+    do_something()
+EOS
+
+is map_document( \$script ), $expected, "map imported symbol as hashref key";
 
 #########################
 
