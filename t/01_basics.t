@@ -1229,6 +1229,7 @@ print $var1 ge $var2, "\n";
 print $var1 le $var2, "\n";
 print $var1 lt $var2, "\n";
 print $var1 gt $var2, "\n";
+return ($var1 xor $var2);
 EOS
 
 $expected = <<'EOS';
@@ -1241,6 +1242,7 @@ print(var1>=var2)
 print(var1<=var2)    
 print(var1<var2)    
 print(var1>var2)    
+return (var1 ^ var2)
 EOS
 
 is map_document( \$script ), $expected, "operators";

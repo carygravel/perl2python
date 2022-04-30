@@ -1739,23 +1739,11 @@ sub map_operator {
             $list->add_element( PPI::Token::Number->new(1) );
             $element->delete;
         }
-        when ('ne') {
-            $element->{content} = q{!=};
+        when (q{!}) {
+            $element->{content} = q{not};
         }
-        when ('eq') {
-            $element->{content} = q{==};
-        }
-        when ('le') {
-            $element->{content} = q{<=};
-        }
-        when ('ge') {
-            $element->{content} = q{>=};
-        }
-        when ('lt') {
-            $element->{content} = q{<};
-        }
-        when ('gt') {
-            $element->{content} = q{>};
+        when (q{=>}) {
+            map_fat_comma($element);
         }
         when (q{->}) {
             my $next = $element->snext_sibling;
@@ -1787,14 +1775,26 @@ sub map_operator {
                 PPI::Token::Word->new("os.path.$method"), $list );
             $element->delete;
         }
-        when (q{!}) {
-            $element->{content} = q{not};
-        }
-        when (q{=>}) {
-            map_fat_comma($element);
-        }
         when ('eq') {
             $element->{content} = q{==};
+        }
+        when ('ge') {
+            $element->{content} = q{>=};
+        }
+        when ('gt') {
+            $element->{content} = q{>};
+        }
+        when ('le') {
+            $element->{content} = q{<=};
+        }
+        when ('lt') {
+            $element->{content} = q{<};
+        }
+        when ('ne') {
+            $element->{content} = q{!=};
+        }
+        when ('xor') {
+            $element->{content} = q{^};
         }
     }
     return;
