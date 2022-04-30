@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 109;
+use Test::More tests => 110;
 
 sub slurp {
     my ($file) = @_;
@@ -432,6 +432,26 @@ if   regex :
 EOS
 
 is map_document( \$script ), $expected, "multiple capture groups";
+
+$script = <<'EOS';
+if ( $line =~ /(\d*)[ ](\d*)\n/ ) {
+    if ( defined $2 ) {
+        print $2, "\n";
+    }
+}
+EOS
+
+$expected = <<'EOS';
+import re
+regex=re.search(r"(\d*)[ ](\d*)\n",line)
+if   regex :
+    if  (regex.group(2) is not None) :
+        print(regex.group(2))  
+
+
+EOS
+
+is map_document( \$script ), $expected, "capture group + defined";
 
 $script = <<'EOS';
 if ( $line =~ /(\d+)\n/ ) {

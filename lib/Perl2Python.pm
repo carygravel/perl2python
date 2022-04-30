@@ -432,7 +432,7 @@ sub map_defined {
         @args = @args2;
     }
     for my $child (@args) {
-        map_element($child);
+        $child = map_element($child);
     }
     my $not = $element->sprevious_sibling;
     if ( $args[-1]->isa('PPI::Structure::Subscript') ) {
@@ -704,7 +704,7 @@ sub map_element {
             map_word($element);
         }
         when (/PPI::Token::Magic/xsm) {
-            map_magic($element);
+            $element = map_magic($element);
         }
     }
     if ( exists $element->{children} ) {
@@ -725,7 +725,7 @@ sub map_element {
         }
     }
     indent_element($element);
-    return;
+    return $element;
 }
 
 sub map_eval {
@@ -1566,12 +1566,12 @@ sub map_magic {
     # magic defined in regex capture, move capture out of condition
     # and use it to fetch group
     elsif ( $element =~ /^\$(\d+)$/xsm ) {
-        map_regex_group( $element, $1 );
+        $element = map_regex_group( $element, $1 );
     }
     else {
         map_symbol($element);
     }
-    return;
+    return $element;
 }
 
 sub map_modifiers {
@@ -2023,9 +2023,10 @@ sub map_regex_group {
     }
 
     # replace the magic with the regex group
-    $element->insert_before( PPI::Token::Word->new("regex$i.group($group)") );
+    my $new = PPI::Token::Word->new("regex$i.group($group)");
+    $element->insert_before($new);
     $element->delete;
-    return;
+    return $new;
 }
 
 sub map_regex_match {
