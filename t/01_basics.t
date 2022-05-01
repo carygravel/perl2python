@@ -538,11 +538,13 @@ is map_document( \$script ), $expected, "regex replace";
 
 $script = <<'EOS';
 $data =~ s/in/out/g;
+$ahash{key} =~ s/in/out/g;
 EOS
 
 $expected = <<'EOS';
 import re
 data = re.sub(r"in",r"out",data)
+ahash["key"] = re.sub(r"in",r"out",ahash["key"])
 EOS
 
 is map_document( \$script ), $expected, "regex replace global flag";

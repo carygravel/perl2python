@@ -2120,12 +2120,12 @@ sub map_regex_substitute {
     my ($element) = @_;
     add_import( $element, 're' );
     my $operator = $element->sprevious_sibling;
-    my $target;
+    my @target;
     if ( not $operator ) {
         $operator = PPI::Token::Operator->new(q{=~});
         $element->insert_before($operator);
-        $target = PPI::Token::Symbol->new('_');
-        $operator->insert_before($target);
+        push @target, PPI::Token::Symbol->new('_');
+        $operator->insert_before( $target[0] );
     }
     elsif ( $operator ne q{=~} ) {
         warn
@@ -2133,7 +2133,7 @@ sub map_regex_substitute {
         return;
     }
     else {
-        $target = $operator->sprevious_sibling;
+        @target = get_argument_for_operator( $operator, 0 );
     }
     $operator->{content} = q{=};
     $element->insert_before( PPI::Token::Word->new('re.sub') );
@@ -2175,7 +2175,10 @@ sub map_regex_substitute {
         $list->add_element( regex2quote( $element, 1 ) );
     }
     $list->add_element( PPI::Token::Operator->new(q{,}) );
-    $list->add_element( PPI::Token::Word->new( $target->{content} ) );
+    for my $target (@target) {
+        $list->add_element( PPI::Token::Word->new("$target") )
+          ;    #stringify to get all children
+    }
     if ( defined $element->{modifiers}{g} ) {
         delete $element->{modifiers}{g};
     }
