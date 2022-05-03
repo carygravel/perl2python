@@ -2036,20 +2036,18 @@ sub map_regex_match {
     # turn into re.search(regex, string, flags)
     my $expression = $element->parent;
     if ( not $expression ) { return }
-    my $method;
+    my ( $method, @argument );
     if ( defined $element->{modifiers}{g} ) {
         $method = 'findall';
     }
     else {
         $method = 'search';
     }
-    $expression->add_element( PPI::Token::Word->new("re.$method") );
-    my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-    $list->{finish} = PPI::Token::Structure->new(')');
-    $expression->add_element($list);
     my $operator = $element->sprevious_sibling;
-
-    my @argument;
+    my $list     = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+    $list->{finish} = PPI::Token::Structure->new(')');
+    $element->insert_after($list);
+    $element->insert_after( PPI::Token::Word->new("re.$method") );
     if ( not $operator ) {
         $operator = PPI::Token::Operator->new(q{=~});
         push @argument, PPI::Token::Symbol->new('_');
