@@ -1011,6 +1011,7 @@ delete $ahash{key};
 undef $ahash{key};
 $ahash{key} = undef;
 $HEX_FF = hex 'ff';
+ref($object);
 EOS
 
 $expected = <<'EOS';
@@ -1032,6 +1033,7 @@ del(ahash["key"])
 ahash["key"]=None
 ahash["key"] = None
 HEX_FF = hex('ff') 
+type(object)
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";

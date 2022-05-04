@@ -2638,6 +2638,9 @@ sub map_word {
         when (/^(?:push|unshift)$/xsm) {
             map_push($element);
         }
+        when ('ref') {
+            $element->{content} = 'type';
+        }
         when ('setlocale') {
             map_setlocale($element);
         }
