@@ -1857,7 +1857,22 @@ sub map_package {
         while ( ( $next = $class->next_sibling )
             and not $next->isa('PPI::Statement::Package') )
         {
-            $block->add_element( $next->remove );
+            if (
+                not $next->isa('PPI::Statement::Sub') or $next->find_first(
+                    sub {
+                        $_[1]->isa('PPI::Token::Symbol')
+                          and $_[1]->content =~
+                          '^[$](?:self|class)$' ## no critic (RequireInterpolationOfMetachars)
+                          ;
+                    }
+                )
+              )
+            {
+                $block->add_element( $next->remove );
+            }
+            else {
+                $class = $next;
+            }
         }
     }
     else {

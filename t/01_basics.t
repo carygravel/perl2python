@@ -761,6 +761,14 @@ sub new {
     bless $self, $class;
     return
 }
+sub non_class_method {
+    my ( $arg ) = @_;
+    return;
+}
+sub class_method {
+    my ( $self, $arg ) = @_;
+    return;
+}
 1;
 __END__
 EOS
@@ -776,6 +784,15 @@ class MyPackage():
         return
 
 
+    def class_method( self, arg ) :
+    
+        return
+
+
+
+def non_class_method( arg ) :
+    
+    return
 EOS
 
 is map_document( \$script ), $expected, "package -> class";
