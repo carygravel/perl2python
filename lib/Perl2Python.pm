@@ -1106,6 +1106,7 @@ sub map_gobject_subclass {
     my $operator       = $parent_package->snext_sibling;
     $parent_package->{content} =~ s/::$//sm;
     $parent_package->{content} =~ s/::/./gsm;
+    $parent_package->{content} =~ s/Glib/GObject/gsm;
     my $document = $element->top;
     my $class    = $document->find_first(
         sub {
@@ -1397,7 +1398,7 @@ sub map_include {
             }
             else {
                 $element->add_element( PPI::Token::Whitespace->new(q{ }) );
-                $symbols = PPI::Token::Quote::Double->new('"Glib"');
+                $symbols = PPI::Token::Quote::Double->new('"GObject"');
                 $element->add_element($symbols);
                 $module = 'gi.repository';
             }

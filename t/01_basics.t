@@ -140,7 +140,7 @@ $expected = <<'EOS';
 from MyModule import symbol
 from MyModule import *
 from MyModule import symbol1,symbol2
-from gi.repository import Glib
+from gi.repository import GObject
     # To get TRUE and FALSE
 EOS
 
@@ -181,7 +181,7 @@ EOS
 
 $expected = <<'EOS';
 from gi.repository import GObject
-class Package(Glib.Object):
+class Package(GObject.Object):
     def __init__(self):
         GObject.GObject.__init__(self)
     import Some.Other.Package
@@ -1138,7 +1138,7 @@ EOS
 
 $expected = <<'EOS';
 from gi.repository import GObject
-class Options(Glib.Object):
+class Options(GObject.Object):
     def __init__(self):
         GObject.GObject.__init__(self)
     def by_title( self, title ) :
