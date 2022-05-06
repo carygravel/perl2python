@@ -2530,6 +2530,10 @@ sub map_word {
             $operator->{content} = q{=};
             $element->delete;
         }
+        when (/SANE_/xsm) {
+            $element->{content} =~ s/SANE_//xsm;
+            $element->{content} = q{"} . $element->{content} . q{"};
+        }
         when ('TRUE') {
             $element->{content} = 'True';
         }

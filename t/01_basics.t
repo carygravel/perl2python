@@ -237,10 +237,35 @@ is map_document( \$script ), $expected, "special case import Set::IntSpan";
 
 $script = <<'EOS';
 use Image::Sane ':all';
+$unit = SANE_UNIT_NONE;
+$unit = SANE_UNIT_PIXEL;
+$type = SANE_TYPE_BOOL;
+$type = SANE_TYPE_FIXED;
+
+$cap = SANE_CAP_SOFT_DETECT;
+$cap = SANE_CAP_SOFT_SELECT;
+$cap = SANE_CAP_INACTIVE;
+
+# not in the Python sane class
+$constraint_type = SANE_CONSTRAINT_NONE;
+$constraint_type = SANE_CONSTRAINT_RANGE;
 EOS
 
 $expected = <<'EOS';
 import sane
+unit = "UNIT_NONE"
+unit = "UNIT_PIXEL"
+type = "TYPE_BOOL"
+type = "TYPE_FIXED"
+
+cap = "CAP_SOFT_DETECT"
+cap = "CAP_SOFT_SELECT"
+cap = "CAP_INACTIVE"
+
+# not in the Python sane class
+
+constraint_type = "CONSTRAINT_NONE"
+constraint_type = "CONSTRAINT_RANGE"
 EOS
 
 is map_document( \$script ), $expected, "special case import Image::Sane";
