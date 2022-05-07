@@ -356,13 +356,13 @@ is map_document( \$script ), $expected, "sub + array";
 #########################
 
 $script = <<'EOS';
-my ($var1, $var2);
+my ($var1, @var2, %var3);
 my $var3;
 my ( $var1, $var2 ) = $self->some_method();
 EOS
 
 $expected = <<'EOS';
-(var1, var2)=(None,None)
+(var1, var2, var3)=(None,[],{})
 var3=None
 ( var1, var2 ) = self.some_method()
 EOS

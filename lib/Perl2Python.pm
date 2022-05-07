@@ -2478,7 +2478,7 @@ sub map_variable {
     {
         $element->add_element( PPI::Token::Operator->new(q{=}) );
 
-        # map my ($var1, $var2) -> (var1, var2) = (None, None)
+        # map my ($var1, @var2, %var3) -> (var1, var2) = (None, [], {})
         if ( my $list = $element->find_first('PPI::Structure::List') ) {
             my $dest_list =
               PPI::Structure::List->new( PPI::Token::Structure->new('(') );
@@ -2486,7 +2486,8 @@ sub map_variable {
             $element->add_element($dest_list);
             for my $child ( $list->schild(0)->children ) {
                 if ( $child->isa('PPI::Token::Symbol') ) {
-                    $dest_list->add_element( PPI::Token::Word->new('None') );
+                    $dest_list->add_element(
+                        create_variable_definition($child) );
                 }
                 elsif ( $child eq q{,} ) {
                     $dest_list->add_element( PPI::Token::Operator->new(q{,}) );
@@ -2496,7 +2497,33 @@ sub map_variable {
 
         # map my $var1 -> var1 = None
         else {
-            $element->add_element( PPI::Token::Word->new('None') );
+            $element->add_element(
+                create_variable_definition(
+                    $element->find_first('PPI::Token::Symbol')
+                )
+            );
+        }
+    }
+    return;
+}
+
+sub create_variable_definition {
+    my ($element) = @_;
+    given ( substr $element->{content}, 0, 1 ) {
+        when (q{$}) {
+            return PPI::Token::Word->new('None');
+        }
+        when (q{@}) {
+            my $arraydef =
+              PPI::Structure::List->new( PPI::Token::Structure->new('[') );
+            $arraydef->{finish} = PPI::Token::Structure->new(']');
+            return $arraydef;
+        }
+        when (q{%}) {
+            my $hashdef =
+              PPI::Structure::List->new( PPI::Token::Structure->new('{') );
+            $hashdef->{finish} = PPI::Token::Structure->new('}');
+            return $hashdef;
         }
     }
     return;
