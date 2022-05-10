@@ -244,6 +244,29 @@ sub has_rh_associativity2 {
     );
 }
 
+sub map_arrow_operator {
+    my ($element) = @_;
+    my $prev      = $element->sprevious_sibling;
+    my $next      = $element->snext_sibling;
+    if (    $next
+        and $next->isa('PPI::Structure::Subscript')
+        and $prev ne 'self' )
+    {
+        $element->delete;
+    }
+    else {
+        $element->{content} = q{.};
+        if (    $prev eq 'self'
+            and $next->isa('PPI::Structure::Subscript') )
+        {
+            my $child = $next->schild(0);
+            $element->parent->__insert_after_child( $element, $child->remove );
+            $next->delete;
+        }
+    }
+    return;
+}
+
 sub map_built_in {
     my ( $element, @args ) = @_;
     my $statement = $element->parent;
@@ -1747,13 +1770,7 @@ sub map_operator {
             map_fat_comma($element);
         }
         when (q{->}) {
-            my $next = $element->snext_sibling;
-            if ( $next and $next->isa('PPI::Structure::Subscript') ) {
-                $element->delete;
-            }
-            else {
-                $element->{content} = q{.};
-            }
+            map_arrow_operator($element);
         }
         when (/^-[fs]$/xsm) {
             add_import( $element, 'os' );

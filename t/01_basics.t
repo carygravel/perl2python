@@ -744,7 +744,7 @@ for my $i ( 0 .. $#{ $self->{array} } ) {
 EOS
 
 $expected = <<'EOS';
-for  i in  range(len( self["array"] )-1+1)    :
+for  i in  range(len( self.array )-1+1)    :
     print(i) 
 
 EOS
@@ -957,7 +957,7 @@ while ( $step > 0 ? ( $i <= $e and $i < @{ $self->{data} } ) : $i >= $e ) {
 EOS
 
 $expected = <<'EOS';
-while    ( i <= e and i < len( self["data"] ) ) if step>0  else i >= e :
+while    ( i <= e and i < len( self.data ) ) if step>0  else i >= e :
     return i
 
 EOS
@@ -975,7 +975,7 @@ $expected = <<'EOS';
 ahash = { "sentinel" : sentinel, (  data if data  else () ) }
 last_index = len(array)-1
 last_index = len(array)-1
-last_index = len( self["array"] )-1
+last_index = len( self.array )-1
 EOS
 
 is map_document( \$script ), $expected, "various casts";
@@ -1029,7 +1029,7 @@ EOS
 
 $expected = <<'EOS';
 if  (self.by_name('source') is not None) :
-    self["source"] = self.by_name('source')
+    self.source = self.by_name('source')
 
 EOS
 
@@ -1187,7 +1187,7 @@ class Options(GObject.Object):
         GObject.GObject.__init__(self)
     def by_title( self, title ) :
     
-        for _ in          self["array"]  :
+        for _ in          self.array  :
             if (  "title"  in _  ):
                 return _  
 
