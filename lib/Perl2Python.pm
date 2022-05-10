@@ -454,8 +454,21 @@ sub map_defined {
         $list->delete;
         @args = @args2;
     }
+    my $prev;
     for my $child (@args) {
-        $child = map_element($child);
+
+        # mapping one child can remove siblings, so check it still exists
+        if ($child) {
+            if ( $child->isa('PPI::Structure::Subscript')
+                and not $child->{children} )
+            {
+                $child = $prev->snext_sibling;
+            }
+            else {
+                $child = map_element($child);
+            }
+        }
+        $prev = $child;
     }
     my $not = $element->sprevious_sibling;
     if ( $args[-1]->isa('PPI::Structure::Subscript') ) {

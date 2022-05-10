@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 111;
+use Test::More tests => 112;
 
 sub slurp {
     my ($file) = @_;
@@ -1035,6 +1035,22 @@ EOS
 
 is map_document( \$script ), $expected,
   "precendency/associativity defined + oo method call";
+
+$script = <<'EOS';
+sub source_defined {
+    my ($self) = @_;
+    return ( defined $self->{source} );
+}
+EOS
+
+$expected = <<'EOS';
+def source_defined(self) :
+    
+    return (  (self.source is not None) )
+
+EOS
+
+is map_document( \$script ), $expected, "defined + class variable";
 
 #########################
 
