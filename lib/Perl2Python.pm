@@ -2497,8 +2497,10 @@ sub map_variable {
             }
         }
     }
+
+    # ensure global variables appear before class definitions
     elsif (
-        not $element->find_first(
+        $element->find_first(
             sub {
                 $_[1]->isa('PPI::Token::Operator')
                   and $_[1]->content eq q{=};
@@ -2506,6 +2508,17 @@ sub map_variable {
         )
       )
     {
+        my $symbol = $element->find_first('PPI::Token::Symbol');
+        if ( $symbol =~ /^[\$@%][[:upper:]\d_]+$/xsm ) {
+            my $parent = $element->parent;
+            if ( not $parent->isa('PPI::Document') ) {
+                my $gparent = $parent->parent;
+                $gparent->insert_before( $element->remove );
+                $gparent->insert_before( PPI::Token::Whitespace->new("\n") );
+            }
+        }
+    }
+    else {
         $element->add_element( PPI::Token::Operator->new(q{=}) );
 
         # map my ($var1, @var2, %var3) -> (var1, var2) = (None, [], {})

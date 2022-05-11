@@ -778,8 +778,8 @@ is map_document( \$script ), $expected, "package -> collection of defs";
 
 $script = <<'EOS';
 package MyModule::MyPackage;
-$CLASS_VAR          = 4;
-our $VERSION = 1;
+$class_var          = 4;
+our $GLOBAL_VAR = 1;
 sub new {
     my ( $class, %options ) = @_;
     my $self = {};
@@ -799,9 +799,10 @@ __END__
 EOS
 
 $expected = <<'EOS';
+GLOBAL_VAR = 1
 class MyPackage():
-    CLASS_VAR          = 4
-    VERSION = 1
+    class_var          = 4
+
     def __init__( self, options ) :
     
     
@@ -824,7 +825,7 @@ is map_document( \$script ), $expected, "package -> class";
 
 $script = <<'EOS';
 package MyModule::MyPackage;
-$CLASS_VAR          = 4;
+$class_var          = 4;
 our $VERSION = 1;
 sub new_from_data {
     my ( $class, $data ) = @_;
@@ -835,9 +836,10 @@ __END__
 EOS
 
 $expected = <<'EOS';
+VERSION = 1
 class MyPackage():
-    CLASS_VAR          = 4
-    VERSION = 1
+    class_var          = 4
+
     def new_from_data( self, data ) :
     
         return __class__()
@@ -850,7 +852,7 @@ is map_document( \$script ), $expected,
 
 $script = <<'EOS';
 package MyModule::MyPackage;
-$CLASS_VAR          = 4;
+$class_var          = 4;
 our $VERSION = 1;
 use Exporter ();
 use base qw(Exporter My::ParentPackage);
@@ -865,9 +867,10 @@ __END__
 EOS
 
 $expected = <<'EOS';
+VERSION = 1
 class MyPackage(My.ParentPackage):
-    CLASS_VAR          = 4
-    VERSION = 1
+    class_var          = 4
+
 
     def __init__( self, options ) :
     
