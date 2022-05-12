@@ -1519,9 +1519,13 @@ sub map_is {
 
     # assert doesn't use parens, so remove any
     if ( $next->isa('PPI::Structure::List') ) {
+
+        # map and move in separate step to keep context
+        for my $child ( $next->schild(0)->children ) {
+            map_element($child);
+        }
         for my $child ( $next->schild(0)->children ) {
             $next->insert_before( $child->remove );
-            map_element($child);
         }
         $next->delete;
         $next = $element->snext_sibling;

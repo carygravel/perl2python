@@ -50,6 +50,7 @@ is_deeply \@result, \@expected, "comment";
               "comment";
 method_with_is();
 is_deeply(\@result, \@expected, "comment");
+is_deeply( $hashref->{array}, \@that, 'comment' );
 EOS
 
 $expected = <<'EOS';
@@ -61,6 +62,7 @@ def test_1():
     4, 5, 6 ] #                "comment"
     method_with_is()
     assert result== expected #  "comment"
+    assert hashref["array"]== that #  'comment'
 EOS
 
 $in  = 'test.t';
