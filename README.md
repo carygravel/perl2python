@@ -24,13 +24,15 @@ explicitly initialise the dict or list first, so these statements will have to
 be added.
 - Perl has a very loose concept of instance variables in classes. In Python, these
 must previously declared.
-- Perl does not distiguish between instance variables in classes and hash keys.
+- Perl does not distinguish between instance variables in classes and hash keys.
 perl2python makes a guess that any keys for objects called "self" are instance
 variables, and anything else are dict keys. This will often be wrong.
 - All Perl modules that are in the list of directory to be searched are
 automatically identified. Python modules are identified partly by their path,
 and thus either the import statements or their calls will often have to be
 adjusted.
+- Perl allows variable interpolation inside regexes. This is not possible in
+Python. One workaround might be regex concatenation.
 
 # SUBROUTINES/METHODS
 

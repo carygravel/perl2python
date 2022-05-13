@@ -3133,7 +3133,7 @@ Perl has a very loose concept of instance variables in classes. In Python, these
 must previously declared.
 
 =item *
-Perl does not distiguish between instance variables in classes and hash keys.
+Perl does not distinguish between instance variables in classes and hash keys.
 perl2python makes a guess that any keys for objects called "self" are instance
 variables, and anything else are dict keys. This will often be wrong.
 
