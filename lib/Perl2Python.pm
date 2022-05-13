@@ -3143,6 +3143,10 @@ automatically identified. Python modules are identified partly by their path,
 and thus either the import statements or their calls will often have to be
 adjusted.
 
+=item *
+Perl allows variable interpolation inside regexes. This is not possible in
+Python. One workaround might be regex concatenation.
+
 =back
 
 =for readme stop
