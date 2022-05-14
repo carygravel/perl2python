@@ -22,6 +22,7 @@ our @EXPORT_OK = qw(map_directory map_document map_file map_path);
 our $VERSION = 1;
 our $LINENUMBER;
 our $DEBUG;
+my $REGEX;
 
 # https://perldoc.perl.org/perlop#Operator-Precedence-and-Associativity
 my @PRECEDENCE = (
@@ -2062,6 +2063,7 @@ sub map_regex_group {
             }
             $i++;
         }
+        $REGEX = $i;
         $regex_var->add_element( PPI::Token::Symbol->new("regex$i") );
         $regex_var->add_element( PPI::Token::Operator->new(q{=}) );
         $compound->insert_before($regex_var);
@@ -2070,6 +2072,9 @@ sub map_regex_group {
         $regex_var->add_element( $list->remove );
         $compound->insert_before( PPI::Token::Whitespace->new("\n") );
         indent_element($regex_var);
+    }
+    elsif ( defined $REGEX ) {
+        $i = $REGEX;
     }
 
     # replace the magic with the regex group

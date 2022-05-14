@@ -462,6 +462,11 @@ is map_document( \$script ), $expected, "multiple capture groups";
 
 $script = <<'EOS';
 if ( $line =~ /(\d*)[ ](\d*)\n/ ) {
+    if ( defined $1 ) {
+        print $1, "\n";
+    }
+}
+elsif ( $line =~ /(\w*)[ ](\w*)\n/ ) {
     if ( defined $2 ) {
         print $2, "\n";
     }
@@ -471,9 +476,15 @@ EOS
 $expected = <<'EOS';
 import re
 regex=re.search(r"(\d*)[ ](\d*)\n",line)
+regex2=re.search(r"(\w*)[ ](\w*)\n",line)
 if   regex :
-    if  (regex.group(2) is not None) :
-        print(regex.group(2))  
+    if  (regex.group(1) is not None) :
+        print(regex.group(1))  
+
+
+elif   regex2 :
+    if  (regex2.group(2) is not None) :
+        print(regex2.group(2))  
 
 
 EOS
