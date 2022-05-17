@@ -3084,10 +3084,17 @@ sub regex2quote {
         return PPI::Token::Symbol->new($1);
     }
     my $quote = q{"};
+    my $type  = q{r};
+    if ( $content =~ /\$(\w+)/xsm ) {
+        $type = q{fr};
+        $content =~ s/{/{{/xsm;
+        $content =~ s/}/}}/xsm;
+        $content =~ s/\$(\w+)/{$1}/xsmg;
+    }
     if ( $element->{content} =~ /\n/xsm ) {
         $quote = q{"""};
     }
-    return PPI::Token::Quote::Double->new("r$quote$content$quote");
+    return PPI::Token::Quote::Double->new("$type$quote$content$quote");
 }
 
 sub remove_cast {
@@ -3147,10 +3154,6 @@ All Perl modules that are in the list of directory to be searched are
 automatically identified. Python modules are identified partly by their path,
 and thus either the import statements or their calls will often have to be
 adjusted.
-
-=item *
-Perl allows variable interpolation inside regexes. This is not possible in
-Python. One workaround might be regex concatenation.
 
 =back
 

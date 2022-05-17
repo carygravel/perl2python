@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 112;
+use Test::More tests => 113;
 
 sub slurp {
     my ($file) = @_;
@@ -543,6 +543,21 @@ EOS
 is map_document( \$script ), $expected, "regex capture within subblock";
 
 $script = <<'EOS';
+if ( $var1 =~ /^[.]{2}$value1 $value2$/ ) {
+    return;
+}
+EOS
+
+$expected = <<'EOS';
+import re
+if   re.search(fr"^[.]{{2}}{value1} {value2}$",var1) :
+    return
+
+EOS
+
+is map_document( \$script ), $expected, "regex with interpreted variable";
+
+$script = <<'EOS';
 if (  $line =~ qr/(\d+)\n/ ) {
     $maxval = $1;
 }
@@ -587,7 +602,7 @@ import re
 data = re.sub(r"in",r"out",data,count=1,flags=re.DOTALL)
 EOS
 
-is map_document( \$script ), $expected, "regex replace";
+is map_document( \$script ), $expected, "regex substitute";
 
 $script = <<'EOS';
 $data =~ s/in/out/g;
@@ -600,7 +615,7 @@ data = re.sub(r"in",r"out",data)
 ahash["key"] = re.sub(r"in",r"out",ahash["key"])
 EOS
 
-is map_document( \$script ), $expected, "regex replace global flag";
+is map_document( \$script ), $expected, "regex substitute + global flag";
 
 $script = <<'EOS';
 $data =~ s/$in/$out/g;
@@ -611,7 +626,7 @@ import re
 data = re.sub(in,out,data)
 EOS
 
-is map_document( \$script ), $expected, "regex replace variables";
+is map_document( \$script ), $expected, "regex substitute with variables";
 
 $script = <<'EOS';
 for ( @{$array} ) {
@@ -626,7 +641,7 @@ for _ in  array  :
 
 EOS
 
-is map_document( \$script ), $expected, "regex replace magic variables";
+is map_document( \$script ), $expected, "regex substitute + magic variables";
 
 $script = <<'EOS';
 $data =~ s{\\(?:([0-7]{1,3})|(.))} {defined($1) ? chr(oct($1)) : $2}eg;

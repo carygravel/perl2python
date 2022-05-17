@@ -31,8 +31,6 @@ variables, and anything else are dict keys. This will often be wrong.
 automatically identified. Python modules are identified partly by their path,
 and thus either the import statements or their calls will often have to be
 adjusted.
-- Perl allows variable interpolation inside regexes. This is not possible in
-Python. One workaround might be regex concatenation.
 
 # SUBROUTINES/METHODS
 
