@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 113;
+use Test::More tests => 114;
 
 sub slurp {
     my ($file) = @_;
@@ -556,6 +556,48 @@ if   re.search(fr"^[.]{{2}}{value1} {value2}$",var1) :
 EOS
 
 is map_document( \$script ), $expected, "regex with interpreted variable";
+
+$script = <<'EOS';
+if ( $var1 =~ qr{ (-?\d+[.]?\d*) }xsm ) {
+    $var2 = $1;
+    if ( $var2 =~ /[.]/xsm or $var3 =~ /[.]/xsm ) {
+        return $var2;
+    }
+}
+elsif ( $var1 =~ /^<(\w+)>($list)?$/xsm ) {
+    if ( $1 eq 'float' ) {
+        return $1;
+    }
+    elsif ( $1 eq 'string' ) {
+        return $1;
+    }
+    if ( defined $2 ) { return $2 }
+}
+EOS
+
+$expected = <<'EOS';
+import re
+regex=re.search(r" (-?\d+[.]?\d*) ",var1,re.MULTILINE|re.DOTALL|re.VERBOSE)
+regex2=re.search(fr"^<(\w+)>({list})?$",var1,re.MULTILINE|re.DOTALL|re.VERBOSE)
+if   regex :
+    var2 = regex.group(1)
+    if   re.search(r"[.]",var2,re.MULTILINE|re.DOTALL|re.VERBOSE) or   re.search(r"[.]",var3,re.MULTILINE|re.DOTALL|re.VERBOSE) :
+        return var2
+
+
+elif   regex2 :
+    if regex2.group(1) == 'float' :
+        return regex2.group(1)
+ 
+    elif regex2.group(1) == 'string' :
+        return regex2.group(1)
+
+    if  (regex2.group(2) is not None) :
+        return regex2.group(2)
+
+EOS
+
+is map_document( \$script ), $expected, "nested ifs with regex";
 
 $script = <<'EOS';
 if (  $line =~ qr/(\d+)\n/ ) {

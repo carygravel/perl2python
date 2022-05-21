@@ -2027,14 +2027,14 @@ sub map_readline {
 
 sub map_regex_group {
     my ( $element, $group ) = @_;
-    my $compound = $element->parent;
+    my $scope = $element->parent;
 
     # split + regex capture group test otherwise falls over here
-    if ( not $compound ) { return }
+    if ( not $scope ) { return }
 
     my $search;
     while (
-        not $search = $compound->find_first(
+        not $search = $scope->find_first(
             sub {
                 $_[1]->isa('PPI::Token::Word')
                   and $_[1]->content eq 're.search';
@@ -2042,13 +2042,26 @@ sub map_regex_group {
         )
       )
     {
-        $compound = $compound->parent;
+        # if we are in a block belonging to a if/then/else,
+        # then before trying the parent, look for the condition
+        if (    $scope->isa('PPI::Structure::Block')
+            and $scope->parent->isa('PPI::Statement::Compound') )
+        {
+            $scope = $scope->sprevious_sibling;
+        }
+        else {
+            $scope = $scope->parent;
+        }
     }
     my $i = q{};
-    if ( $search and $compound->isa('PPI::Statement::Compound') ) {
+    if (    $search
+        and $scope->isa('PPI::Statement::Expression')
+        and $scope->sprevious_sibling =~ /(?:if|elif)/xsm )
+    {
+        my $compound  = $scope->parent;
         my $list      = $search->snext_sibling;
         my $regex_var = PPI::Statement::Variable->new;
-        my $parent    = $compound->parent;
+        my $parent    = $scope->parent;
         while (
             $parent->find_first(
                 sub {
