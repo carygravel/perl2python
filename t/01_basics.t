@@ -571,7 +571,15 @@ elsif ( $var1 =~ /^<(\w+)>($list)?$/xsm ) {
     elsif ( $1 eq 'string' ) {
         return $1;
     }
-    if ( defined $2 ) { return $2 }
+    if ( defined $2 ) {
+        if ( $2 eq 'a string' ) {
+            return 0;
+        }
+        else {
+            return $2;
+        }
+        return $2;
+    }
 }
 EOS
 
@@ -593,7 +601,14 @@ elif   regex2 :
         return regex2.group(1)
 
     if  (regex2.group(2) is not None) :
+        if regex2.group(2) == 'a string' :
+            return 0
+ 
+        else :
+            return regex2.group(2)
+
         return regex2.group(2)
+
 
 EOS
 

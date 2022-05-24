@@ -2048,6 +2048,9 @@ sub map_regex_group {
             and $scope->parent->isa('PPI::Statement::Compound') )
         {
             $scope = $scope->sprevious_sibling;
+            if ( $scope eq 'else' ) {
+                $scope = $scope->sprevious_sibling->sprevious_sibling;
+            }
         }
         else {
             $scope = $scope->parent;
