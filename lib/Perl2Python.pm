@@ -2890,7 +2890,9 @@ sub remove_trailing_semicolon {
 # Python can parse it.
 sub indent_element {
     my ($element) = @_;
-    if ( not $element ) { return }
+    if ( not $element or not defined $element or ref($element) eq 'HASH' ) {
+        return;
+    }
     if (
         (
             $element->isa('PPI::Statement')
