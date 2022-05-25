@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 114;
+use Test::More tests => 115;
 
 sub slurp {
     my ($file) = @_;
@@ -649,6 +649,21 @@ if   re.search(r"""[(]\s+".*" # comment
 EOS
 
 is map_document( \$script ), $expected, "regex flags";
+
+$script = <<'EOS';
+if (  $line =~ /[[:alpha:]]/ ) {
+    return;
+}
+EOS
+
+$expected = <<'EOS';
+import re
+if   re.search(r"[A-Za-z]",line) :
+    return
+
+EOS
+
+is map_document( \$script ), $expected, "regex with character classes";
 
 $script = <<'EOS';
 $data =~ s/in/out/s;

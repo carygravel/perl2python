@@ -3101,6 +3101,7 @@ sub regex2quote {
     if ( $content =~ /^\$(\w+)$/xsm ) {
         return PPI::Token::Symbol->new($1);
     }
+    $content =~ s/\[\[:alpha:\]\]/[A-Za-z]/xsm;
     my $quote = q{"};
     my $type  = q{r};
     if ( $content =~ /\$(\w+)/xsm ) {
