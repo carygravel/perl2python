@@ -3187,6 +3187,16 @@ automatically identified. Python modules are identified partly by their path,
 and thus either the import statements or their calls will often have to be
 adjusted.
 
+=item *
+Capture groups in Perl subsitutions cannot trivially be transcribed, as they
+typically contain modifiers, e.g.:
+
+ s/(^\w)/\U$1/xsmg
+
+will need something like
+
+ re.sub(r"(^\w)",lambda x: x.group(1).upper(),string_to_match)
+
 =back
 
 =for readme stop
