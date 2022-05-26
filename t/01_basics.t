@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 116;
+use Test::More tests => 117;
 
 sub slurp {
     my ($file) = @_;
@@ -388,6 +388,22 @@ if   regex :
 EOS
 
 is map_document( \$script ), $expected, "if + capture from regex";
+
+$script = <<'EOS';
+while ( $line =~ /(\d+)\n/ ) {
+    $maxval .= $1;
+}
+EOS
+
+$expected = <<'EOS';
+import re
+regex=re.search(r"(\d+)\n",line)
+while   regex :
+    maxval += regex.group(1)
+
+EOS
+
+is map_document( \$script ), $expected, "while + capture from regex";
 
 $script = <<'EOS';
 if ( $line =~ /(\d+)\n/ ) {

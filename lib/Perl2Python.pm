@@ -2044,7 +2044,7 @@ sub map_regex_group {
         )
       )
     {
-        # if we are in a block belonging to a if/then/else,
+        # if we are in a block belonging to a if/then/else or while,
         # then before trying the parent, look for the condition
         if (    $scope->isa('PPI::Structure::Block')
             and $scope->parent->isa('PPI::Statement::Compound') )
@@ -2061,7 +2061,7 @@ sub map_regex_group {
     my $i = q{};
     if (    $search
         and $scope->isa('PPI::Statement::Expression')
-        and $scope->sprevious_sibling =~ /(?:if|elif)/xsm )
+        and $scope->sprevious_sibling =~ /(?:if|elif|while)/xsm )
     {
         my $compound  = $scope->parent;
         my $list      = $search->snext_sibling;
