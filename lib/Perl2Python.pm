@@ -472,7 +472,9 @@ sub map_defined {
         $prev = $child;
     }
     my $not = $element->sprevious_sibling;
-    if ( $args[-1]->isa('PPI::Structure::Subscript') ) {
+    if (    $args[-1]->isa('PPI::Structure::Subscript')
+        and $args[-1]->{start}{originally} eq '{' )
+    {
         $element->{content} = 'in';
         my $insert = $args[0];
         if ( $not eq 'not' or $not eq q{!} ) {
@@ -2346,10 +2348,15 @@ sub map_sub {
 
 sub map_subscript {
     my ($element) = @_;
-    $element->{start}->{content}  = q{[};
-    $element->{finish}->{content} = q{]};
+    $element->{start}->{originally}  = $element->{start}->{content};
+    $element->{start}->{content}     = q{[};
+    $element->{finish}->{originally} = $element->{finish}->{content};
+    $element->{finish}->{content}    = q{]};
     my $expression = $element->schild(0);
-    if ($expression) {
+    if (    $element->{start}->{originally}
+        and $element->{start}->{originally} eq '{'
+        and $expression )
+    {
         my $key = $expression->schild(0);
         if ( $key->isa('PPI::Token::Word') ) {
             if ( $key ne 'scalar' ) {
@@ -3158,20 +3165,6 @@ Similarly, in Perl, you can create a scalar and turn it into a hashref or an
 arrayref by using hash or array functions on it. In Python, you have to
 explicitly initialise the dict or list first, so these statements will have to
 be added.
-
-=item *
-In Perl, you can check whether a hash or array value exists and is defined with
-just:
-
- if (defined hash{key}) {...}
-
-Depending on the context, in Python this could be either:
-
- if (key in hash):
-
-or
-
- if (hash[key] is not None):
 
 =item *
 Perl has a very loose concept of instance variables in classes. In Python, these
