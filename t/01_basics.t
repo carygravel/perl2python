@@ -1401,12 +1401,11 @@ given ( $result ) {
         return 2
     }
 }
+return;
 EOS
 
 $expected = <<'EOS';
 import re
-
-
 if re.search(r"a", result ):
     return 0
 
@@ -1415,6 +1414,8 @@ elif  result =='b':
 
 else :
     return 2
+
+return
 EOS
 
 is map_document( \$script ), $expected, "given/when->if/elif/else";
@@ -1432,14 +1433,12 @@ given ( $vara ) {
 EOS
 
 $expected = <<'EOS';
-
 import re
-
 if  vara =='S':
-        
-    
     if re.search(r"regex", varb ):
         data = 'data'
+
+
 EOS
 
 is map_document( \$script ), $expected, "nested given";
@@ -1760,10 +1759,9 @@ EOS
 $expected = <<'EOS';
 def anonymous_05(line):
         
-        
-    
     if line==mess:
         return
+
 
 
 cmd(

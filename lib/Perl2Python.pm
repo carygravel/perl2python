@@ -982,11 +982,9 @@ sub map_file_temp {
 
 sub map_given {
     my ($element) = @_;
-    my $compound  = PPI::Statement::Compound->new;
     my $given     = $element->find_first('PPI::Structure::Given');
-    if ( not $given ) { return }    # can get triggered when mapping twice.
-    map_element($given);
-    my $block = $element->find_first('PPI::Structure::Block');
+    my $block     = $element->find_first('PPI::Structure::Block');
+    my $compound  = PPI::Statement::Compound->new;
     for my $when ( $block->children ) {
         if ( not $when->isa('PPI::Statement::When') ) { next }
         my $structure = $when->find_first('PPI::Structure::When');
@@ -1019,8 +1017,7 @@ sub map_given {
         if ( not $whenblock ) { return }
         $compound->add_element( $whenblock->remove );
     }
-    $element->parent->add_element($compound);
-    $compound->insert_before($element);
+    $element->insert_before($compound);
     $element->delete;
     map_element($compound);
     return;
