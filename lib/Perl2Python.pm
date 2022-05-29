@@ -238,7 +238,9 @@ sub has_rh_associativity2 {
           and (
                $iter->isa('PPI::Structure::Subscript')
             or $iter eq '->'
+            or ( defined $iter->{originally} and $iter->{originally} eq '->' )
             or $prev eq '->'
+            or ( defined $prev->{originally} and $prev->{originally} eq '->' )
             or (    $prev->isa('PPI::Token::Word')
                 and $iter->isa('PPI::Structure::List') )
           )
