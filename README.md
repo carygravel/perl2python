@@ -22,6 +22,9 @@ to be explicit, so you may well have to add casts.
 arrayref by using hash or array functions on it. In Python, you have to
 explicitly initialise the dict or list first, so these statements will have to
 be added.
+- Perl is fairly flexible about the contents of strings. Python strictly separates
+bytes and strings. Python code will often require extra encode() or decode()
+calls to convert from one to the other.
 - Perl has a very loose concept of instance variables in classes. In Python, these
 must previously declared.
 - Perl does not distinguish between instance variables in classes and hash keys.
