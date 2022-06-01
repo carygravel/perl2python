@@ -2389,6 +2389,16 @@ sub map_symbol {
 
     }
     else {
+        if ( $element->{content} =~ /^@/smx ) {
+            my $operator = $element->snext_sibling;
+            if ( $operator and $operator eq q{=} ) {
+                my $list = $operator->snext_sibling;
+                if ($list) {
+                    $list->{start}->{content}  = q{[};
+                    $list->{finish}->{content} = q{]};
+                }
+            }
+        }
         $element->{content} =~ s/^[\$@%]//smx;
         $element->{content} =~ s/::/./gsmx;
     }
