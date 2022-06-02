@@ -266,6 +266,17 @@ sub map_arrow_operator {
             $element->parent->__insert_after_child( $element, $child->remove );
             $next->delete;
         }
+
+        # methods require parens
+        elsif ( $next->isa('PPI::Token::Word') ) {
+            my $parens = $next->snext_sibling;
+            if ( not $parens or not $parens->isa('PPI::Structure::List') ) {
+                my $list =
+                  PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+                $list->{finish} = PPI::Token::Structure->new(')');
+                $next->insert_after($list);
+            }
+        }
     }
     return;
 }
