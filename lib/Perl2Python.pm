@@ -699,6 +699,14 @@ sub map_element {
         when (/PPI::Token::Operator/xsm) {
             map_operator($element);
         }
+        when (/PPI::Token::Quote::Double/xsm) {
+            if ( defined $element->{content}
+                and $element->{content} =~ /\$(\w+)/xsm )
+            {
+                $element->{content} =~ s/\$(\w+)/{$1}/xsmg;
+                $element->{content} = 'f' . $element->{content};
+            }
+        }
         when (/PPI::Token::Quote::Literal/xsm) {
             my $content = substr
               $element->content,

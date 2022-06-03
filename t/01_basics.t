@@ -293,12 +293,16 @@ $script = <<'EOS';
 my $EMPTY         = q{};
 my $DOUBLE_QUOTES = q{"};
 my $regex = qr{(\d{4})-(\d\d)-(\d\d)}xsm;
+my $var_with_var = "$var1 $var2";
+my $var_with_var = '$var1 $var2';
 EOS
 
 $expected = <<'EOS';
 EMPTY         = ""
 DOUBLE_QUOTES = "\""
 regex = r"(\d{4})-(\d\d)-(\d\d)"
+var_with_var = f"{var1} {var2}"
+var_with_var = '$var1 $var2'
 EOS
 
 is map_document( \$script ), $expected, "more quotes";
