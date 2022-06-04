@@ -384,6 +384,7 @@ is map_document( \$script ), $expected, "declare variables";
 $script = <<'EOS';
 if ( $line =~ /(\d+)\n/ ) {
     my $maxval = $1;
+    $maxval = "$1";
 }
 EOS
 
@@ -392,6 +393,7 @@ import re
 regex=re.search(r"(\d+)\n",line)
 if   regex :
     maxval = regex.group(1)
+    maxval = f"{regex.group(1)}"
 
 EOS
 

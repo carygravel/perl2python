@@ -700,12 +700,7 @@ sub map_element {
             map_operator($element);
         }
         when (/PPI::Token::Quote::Double/xsm) {
-            if ( defined $element->{content}
-                and $element->{content} =~ /\$(\w+)/xsm )
-            {
-                $element->{content} =~ s/\$(\w+)/{$1}/xsmg;
-                $element->{content} = 'f' . $element->{content};
-            }
+            map_interpreted_string($element);
         }
         when (/PPI::Token::Quote::Literal/xsm) {
             my $content = substr
@@ -1568,6 +1563,30 @@ sub map_is {
     $expected[-1]->insert_after($comment);
     $operator = $expected[-1]->snext_sibling;
     $operator->delete;
+    return;
+}
+
+sub map_interpreted_string {
+    my ($element) = @_;
+    if ( defined $element->{content}
+        and $element =~ /^(.*)\$(\w+)(.*)$/xsm )
+    {
+        my $pre_content  = $1;
+        my $varname      = $2;
+        my $post_content = $3;
+        if ( $varname =~ /^\d+$/xsm ) {
+            my $magic = PPI::Token::Magic->new("\$$varname");
+            $element->insert_after($magic);
+            my $post = PPI::Token::Quote::Double->new("}$post_content");
+            $magic->insert_after($post);
+            map_regex_group( $magic, $varname );
+            $element->{content} = "f$pre_content" . '{';
+        }
+        else {
+            $element->{content} =~ s/\$(\w+)/{$1}/xsmg;
+            $element->{content} = 'f' . $element->{content};
+        }
+    }
     return;
 }
 
