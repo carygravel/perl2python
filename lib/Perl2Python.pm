@@ -1568,9 +1568,11 @@ sub map_is {
 
 sub map_interpreted_string {
     my ($element) = @_;
-    if ( defined $element->{content}
+    my $formatted;
+    while ( defined $element->{content}
         and $element =~ /^(.*)\$(\w+)(.*)$/xsm )
     {
+        $formatted = 1;
         my $pre_content  = $1;
         my $varname      = $2;
         my $post_content = $3;
@@ -1580,12 +1582,14 @@ sub map_interpreted_string {
             my $post = PPI::Token::Quote::Double->new("}$post_content");
             $magic->insert_after($post);
             map_regex_group( $magic, $varname );
-            $element->{content} = "f$pre_content" . '{';
+            $element->{content} = $pre_content . '{';
         }
         else {
             $element->{content} =~ s/\$(\w+)/{$1}/xsmg;
-            $element->{content} = 'f' . $element->{content};
         }
+    }
+    if ($formatted) {
+        $element->{content} = "f$element->{content}";
     }
     return;
 }

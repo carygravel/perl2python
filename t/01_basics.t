@@ -385,6 +385,7 @@ $script = <<'EOS';
 if ( $line =~ /(\d+)\n/ ) {
     my $maxval = $1;
     $maxval = "$1";
+    $maxval = "$var1 $1";
 }
 EOS
 
@@ -394,6 +395,7 @@ regex=re.search(r"(\d+)\n",line)
 if   regex :
     maxval = regex.group(1)
     maxval = f"{regex.group(1)}"
+    maxval = f"{var1} {regex.group(1)}"
 
 EOS
 
