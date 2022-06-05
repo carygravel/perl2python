@@ -2433,11 +2433,27 @@ sub map_symbol {
     else {
         if ( $element->{content} =~ /^@/smx ) {
             my $operator = $element->snext_sibling;
-            if ( $operator and $operator eq q{=} ) {
-                my $list = $operator->snext_sibling;
-                if ($list) {
-                    $list->{start}->{content}  = q{[};
-                    $list->{finish}->{content} = q{]};
+            my $method   = $element->sprevious_sibling;
+            if ($operator) {
+                if ( $operator eq q{=} ) {
+                    my $list = $operator->snext_sibling;
+                    if ($list) {
+                        $list->{start}->{content}  = q{[};
+                        $list->{finish}->{content} = q{]};
+                    }
+                }
+
+                # map scalar @array -> len(array)
+                elsif ( $operator =~ /(?:==|<=|>=|!=|[><])/xsm
+                    and ( not $method or $method ne 'assert' ) )
+                {
+                    my $list =
+                      PPI::Structure::List->new(
+                        PPI::Token::Structure->new('(') );
+                    $list->{finish} = PPI::Token::Structure->new(')');
+                    $element->insert_before( PPI::Token::Word->new('len') );
+                    $element->insert_before($list);
+                    $list->add_element( $element->remove );
                 }
             }
         }

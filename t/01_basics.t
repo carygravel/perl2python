@@ -1100,6 +1100,9 @@ my %ahash = ( sentinel => \$sentinel, ( $data ? %{$data} : () ) );
 $last_index = $#array;
 $last_index = $#{$array};
 $last_index = $#{ $self->{array} };
+if (@array == 2 or @array > 2 or @array < 2) {
+    print @array, "\n";
+}
 EOS
 
 $expected = <<'EOS';
@@ -1107,6 +1110,9 @@ ahash = { "sentinel" : sentinel, (  data if data  else () ) }
 last_index = len(array)-1
 last_index = len(array)-1
 last_index = len( self.array )-1
+if len(array) == 2 or len(array) > 2 or len(array) < 2 :
+    print(array)  
+
 EOS
 
 is map_document( \$script ), $expected, "various casts";
