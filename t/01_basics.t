@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 118;
+use Test::More tests => 119;
 
 sub slurp {
     my ($file) = @_;
@@ -2006,6 +2006,23 @@ uuid_str = str(uuid_obj())
 EOS
 
 is map_document( \$script ), $expected, "map Data::UUID->uuid";
+
+#########################
+
+$script = <<'EOS';
+$multilinestring = <<'END';
+line1
+line2
+END
+EOS
+
+$expected = <<'EOS';
+multilinestring = """line1
+line2
+"""
+EOS
+
+is map_document( \$script ), $expected, "map heredoc->multiline string";
 
 #########################
 

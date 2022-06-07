@@ -699,6 +699,14 @@ sub map_element {
         when (/PPI::Token::Operator/xsm) {
             map_operator($element);
         }
+        when (/PPI::Token::HereDoc/xsm) {
+            $element->insert_before(
+                PPI::Token::Quote::Double->new(
+                    '"""' . join( q{}, @{ $element->{_heredoc} } ) . '"""'
+                )
+            );
+            $element->delete;
+        }
         when (/PPI::Token::Quote::Double/xsm) {
             map_interpreted_string($element);
         }
