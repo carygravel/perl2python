@@ -2525,6 +2525,23 @@ sub map_data_uuid {
     return;
 }
 
+sub map_print {
+    my ($element) = @_;
+    my $list      = map_built_in($element);
+    my $quote     = $list->schild($LAST);
+    if ( $quote->isa('PPI::Token::Quote::Double') ) {
+        $quote->{content} =~ s/\\n"$/"/gsmx;
+        if ( $quote eq q{""} ) {
+            my $operator = $quote->sprevious_sibling;
+            $quote->delete;
+            if ($operator) {
+                $operator->delete;
+            }
+        }
+    }
+    return;
+}
+
 sub map_posix_strftime {
     my ($element) = @_;
     add_import( $element, 'datetime' );
@@ -2728,8 +2745,13 @@ sub map_word {
             $operator->{content} = q{=};
             $element->delete;
         }
-        when (/SANE_/xsm) {
-            $element->{content} =~ s/SANE_//xsm;
+        when (/^SANE_/xsm) {
+            $element->{content} =~ s/^SANE_//xsm;
+            if ( $element->{content} =~ s/^NAME_//xsm ) {
+                $element->{content} =~ s/^SCAN_//xsm;
+                $element->{content} =~ s/_/-/xsm;
+                $element->{content} = lc $element->{content};
+            }
             $element->{content} = q{"} . $element->{content} . q{"};
         }
         when ('TRUE') {
@@ -2839,18 +2861,7 @@ sub map_word {
             map_open($element);
         }
         when ('print') {
-            my $list  = map_built_in($element);
-            my $quote = $list->schild($LAST);
-            if ( $quote->isa('PPI::Token::Quote::Double') ) {
-                $quote->{content} =~ s/\\n"$/"/gsmx;
-                if ( $quote eq q{""} ) {
-                    my $operator = $quote->sprevious_sibling;
-                    $quote->delete;
-                    if ($operator) {
-                        $operator->delete;
-                    }
-                }
-            }
+            map_print($element);
         }
         when (/^(?:push|unshift)$/xsm) {
             map_push($element);

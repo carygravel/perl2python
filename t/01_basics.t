@@ -252,6 +252,13 @@ $cap = SANE_CAP_SOFT_DETECT;
 $cap = SANE_CAP_SOFT_SELECT;
 $cap = SANE_CAP_INACTIVE;
 
+$name = SANE_NAME_PAGE_HEIGHT;
+$name = SANE_NAME_PAGE_WIDTH;
+$name = SANE_NAME_SCAN_TL_X;
+$name = SANE_NAME_SCAN_BR_X;
+$name = SANE_NAME_SCAN_TL_Y;
+$name = SANE_NAME_SCAN_BR_Y;
+
 # not in the Python sane class
 $constraint_type = SANE_CONSTRAINT_NONE;
 $constraint_type = SANE_CONSTRAINT_RANGE;
@@ -267,6 +274,13 @@ type = "TYPE_FIXED"
 cap = "CAP_SOFT_DETECT"
 cap = "CAP_SOFT_SELECT"
 cap = "CAP_INACTIVE"
+
+name = "page-height"
+name = "page-width"
+name = "tl-x"
+name = "br-x"
+name = "tl-y"
+name = "br-y"
 
 # not in the Python sane class
 
