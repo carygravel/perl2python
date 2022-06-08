@@ -1152,8 +1152,7 @@ sub map_gobject_signal_type {
     if ( $type->isa('PPI::Token::Quote') ) {
         $type->{content} =~ s/Glib:://xsm;
         $type->{content} = lc $type;
-        $type->insert_before(
-            PPI::Token::Word->new( substr $type, 1, length($type) - 2 ) );
+        $type->insert_before( PPI::Token::Word->new( quote2content($type) ) );
         $type->insert_before( PPI::Token::Operator->new(q{,}) );
     }
     $type->delete;
@@ -1224,10 +1223,7 @@ sub map_gobject_subclass {
                     my $statement = PPI::Statement::Variable->new;
                     $first_child->insert_before($statement);
                     $statement->add_element(
-                        PPI::Token::Word->new(
-                            substr $name, 1, length($name) - 2
-                        )
-                    );
+                        PPI::Token::Word->new( quote2content($name) ) );
                     $statement->add_element( PPI::Token::Operator->new(q{=}) );
                     $statement->add_element(
                         PPI::Token::Word->new('GObject.Property') );
@@ -1369,8 +1365,7 @@ sub map_import_symbols {
     $symbols->insert_before( PPI::Token::Whitespace->new(q{ }) );
     my @symbols;
     if ( $symbols->isa('PPI::Token::Quote') ) {
-        $symbols->{content} = substr $symbols->{content}, 1,
-          length( $symbols->{content} ) - 2;
+        $symbols->{content} = quote2content($symbols);
         if ( $symbols eq ':all' ) {
             $symbols->{content} = q{*};
         }
@@ -2573,6 +2568,32 @@ sub map_postfix_if {
     return;
 }
 
+sub map_ref {
+    my ($element) = @_;
+    my $list      = map_built_in($element);
+    my $operator  = $list->snext_sibling;
+    my $string;
+    if ($operator) {
+        $string = $operator->snext_sibling;
+    }
+    if (    $operator
+        and $operator =~ /(?:eq|ne)/xms
+        and $string
+        and $string->isa('PPI::Token::Quote')
+        and quote2content( $string, 0 ) eq 'ARRAY' )
+    {
+        $element->{content} = 'isinstance';
+        $list->add_element( PPI::Token::Operator->new(q{,}) );
+        $list->add_element( PPI::Token::Word->new('list') );
+        $operator->delete;
+        $string->delete;
+    }
+    else {
+        $element->{content} = 'type';
+    }
+    return;
+}
+
 sub map_undef {
     my ($element) = @_;
     my $prev = $element->sprevious_sibling;
@@ -2835,7 +2856,7 @@ sub map_word {
             map_push($element);
         }
         when ('ref') {
-            $element->{content} = 'type';
+            map_ref($element);
         }
         when ('setlocale') {
             map_setlocale($element);
@@ -3157,6 +3178,11 @@ sub check_operator {
         }
     }
     return $element;
+}
+
+sub quote2content {
+    my ($element) = @_;
+    return substr $element->{content}, 1, length( $element->{content} ) - 2;
 }
 
 sub regex2search {
