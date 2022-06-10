@@ -3309,6 +3309,12 @@ will need something like
 
  re.sub(r"(^\w)",lambda x: x.group(1).upper(),string_to_match)
 
+=item *
+Unless prototypes are used when defined Perl subs, Perl does not care about the
+number of arguments. Python will throw an error if the number of arguments is
+unexpected. Thus Perl code handling default argument values will need to be
+manually adjusted, as checking this is non-trivial.
+
 =back
 
 =for readme stop
