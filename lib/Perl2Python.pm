@@ -2613,8 +2613,9 @@ sub map_ref {
 
 sub map_undef {
     my ($element) = @_;
-    my $prev = $element->sprevious_sibling;
-    if ($prev) {
+    my $prev      = $element->sprevious_sibling;
+    my $next      = $element->snext_sibling;
+    if ( $prev or ( $next and $next->isa('PPI::Token::Operator') ) ) {
         $element->{content} = 'None';
     }
     else {
