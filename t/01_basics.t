@@ -1429,6 +1429,9 @@ given ( $result ) {
     when ('b') {
         return 1
     }
+    when ($_ eq 'c' or $_ eq 'd') {
+        return 3
+    }
     default {
         return 2
     }
@@ -1443,6 +1446,9 @@ if re.search(r"a", result ):
 
 elif  result =='b':
     return 1
+
+elif  result  == 'c' or  result  == 'd':
+    return 3
 
 else :
     return 2

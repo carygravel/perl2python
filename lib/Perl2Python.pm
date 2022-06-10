@@ -1031,11 +1031,35 @@ sub map_given {
         }
         elsif ($structure) {
             my $expression = $when->find_first('PPI::Statement::Expression');
-            for my $match ( $given->children ) {
-                $compound->add_element( $match->clone );
+            if ( $expression->find_first('PPI::Token::Operator') ) {
+                for my $magic (
+                    @{
+                        $expression->find(
+                            sub {
+                                $_[1]->isa('PPI::Token::Magic')
+                                  and $_[1]->content eq
+                                  '$_' ## no critic (RequireInterpolationOfMetachars)
+                                  ;
+                            }
+                        )
+                    }
+                  )
+                {
+                    for my $match ( $given->children ) {
+                        $expression->__insert_before_child( $magic,
+                            $match->clone );
+                    }
+                    $magic->delete;
+                }
+                $compound->add_element( $expression->remove );
             }
-            $compound->add_element( PPI::Token::Operator->new(q{==}) );
-            $compound->add_element( $expression->remove );
+            else {
+                for my $match ( $given->children ) {
+                    $compound->add_element( $match->clone );
+                }
+                $compound->add_element( PPI::Token::Operator->new(q{==}) );
+                $compound->add_element( $expression->remove );
+            }
         }
         my $whenblock = $when->find_first('PPI::Structure::Block');
         if ( not $whenblock ) { return }
