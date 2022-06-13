@@ -2777,6 +2777,10 @@ sub map_word {
                 $element->{content} =~ s/_/-/xsm;
                 $element->{content} = lc $element->{content};
             }
+            elsif ( $element->{content} =~ /^(:?TRUE|FALSE)$/xsm ) {
+                map_word($element);
+                return;
+            }
             $element->{content} = q{"} . $element->{content} . q{"};
         }
         when ('TRUE') {
