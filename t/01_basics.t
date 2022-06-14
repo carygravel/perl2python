@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 121;
+use Test::More tests => 122;
 
 sub slurp {
     my ($file) = @_;
@@ -38,6 +38,13 @@ close $fh;
 system("perl bin/perl2python $in");
 is slurp($out), $expected, "Hello world";
 unlink $in, $out;
+
+#########################
+
+is map_path('lib/package/module.pm'), 'package/module.py', "map_path lib";
+is map_path('base/lib/package/module.pm'), 'base/package/module.py',
+  "map_path lib2";
+is map_path('t/01_basics.t'), 'tests/test_01_basics.py', "map_path t";
 
 #########################
 
@@ -2078,10 +2085,15 @@ is map_document( \$script ), $expected, "map ref() eq ... -> isinstance()";
 
 #########################
 
-is map_path('lib/package/module.pm'), 'package/module.py', "map_path lib";
-is map_path('base/lib/package/module.pm'), 'base/package/module.py',
-  "map_path lib2";
-is map_path('t/01_basics.t'), 'tests/test_01_basics.py', "map_path t";
+$script = <<'EOS';
+my $next_value = $iter->();
+EOS
+
+$expected = <<'EOS';
+next_value = next(iter)
+EOS
+
+is map_document( \$script ), $expected, "closure -> iterator";
 
 #########################
 

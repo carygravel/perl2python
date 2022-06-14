@@ -257,6 +257,16 @@ sub map_arrow_operator {
     {
         $element->delete;
     }
+
+    # closure -> iterator
+    elsif ( $next
+        and $next->isa('PPI::Structure::List')
+        and $next->children == 0 )
+    {
+        $element->insert_before( PPI::Token::Word->new('next') );
+        $next->add_element( $prev->remove );
+        $element->delete;
+    }
     else {
         $element->{content} = q{.};
         if (    $prev eq 'self'
