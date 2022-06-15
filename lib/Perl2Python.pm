@@ -266,10 +266,14 @@ sub map_arrow_operator {
 
     # closure -> iterator
     elsif ( $next
-        and $next->isa('PPI::Structure::List')
-        and $next->children == 0 )
+        and $next->isa('PPI::Structure::List') )
     {
         $element->insert_before( PPI::Token::Word->new('next') );
+
+      # FIXME: lose any arguments the closure takes, as next can't process them.
+        for my $child ( $next->children ) {
+            $child->delete;
+        }
         $next->add_element( $prev->remove );
         $element->delete;
     }

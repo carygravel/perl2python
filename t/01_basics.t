@@ -2089,9 +2089,11 @@ is map_document( \$script ), $expected, "map ref() eq ... -> isinstance()";
 
 $script = <<'EOS';
 my $next_value = $iter->();
+$next_value = $iter->(0);
 EOS
 
 $expected = <<'EOS';
+next_value = next(iter)
 next_value = next(iter)
 EOS
 
