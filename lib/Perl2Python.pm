@@ -2045,7 +2045,11 @@ sub map_push {
     my ($element) = @_;
     my $list = map_built_in($element);
     map_element($list);
-    $element->insert_before( $list->schild(0)->remove );    # array
+    my @argument = get_argument_from_list( $list, 0 );
+    my $parent   = $element->parent;
+    for my $arg (@argument) {
+        $parent->__insert_before_child( $element, $arg->remove );    # array
+    }
     my $operator = $list->schild(0);
     $operator->{content} = q{.};
     $element->insert_before( $operator->remove );

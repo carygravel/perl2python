@@ -1230,6 +1230,7 @@ l = length $line;
 unlink $filename;
 last;
 push @my_array, $item;
+push @{ $self->{data} }, $item;
 unshift @my_array, $item;
 delete $ahash{key};
 undef $ahash{key};
@@ -1252,6 +1253,7 @@ l = len(line)
 os.remove(filename) 
 break
 my_array.append(item)  
+self.data.append(item)  
 my_array.insert(0,item)  
 del(ahash["key"]) 
 ahash["key"]=None
