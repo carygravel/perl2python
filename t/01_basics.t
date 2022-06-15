@@ -1232,6 +1232,7 @@ last;
 push @my_array, $item;
 push @{ $self->{data} }, $item;
 unshift @my_array, $item;
+splice @{ $self->{data} }, $i - 1, 1;
 delete $ahash{key};
 undef $ahash{key};
 $ahash{key} = undef;
@@ -1256,6 +1257,7 @@ break
 my_array.append(item)  
 self.data.append(item)  
 my_array.insert(0,item)  
+del(self.data[i-1])     
 del(ahash["key"]) 
 ahash["key"]=None
 ahash["key"] = None

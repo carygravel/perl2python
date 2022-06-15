@@ -2378,6 +2378,32 @@ sub map_setlocale {
     return;
 }
 
+sub map_splice {
+    my ($element) = @_;
+    $element->{content} = 'del';
+    my $list = map_built_in($element);
+    map_element($list);
+    my @array = get_argument_from_list( $list, 1 );
+    my $subscript =
+      PPI::Structure::Subscript->new( PPI::Token::Structure->new('[') );
+    $subscript->{finish} = PPI::Token::Structure->new(']');
+    $list->add_element($subscript);
+    my $operator = $list->snext_sibling;
+    my @start    = get_argument_for_operator( $operator, 1 );
+    $operator->delete;
+    $operator = $start[-1]->snext_sibling;
+
+    for my $child (@start) {
+        $subscript->add_element( $child->remove );
+    }
+    my @count = get_argument_for_operator( $operator, 1 );
+    $operator->delete;
+    for my $child (@count) {
+        $child->delete;
+    }
+    return;
+}
+
 sub map_split {
     my ($element) = @_;
     my $list      = map_built_in($element);
@@ -2949,6 +2975,9 @@ sub map_word {
                 $element->{content} = '.pop(0)';
                 $element->snext_sibling->insert_after( $element->remove );
             }
+        }
+        when ('splice') {
+            map_splice($element);
         }
         when ('split') {
             map_split($element);
