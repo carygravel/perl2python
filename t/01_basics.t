@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 122;
+use Test::More tests => 123;
 
 sub slurp {
     my ($file) = @_;
@@ -1849,6 +1849,32 @@ cmd(
 EOS
 
 is map_document( \$script ), $expected, "given in anonymous sub";
+
+$script = <<'EOS';
+sub iterator {
+    my ( $option ) = @_;
+    my $iter;
+    return sub {
+        my ($option2) = @_;
+        return $iter;
+    };
+}
+EOS
+
+$expected = <<'EOS';
+def iterator( option ) :
+    
+    iter=None
+    def anonymous_06(option2):
+        
+        return iter
+
+
+    return anonymous_06 
+
+EOS
+
+is map_document( \$script ), $expected, "more magic in anonymous subs/closure";
 
 #########################
 

@@ -91,24 +91,26 @@ q/^(?:warnings|strict|feature|if|Carp|English|Exporter|File::Copy|IPC::System::S
 my $ANONYMOUS = 0;
 
 sub add_anonymous_method {
-    my ( $element, $block, @args ) = @_;
+    my ( $statement, $block, @args ) = @_;
     my $name = sprintf 'anonymous_%02d', ++$ANONYMOUS;
     my $sub  = PPI::Statement::Sub->new;
     $sub->add_element( PPI::Token::Word->new('sub') );
     $sub->add_element( PPI::Token::Whitespace->new(q{ }) );
     $sub->add_element( PPI::Token::Word->new($name) );
     $sub->add_element($block);
-    my $document    = $element;
-    my $subdocument = $element;
+    my $parent = $statement->parent;
 
-    while ( not $document->isa('PPI::Document') ) {
-        $subdocument = $document;
-        $document    = $document->parent;
+    while (not $statement->isa('PPI::Statement')
+        or $statement->isa('PPI::Statement::Expression')
+        or $parent->isa('PPI::Statement::Expression') )
+    {
+        $statement = $parent;
+        $parent    = $statement->parent;
     }
-    $document->__insert_before_child( $subdocument, $sub );
-    $document->__insert_before_child( $subdocument,
+    $parent->__insert_before_child( $statement, $sub );
+    $parent->__insert_before_child( $statement,
         PPI::Token::Whitespace->new("\n") );
-    $document->__insert_before_child( $subdocument,
+    $parent->__insert_before_child( $statement,
         PPI::Token::Whitespace->new("\n") );
     map_element($sub);
     if (@args) {
@@ -925,16 +927,6 @@ sub map_fat_comma {    # =>
         and $prev->isa('PPI::Token::Word') )
     {
         $element->{content} = q{=};
-
-        # anonymous sub
-        if (    $rargument[0]->isa('PPI::Token::Word')
-            and $rargument[0] eq 'sub' )
-        {
-            my $name = add_anonymous_method( $element, $rargument[1]->remove );
-            $expression->__insert_before_child( $rargument[0],
-                PPI::Token::Word->new($name) );
-            $rargument[0]->delete;
-        }
         return;
     }
     if ( @largument == 1 and $largument[0]->isa('PPI::Token::Word') ) {
@@ -3001,6 +2993,15 @@ sub map_word {
                 $operator->remove, PPI::Token::Whitespace->new(q{ }) );
             $element->delete;
         }
+
+        # anonymous sub
+        when ('sub') {
+            if ( not $element->parent ) { return }
+            my $block = $element->snext_sibling;
+            my $name  = add_anonymous_method( $element, $block->remove );
+            $element->{content} = $name;
+        }
+
         when ('system') {
             map_system($element);
         }
