@@ -189,7 +189,13 @@ sub get_argument_for_operator {
             {
                 return get_argument_from_list( $iter, $n );
             }
-            if ( defined $BUILTINS{$iter} ) {
+
+            # most built-ins have to have an argument, so grab one
+            my $next = next_sibling( $iter, $n );
+            if (    defined $BUILTINS{$iter}
+                and $next
+                and not $next->isa('PPI::Structure::List') )
+            {
                 push @sibling, $iter, get_argument_for_operator( $iter, $n );
                 $iter = pop @sibling;
             }

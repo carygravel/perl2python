@@ -60,6 +60,7 @@ is_deeply(\@result, \@expected, "comment");
 is_deeply( $hashref->{array}, \@that, 'comment' );
 is( MyClass->method(), 'return value', 'comment' );
 is( MyClass->method, 'return value', 'comment' );
+is( $iter->(), 'return value', 'comment' );
 EOS
 
 $expected = <<'EOS';
@@ -74,6 +75,7 @@ def test_1():
     assert hashref["array"]== that #  'comment'
     assert MyClass.method()== 'return value' #  'comment'
     assert MyClass.method()== 'return value' #  'comment'
+    assert next(iter)== 'return value' #  'comment'
 EOS
 
 $in  = 'test.t';
