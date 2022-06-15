@@ -1237,6 +1237,7 @@ undef $ahash{key};
 $ahash{key} = undef;
 $HEX_FF = hex 'ff';
 ref($object);
+$ahash{key}++;
 EOS
 
 $expected = <<'EOS';
@@ -1260,6 +1261,7 @@ ahash["key"]=None
 ahash["key"] = None
 HEX_FF = hex('ff') 
 type(object)
+ahash["key"]+=1
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";

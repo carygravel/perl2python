@@ -1844,6 +1844,10 @@ sub map_operator {
         when (q{.=}) {
             $element->{content} = q{+=};
         }
+        when (q{++}) {
+            $element->{content} = q{+=};
+            $element->insert_after( PPI::Token::Number->new(1) );
+        }
         when (q{.}) {
             $element->{content} = q{+};
         }
