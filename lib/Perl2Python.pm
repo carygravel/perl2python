@@ -644,6 +644,7 @@ sub map_element {
     $element->{mapped} = 1;
     logger($element);
     remove_trailing_semicolon($element);
+    my $map_children = 1;
     given ( ref $element ) {
         when (/PPI::Token::Comment/xsm) {
             if ( $element->line and $element->content =~ /^([#]!.*)perl/xsm ) {
@@ -664,6 +665,7 @@ sub map_element {
         }
         when (/PPI::Statement::Include/xsm) {
             map_include($element);
+            $map_children = 0;
         }
         when (/PPI::Statement::Package/xsm) {
             map_package($element);
@@ -800,7 +802,7 @@ sub map_element {
             $element = map_magic($element);
         }
     }
-    if ( exists $element->{children} ) {
+    if ( exists $element->{children} and $map_children ) {
         for my $child ( $element->children ) {
             try {
                 map_element($child);
@@ -1537,6 +1539,12 @@ sub map_include {
             $symbols = PPI::Token::Quote::Double->new('"intspan"');
             $element->add_element($symbols);
             $module = 'intspan';
+        }
+        when ('Storable') {
+            if ( $symbols->{content} =~ s/dclone/deepcopy/xsm ) {
+                $symbols->{sections}[0]{size} += 2;
+                $module = 'copy';
+            }
         }
         when ('base') {
             my $class = $element->top->find_first(
@@ -2870,6 +2878,9 @@ sub map_word {
         }
         when ('croak') {
             $element->{content} = 'raise';
+        }
+        when ('dclone') {
+            $element->{content} = 'deepcopy';
         }
         when ('defined') {
             map_defined($element);

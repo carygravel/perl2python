@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 123;
+use Test::More tests => 124;
 
 sub slurp {
     my ($file) = @_;
@@ -2102,6 +2102,20 @@ line2
 EOS
 
 is map_document( \$script ), $expected, "map heredoc->multiline string";
+
+#########################
+
+$script = <<'EOS';
+use Storable qw(dclone);
+my $clone = dclone( $symbol );
+EOS
+
+$expected = <<'EOS';
+from copy import deepcopy
+clone = deepcopy( symbol )
+EOS
+
+is map_document( \$script ), $expected, "dclone -> copy.deepcopy";
 
 #########################
 
