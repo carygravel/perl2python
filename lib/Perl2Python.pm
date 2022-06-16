@@ -369,13 +369,18 @@ sub map_cast {
     if (   $element eq q{@}
         or $element eq q{$#} )    ## no critic (RequireInterpolationOfMetachars)
     {
+
+        # array cast in list context
         if ( not $operator
             and $element ne
             q{$#} )               ## no critic (RequireInterpolationOfMetachars)
         {
             remove_cast( $element, $block, $parent );
         }
-        elsif ( defined $PRECEDENCE{$operator}
+
+        # array cast in scalar context -> len()
+        elsif (defined $PRECEDENCE{$operator}
+            or ( $operator and $operator eq 'scalar' )
             or $element eq
             q{$#} )               ## no critic (RequireInterpolationOfMetachars)
         {
@@ -399,6 +404,9 @@ sub map_cast {
             }
             $element->delete;
             $block->delete;
+            if ( $operator eq 'scalar' ) {
+                $operator->delete;
+            }
         }
     }
 

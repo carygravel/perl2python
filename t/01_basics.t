@@ -1132,6 +1132,7 @@ $last_index = $#{ $self->{array} };
 if (@array == 2 or @array > 2 or @array < 2) {
     print @array, "\n";
 }
+return scalar @{ $self->{array} };
 EOS
 
 $expected = <<'EOS';
@@ -1142,6 +1143,7 @@ last_index = len( self.array )-1
 if len(array) == 2 or len(array) > 2 or len(array) < 2 :
     print(array)  
 
+return  len( self.array )
 EOS
 
 is map_document( \$script ), $expected, "various casts";
