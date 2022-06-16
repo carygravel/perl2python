@@ -274,6 +274,8 @@ $name = SANE_NAME_SCAN_BR_Y;
 
 $constraint_type = SANE_CONSTRAINT_NONE;
 $constraint_type = SANE_CONSTRAINT_RANGE;
+
+@array = ( [ scalar(SANE_NAME_PAGE_HEIGHT), 'pageheight' ] )
 EOS
 
 $expected = <<'EOS';
@@ -301,6 +303,9 @@ name = "br-y"
 
 constraint_type = "CONSTRAINT_NONE"
 constraint_type = "CONSTRAINT_RANGE"
+
+array = [[
+"page-height", 'pageheight' ] ]
 EOS
 
 is map_document( \$script ), $expected, "special case import Image::Sane";
@@ -1143,7 +1148,7 @@ last_index = len( self.array )-1
 if len(array) == 2 or len(array) > 2 or len(array) < 2 :
     print(array)  
 
-return  len( self.array )
+return len(self.array) 
 EOS
 
 is map_document( \$script ), $expected, "various casts";

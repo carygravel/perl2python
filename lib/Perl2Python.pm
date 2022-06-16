@@ -362,7 +362,7 @@ sub map_built_in {
 sub map_cast {
     my ($element) = @_;
 
-    # cast from array to scalar -> len()
+    # implicit cast from array to scalar -> len()
     my $operator = $element->sprevious_sibling;
     my $parent   = $element->parent;
     my $block    = $element->snext_sibling;
@@ -379,8 +379,7 @@ sub map_cast {
         }
 
         # array cast in scalar context -> len()
-        elsif (defined $PRECEDENCE{$operator}
-            or ( $operator and $operator eq 'scalar' )
+        elsif ( defined $PRECEDENCE{$operator}
             or $element eq
             q{$#} )               ## no critic (RequireInterpolationOfMetachars)
         {
@@ -404,9 +403,6 @@ sub map_cast {
             }
             $element->delete;
             $block->delete;
-            if ( $operator eq 'scalar' ) {
-                $operator->delete;
-            }
         }
     }
 
@@ -2371,6 +2367,23 @@ sub map_regex_substitute {
     return;
 }
 
+sub map_scalar {
+    my ($element) = @_;
+    my $list      = map_built_in($element);
+    my $arg       = $list->schild(0);
+    my $parent    = $element->parent;
+    if ( $arg->isa('PPI::Statement::Expression') ) {
+        $parent->__insert_before_child( $element, $arg->remove );
+        map_element($arg);
+        $element->delete;
+        $list->delete;
+    }
+    elsif ( $arg->isa('PPI::Token::Cast') ) {
+        $element->{content} = 'len';
+    }
+    return;
+}
+
 sub map_setlocale {
     my ($element) = @_;
     add_import( $element, 'locale' );
@@ -2962,6 +2975,9 @@ sub map_word {
         }
         when ('ref') {
             map_ref($element);
+        }
+        when ('scalar') {
+            map_scalar($element);
         }
         when ('setlocale') {
             map_setlocale($element);
