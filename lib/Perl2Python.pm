@@ -2925,6 +2925,14 @@ sub map_word {
         when (/^is(?:_deeply)?$/xsm) {
             map_is($element);
         }
+        when ('isa_ok') {
+            $element->insert_before( PPI::Token::Word->new('assert') );
+            $element->insert_before( PPI::Token::Whitespace->new(q{ }) );
+            $element->{content} = 'isinstance';
+            my $type = $element->snext_sibling->schild(0)->schild($LAST);
+            $type->{content} =~ s/::/./gsm;
+            $type->{content} =~ s/["']//gsmx;
+        }
         when (/^(?:keys|values)$/xsm) {
             my $list = map_built_in($element);
             for my $child ( $list->children ) {

@@ -61,6 +61,7 @@ is_deeply( $hashref->{array}, \@that, 'comment' );
 is( MyClass->method(), 'return value', 'comment' );
 is( MyClass->method, 'return value', 'comment' );
 is( $iter->(), 'return value', 'comment' );
+isa_ok( $object, 'My::Class' );
 EOS
 
 $expected = <<'EOS';
@@ -76,6 +77,7 @@ def test_1():
     assert MyClass.method()== 'return value' #  'comment'
     assert MyClass.method()== 'return value' #  'comment'
     assert next(iter)== 'return value' #  'comment'
+    assert isinstance( object, My.Class )
 EOS
 
 $in  = 'test.t';
