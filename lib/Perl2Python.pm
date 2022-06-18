@@ -2508,7 +2508,7 @@ sub map_sub {
 
     # convert to string
     if (@docstring) {
-        my $docstring = PPI::Token::Quote::Double->new(q{"""});
+        my $docstring = PPI::Token::Quote::Single->new(q{"""});
         my $statement = PPI::Statement->new;
         $statement->add_element($docstring);
         for my $item (@docstring) {

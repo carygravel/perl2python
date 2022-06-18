@@ -349,6 +349,7 @@ $script = <<'EOS';
 # a
 
 # comment which should end up as a docstring
+# $no interpolation to f-string
 
 sub function {
     my ( $x, $y, $t ) = @_;
@@ -362,6 +363,7 @@ def function( x, y, t ) :
     """a
 
 comment which should end up as a docstring
+$no interpolation to f-string
 """    
     return x, y, t
 
