@@ -2486,6 +2486,40 @@ sub map_sub {
     my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
     $list->{finish} = PPI::Token::Structure->new(')');
     $child->insert_after($list);
+
+    my (@docstring);
+    my $prev = $element;
+    while (
+        $prev = $prev->previous_sibling
+        and (  $prev->isa('PPI::Token::Comment')
+            or $prev->isa('PPI::Token::Whitespace') )
+      )
+    {
+        unshift @docstring, $prev;
+    }
+
+    # trim docstring
+    while ( @docstring and $docstring[0]->isa('PPI::Token::Whitespace') ) {
+        shift @docstring;
+    }
+    while ( @docstring and $docstring[-1]->isa('PPI::Token::Whitespace') ) {
+        pop @docstring;
+    }
+
+    # convert to string
+    if (@docstring) {
+        my $docstring = PPI::Token::Quote::Double->new(q{"""});
+        my $statement = PPI::Statement->new;
+        $statement->add_element($docstring);
+        for my $item (@docstring) {
+            $item->{content} =~ s/^[#]\s*//xsm;
+            $docstring->{content} .= $item->{content};
+            $item->delete;
+        }
+        $docstring->{content} .= q{"""};
+        my $block = $element->find_first('PPI::Structure::Block');
+        $block->__insert_after_child( $block->child(0), $statement );
+    }
     return;
 }
 

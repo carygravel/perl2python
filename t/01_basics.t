@@ -346,6 +346,10 @@ is map_document( \$script ), $expected, "more quotes";
 #########################
 
 $script = <<'EOS';
+# a
+
+# comment which should end up as a docstring
+
 sub function {
     my ( $x, $y, $t ) = @_;
     return $x, $y, $t;
@@ -353,8 +357,12 @@ sub function {
 EOS
 
 $expected = <<'EOS';
+
 def function( x, y, t ) :
-    
+    """a
+
+comment which should end up as a docstring
+"""    
     return x, y, t
 
 EOS
