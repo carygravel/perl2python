@@ -1502,9 +1502,11 @@ sub map_include {
         }
         when ('Gtk3') {
             add_import( $element, 'gi' );
-            my $parent = $element->parent;
-            $parent->__insert_before_child( $element,
+            my $parent    = $element->parent;
+            my $statement = PPI::Statement->new;
+            $statement->add_element(
                 PPI::Token::Word->new('gi.require_version("Gtk", "3.0")') );
+            $parent->__insert_before_child( $element, $statement );
             $parent->__insert_before_child( $element,
                 PPI::Token::Whitespace->new("\n") );
             $element->add_element( PPI::Token::Whitespace->new(q{ }) );
@@ -1513,6 +1515,7 @@ sub map_include {
             $symbols = PPI::Token::Quote::Double->new('"Gtk"');
             $element->add_element($symbols);
             $module = 'gi.repository';
+            indent_element($statement);
         }
         when ('Image::Magick') {
             $module = 'PythonMagick';

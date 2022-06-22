@@ -50,6 +50,7 @@ is map_path('t/01_basics.t'), 'tests/test_01_basics.py', "map_path t";
 
 $script = <<'EOS';
 use Test::More tests => 14;
+use Gtk3 -init;
 is $result, $expected, "comment";
 is_deeply \@result, \@expected, "comment";
             is_deeply [ 1, 2, 3 ],
@@ -65,7 +66,10 @@ isa_ok( $object, 'My::Class' );
 EOS
 
 $expected = <<'EOS';
+import gi
 def test_1():
+    gi.require_version("Gtk", "3.0")
+    from gi.repository import Gtk
     assert result== expected #  "comment"
     assert result== expected #  "comment"
     assert [
