@@ -63,6 +63,7 @@ is( MyClass->method(), 'return value', 'comment' );
 is( MyClass->method, 'return value', 'comment' );
 is( $iter->(), 'return value', 'comment' );
 isa_ok( $object, 'My::Class' );
+pass 'comment';
 EOS
 
 $expected = <<'EOS';
@@ -70,18 +71,19 @@ import gi
 def test_1():
     gi.require_version("Gtk", "3.0")
     from gi.repository import Gtk
-    assert result== expected #  "comment"
-    assert result== expected #  "comment"
+    assert result== expected, "comment"
+    assert result== expected, "comment"
     assert [
     1, 2, 3 ]==               [
-    4, 5, 6 ] #                "comment"
+    4, 5, 6 ],               "comment"
     method_with_is()
-    assert result== expected #  "comment"
-    assert hashref["array"]== that #  'comment'
-    assert MyClass.method()== 'return value' #  'comment'
-    assert MyClass.method()== 'return value' #  'comment'
-    assert next(iter)== 'return value' #  'comment'
+    assert result== expected, "comment"
+    assert hashref["array"]== that, 'comment'
+    assert MyClass.method()== 'return value', 'comment'
+    assert MyClass.method()== 'return value', 'comment'
+    assert next(iter)== 'return value', 'comment'
     assert isinstance( object, My.Class )
+    assert True, 'comment'
 EOS
 
 $in  = 'test.t';
@@ -1203,7 +1205,7 @@ def anonymous_02():
 
 
 override(
-    'set_option' = anonymous_02 
+    set_option = anonymous_02 
 )
 EOS
 
@@ -1799,11 +1801,11 @@ EOS
 is map_document( \$script ), $expected, "keys() & values()";
 
 $script = <<'EOS';
-add_column_type('hstring', type => 'Glib::Scalar', attr => 'hidden');
+add_column_type('hstring', type => 'Glib::Scalar', attr => 'hidden', 'property-with-hyphen' => 'value');
 EOS
 
 $expected = <<'EOS';
-add_column_type('hstring', type = 'Glib::Scalar', attr = 'hidden')
+add_column_type('hstring', type = 'Glib::Scalar', attr = 'hidden', property_with_hyphen = 'value')
 EOS
 
 is map_document( \$script ), $expected, "hash -> named arguments";

@@ -933,6 +933,16 @@ sub map_fat_comma {    # =>
         and $prev->isa('PPI::Token::Word') )
     {
         $element->{content} = q{=};
+        my $property = $element->sprevious_sibling;
+
+        # remove quotes from properties, mapping hyphens to underscores
+        if ( $property->isa('PPI::Token::Quote') ) {
+            my $word = PPI::Token::Word->new( substr $property->{content},
+                1, length( $property->{content} ) - 2 );
+            $word->{content} =~ s/-/_/gxsm;
+            $property->insert_after($word);
+            $property->delete;
+        }
         return;
     }
     if ( @largument == 1 and $largument[0]->isa('PPI::Token::Word') ) {
@@ -1612,11 +1622,6 @@ sub map_is {
     my @result   = get_argument_for_operator( $element, 1 );
     my $operator = $result[-1]->snext_sibling;
     $operator->{content} = q{==};
-    my @expected = get_argument_for_operator( $operator, 1 );
-    my $comment  = PPI::Token::Comment->new(' # ');
-    $expected[-1]->insert_after($comment);
-    $operator = $expected[-1]->snext_sibling;
-    $operator->delete;
     return;
 }
 
@@ -3018,6 +3023,12 @@ sub map_word {
         when ('open') {
             map_open($element);
         }
+        when ('pass') {
+            $element->{content} = 'assert True';
+            if ( $element->snext_sibling ) {
+                $element->insert_after( PPI::Token::Operator->new(q{,}) );
+            }
+        }
         when ('print') {
             map_print($element);
         }
@@ -3086,7 +3097,9 @@ sub map_word {
             my $block = $element->snext_sibling;
             if ( not $block->schild(0) ) {
                 my $statement = PPI::Statement->new;
-                $statement->add_element( PPI::Token::Word->new('pass') );
+                my $word      = PPI::Token::Word->new('pass');
+                $word->{mapped} = 1;    # don't map this again.
+                $statement->add_element($word);
                 $block->add_element($statement);
             }
             my $name = add_anonymous_method( $element, $block->remove );
