@@ -2747,6 +2747,22 @@ sub map_ref {
     return;
 }
 
+sub map_sane_enums {
+    my ($element) = @_;
+    $element->{content} =~ s/^SANE_//xsm;
+    if ( $element->{content} =~ s/^NAME_//xsm ) {
+        $element->{content} =~ s/^SCAN_//xsm;
+        $element->{content} =~ s/_/-/xsm;
+        $element->{content} = lc $element->{content};
+    }
+    elsif ( $element->{content} =~ /^(:?TRUE|FALSE)$/xsm ) {
+        map_word($element);
+        return;
+    }
+    $element->{content} = q{"} . $element->{content} . q{"};
+    return;
+}
+
 sub map_undef {
     my ($element) = @_;
     my $prev      = $element->sprevious_sibling;
@@ -2883,17 +2899,7 @@ sub map_word {
             $element->delete;
         }
         when (/^SANE_/xsm) {
-            $element->{content} =~ s/^SANE_//xsm;
-            if ( $element->{content} =~ s/^NAME_//xsm ) {
-                $element->{content} =~ s/^SCAN_//xsm;
-                $element->{content} =~ s/_/-/xsm;
-                $element->{content} = lc $element->{content};
-            }
-            elsif ( $element->{content} =~ /^(:?TRUE|FALSE)$/xsm ) {
-                map_word($element);
-                return;
-            }
-            $element->{content} = q{"} . $element->{content} . q{"};
+            map_sane_enums($element);
         }
         when ('TRUE') {
             $element->{content} = 'True';
@@ -3078,7 +3084,12 @@ sub map_word {
         when ('sub') {
             if ( not $element->parent ) { return }
             my $block = $element->snext_sibling;
-            my $name  = add_anonymous_method( $element, $block->remove );
+            if ( not $block->schild(0) ) {
+                my $statement = PPI::Statement->new;
+                $statement->add_element( PPI::Token::Word->new('pass') );
+                $block->add_element($statement);
+            }
+            my $name = add_anonymous_method( $element, $block->remove );
             $element->{content} = $name;
         }
 
