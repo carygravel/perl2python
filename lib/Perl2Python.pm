@@ -1218,6 +1218,7 @@ sub map_gobject_subclass {
     $parent_package->{content} =~ s/::$//sm;
     $parent_package->{content} =~ s/::/./gsm;
     $parent_package->{content} =~ s/Glib/GObject/gsm;
+    $parent_package->{content} =~ s/Gtk\d/Gtk/gsm;
     my $document = $element->top;
     my $class    = $document->find_first(
         sub {

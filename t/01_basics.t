@@ -217,7 +217,7 @@ is map_document( \$script ), $expected, "subclass basic GObject #2";
 
 $script = <<'EOS';
 package My::Object;
-use Glib::Object::Subclass Parent::Object::, signals => {
+use Glib::Object::Subclass Gtk3::Object::, signals => {
     'signal_with_float' => {
         param_types => ['Glib::Float'],
     },
@@ -237,7 +237,7 @@ EOS
 
 $expected = <<'EOS';
 from gi.repository import GObject
-class Object(Parent.Object):
+class Object(Gtk.Object):
     __gsignals__={'signal_with_float':(GObject.SIGNAL_RUN_FIRST,None,(float,)),'signal_with_ints':(GObject.SIGNAL_RUN_FIRST,None,( int,int, )),'signal_without_value':(GObject.SIGNAL_RUN_FIRST,None,None),'signal_without_param_types':(GObject.SIGNAL_RUN_FIRST,None,None),}
     name1=GObject.Property(type=object,nick='Nick1',blurb='Blurb1')
     name2=GObject.Property(type=str,default='default',nick='Nick2',blurb='Blurb2')
