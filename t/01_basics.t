@@ -231,7 +231,7 @@ use Glib::Object::Subclass Parent::Object::, signals => {
   properties => [
     Glib::ParamSpec->scalar('name1', 'Nick1', 'Blurb1', G_PARAM_READWRITE),
     Glib::ParamSpec->string('name2','Nick2','Blurb2','default',G_PARAM_READWRITE),
-    Glib::ParamSpec->int('name3','Nick3','Blurb3', 1, 999, 1, [qw/readable writable/]),
+    Glib::ParamSpec->int('name-3','Nick3','Blurb3', 1, 999, 1, [qw/readable writable/]),
   ];
 EOS
 
@@ -241,7 +241,7 @@ class Object(Parent.Object):
     __gsignals__={'signal_with_float':(GObject.SIGNAL_RUN_FIRST,None,(float,)),'signal_with_ints':(GObject.SIGNAL_RUN_FIRST,None,( int,int, )),'signal_without_value':(GObject.SIGNAL_RUN_FIRST,None,None),'signal_without_param_types':(GObject.SIGNAL_RUN_FIRST,None,None),}
     name1=GObject.Property(type=object,nick='Nick1',blurb='Blurb1')
     name2=GObject.Property(type=str,default='default',nick='Nick2',blurb='Blurb2')
-    name3=GObject.Property(type=int,min=1,max=999,default=1,nick='Nick3',blurb='Blurb3')
+    name_3=GObject.Property(type=int,min=1,max=999,default=1,nick='Nick3',blurb='Blurb3')
     def __init__(self):
         GObject.GObject.__init__(self)
         self.connect("show",show)

@@ -1274,8 +1274,9 @@ sub map_gobject_subclass {
                     }
                     my $statement = PPI::Statement::Variable->new;
                     $first_child->insert_before($statement);
-                    $statement->add_element(
-                        PPI::Token::Word->new( quote2content($name) ) );
+                    $name = quote2content($name);
+                    $name =~ s/-/_/gxms;
+                    $statement->add_element( PPI::Token::Word->new($name) );
                     $statement->add_element( PPI::Token::Operator->new(q{=}) );
                     $statement->add_element(
                         PPI::Token::Word->new('GObject.Property') );
