@@ -1599,15 +1599,7 @@ sub map_is {
 
     # assert doesn't use parens, so remove any
     if ( $next->isa('PPI::Structure::List') ) {
-
-        # map and move in separate step to keep context
-        for my $child ( $next->schild(0)->children ) {
-            map_element($child);
-        }
-        for my $child ( $next->schild(0)->children ) {
-            $next->insert_before( $child->remove );
-        }
-        $next->delete;
+        remove_parens_map_children($next);
         $next = $element->snext_sibling;
         $element->insert_after( PPI::Token::Whitespace->new(q{ }) );
     }
@@ -1773,6 +1765,36 @@ sub map_new {
     }
     $op->delete;
     $element->delete;
+    return;
+}
+
+sub remove_parens_map_children {
+    my ($element) = @_;
+
+    # map and move in separate step to keep context
+    for my $child ( $element->schild(0)->children ) {
+        map_element($child);
+    }
+    for my $child ( $element->schild(0)->children ) {
+        $element->insert_before( $child->remove );
+    }
+    $element->delete;
+    return;
+}
+
+sub map_ok {
+    my ($element) = @_;
+    my $next = $element->snext_sibling;
+
+    # assert doesn't use parens, so remove any
+    if ( $next->isa('PPI::Structure::List') ) {
+        remove_parens_map_children($next);
+        $next = $element->snext_sibling;
+        $element->insert_after( PPI::Token::Whitespace->new(q{ }) );
+    }
+
+    # we've got a unit test - map to assert
+    $element->{content} = 'assert';
     return;
 }
 
@@ -3019,6 +3041,9 @@ sub map_word {
 
         when ('new') {
             map_new($element);
+        }
+        when ('ok') {
+            map_ok($element);
         }
         when ('open') {
             map_open($element);

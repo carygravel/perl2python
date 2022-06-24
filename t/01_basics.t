@@ -64,6 +64,7 @@ is( MyClass->method, 'return value', 'comment' );
 is( $iter->(), 'return value', 'comment' );
 isa_ok( $object, 'My::Class' );
 pass 'comment';
+ok( $dialog->get('property') == 'value', 'comment' );
 EOS
 
 $expected = <<'EOS';
@@ -84,6 +85,7 @@ def test_1():
     assert next(iter)== 'return value', 'comment'
     assert isinstance( object, My.Class )
     assert True, 'comment'
+    assert dialog.get('property') == 'value', 'comment'
 EOS
 
 $in  = 'test.t';
