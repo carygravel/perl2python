@@ -1103,7 +1103,7 @@ sub map_gobject_signals {
     my ( $object, $first_child ) = @_;
     my $signals_def = $object->snext_sibling->snext_sibling;
     my $statement   = PPI::Statement::Variable->new;
-    $first_child->insert_before($statement);
+    $first_child->parent->__insert_before_child( $first_child, $statement );
     $statement->add_element( PPI::Token::Word->new('__gsignals__') );
     $statement->add_element( PPI::Token::Operator->new(q{=}) );
     my $dict = PPI::Structure::List->new( PPI::Token::Structure->new('{') );
@@ -1218,7 +1218,7 @@ sub map_gobject_subclass {
     $parent_package->{content} =~ s/::$//sm;
     $parent_package->{content} =~ s/::/./gsm;
     $parent_package->{content} =~ s/Glib/GObject/gsm;
-    $parent_package->{content} =~ s/Gtk\d/Gtk/gsm;
+    $parent_package->{content} =~ s/Gtk\d/Gtk/gsmx;
     my $document = $element->top;
     my $class    = $document->find_first(
         sub {
@@ -1230,6 +1230,9 @@ sub map_gobject_subclass {
     $class_list->add_element( $parent_package->remove );
     my $block       = $class_list->snext_sibling;
     my $first_child = $block->schild(0);
+    if ( not $first_child ) {
+        $first_child = $block->child(0);
+    }
     add_import( $element, 'gi.repository', 'GObject' );
     my @connections;
     if ($operator) {
@@ -1274,7 +1277,8 @@ sub map_gobject_subclass {
                         $default = $max->snext_sibling->snext_sibling;
                     }
                     my $statement = PPI::Statement::Variable->new;
-                    $first_child->insert_before($statement);
+                    $first_child->parent->__insert_before_child( $first_child,
+                        $statement );
                     $name = quote2content($name);
                     $name =~ s/-/_/gxms;
                     $statement->add_element( PPI::Token::Word->new($name) );
@@ -1321,7 +1325,7 @@ sub map_gobject_subclass {
         }
     }
     my $init = PPI::Statement::Sub->new;
-    $first_child->insert_before($init);
+    $block->__insert_before_child( $first_child, $init );
     $init->add_element( PPI::Token::Word->new('def') );
     $init->add_element( PPI::Token::Whitespace->new(q{ }) );
     $init->add_element( PPI::Token::Word->new('__init__') );
@@ -1442,10 +1446,35 @@ sub map_import_symbols {
     return @symbols;
 }
 
+sub ensure_include_is_top_level {
+    my ( $element, $top ) = @_;
+    if ( $element->parent ne $top ) {
+
+        # find all top-level includes
+        my $includes = $top->find(
+            sub {
+                $_[1]->isa('PPI::Statement::Include')
+                  and $_[1]->parent eq $top;
+            }
+        );
+        if ($includes) {
+            $includes->[-1]->insert_after( PPI::Token::Whitespace->new("\n") );
+            $includes->[-1]->insert_after( $element->remove );
+        }
+        else {
+            $top->child(0)->insert_before( $element->remove );
+            $top->child(0)->insert_before( PPI::Token::Whitespace->new("\n") );
+        }
+    }
+    return;
+}
+
 sub map_include {
     my ($element) = @_;
     my $module    = $element->module;
     my $import    = $element->schild(0);
+    my $top       = $element->top;
+    ensure_include_is_top_level( $element, $top );
     given ($module) {
 
         # empty string matches cases like "use 5.008005;"
@@ -1466,7 +1495,7 @@ sub map_include {
         }
         when ('Test::More') {
             my $def = PPI::Statement::Sub->new;
-            $def->add_element( PPI::Token::Word->new('def') );
+            $def->add_element( PPI::Token::Word->new("\ndef") );
             $def->add_element( PPI::Token::Whitespace->new(q{ }) );
             $def->add_element( PPI::Token::Word->new('test_1') );
             my $list =
@@ -1558,7 +1587,7 @@ sub map_include {
             }
         }
         when ('base') {
-            my $class = $element->top->find_first(
+            my $class = $top->find_first(
                 sub {
                     $_[1]->isa('PPI::Statement::Sub')
                       and $_[1]->schild(0) eq 'class';

@@ -68,10 +68,12 @@ ok( $dialog->get('property') == 'value', 'comment' );
 EOS
 
 $expected = <<'EOS';
+
 import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
 def test_1():
-    gi.require_version("Gtk", "3.0")
-    from gi.repository import Gtk
+
     assert result== expected, "comment"
     assert result== expected, "comment"
     assert [
@@ -190,10 +192,12 @@ use Glib::Object::Subclass Parent::Object::;
 EOS
 
 $expected = <<'EOS';
+
 from gi.repository import GObject
 class Object(Parent.Object):
     def __init__(self):
         GObject.GObject.__init__(self)
+
 EOS
 
 is map_document( \$script ), $expected, "subclass basic GObject";
@@ -205,11 +209,13 @@ use Glib::Object::Subclass Glib::Object::;
 EOS
 
 $expected = <<'EOS';
+
 from gi.repository import GObject
+import Some.Other.Package
 class Package(GObject.Object):
     def __init__(self):
         GObject.GObject.__init__(self)
-    import Some.Other.Package
+
 
 EOS
 
@@ -236,6 +242,7 @@ use Glib::Object::Subclass Gtk3::Object::, signals => {
 EOS
 
 $expected = <<'EOS';
+
 from gi.repository import GObject
 class Object(Gtk.Object):
     __gsignals__={'signal_with_float':(GObject.SIGNAL_RUN_FIRST,None,(float,)),'signal_with_ints':(GObject.SIGNAL_RUN_FIRST,None,( int,int, )),'signal_without_value':(GObject.SIGNAL_RUN_FIRST,None,None),'signal_without_param_types':(GObject.SIGNAL_RUN_FIRST,None,None),}
@@ -245,6 +252,7 @@ class Object(Gtk.Object):
     def __init__(self):
         GObject.GObject.__init__(self)
         self.connect("show",show)
+
 EOS
 
 is map_document( \$script ), $expected,
@@ -1049,9 +1057,12 @@ __END__
 EOS
 
 $expected = <<'EOS';
+
+
 VERSION = 1
 class MyPackage(My.ParentPackage):
     class_var          = 4
+
 
 
     def __init__( self, options ) :
@@ -1396,8 +1407,10 @@ sub by_title {
 EOS
 
 $expected = <<'EOS';
+
 from gi.repository import GObject
 class Options(GObject.Object):
+
     def __init__(self):
         GObject.GObject.__init__(self)
     def by_title( self, title ) :
