@@ -1462,8 +1462,10 @@ sub ensure_include_is_top_level {
             $includes->[-1]->insert_after( $element->remove );
         }
         else {
-            $top->child(0)->insert_before( $element->remove );
-            $top->child(0)->insert_before( PPI::Token::Whitespace->new("\n") );
+            my $first_child = $top->child(0);
+            $top->__insert_before_child( $first_child, $element->remove );
+            $top->__insert_before_child( $first_child,
+                PPI::Token::Whitespace->new("\n") );
         }
     }
     return;
@@ -1474,7 +1476,6 @@ sub map_include {
     my $module    = $element->module;
     my $import    = $element->schild(0);
     my $top       = $element->top;
-    ensure_include_is_top_level( $element, $top );
     given ($module) {
 
         # empty string matches cases like "use 5.008005;"
@@ -1514,6 +1515,9 @@ sub map_include {
                 $block->add_element( $next->remove );
             }
             return;
+        }
+        default {
+            ensure_include_is_top_level( $element, $top );
         }
     }
     $module =~ s/::/./gsm;
@@ -2037,7 +2041,6 @@ sub map_package {
             $class->add_element( $child->remove );
         }
         $element->insert_after($class);
-        $element->delete;
         my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
         $list->{finish} = PPI::Token::Structure->new(')');
         $name->insert_after($list);
@@ -2069,9 +2072,7 @@ sub map_package {
             }
         }
     }
-    else {
-        $element->delete;
-    }
+    $element->delete;
     return;
 }
 
