@@ -3122,6 +3122,10 @@ sub map_word {
                 $element->snext_sibling->insert_after( $element->remove );
             }
         }
+        when ('sort') {
+            my $list = map_built_in($element);
+            $element->{content} = 'sorted';
+        }
         when ('splice') {
             map_splice($element);
         }

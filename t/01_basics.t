@@ -1790,6 +1790,12 @@ for ( keys %{$options} ) {
 for ( values %options ) {
     print $_;
 }
+for ( sort %my_list ) {
+    print $_;
+}
+for ( sort keys %options ) {
+    print $_;
+}
 EOS
 
 $expected = <<'EOS';
@@ -1802,9 +1808,15 @@ for _ in  options.keys()   :
 for _ in  options.values()   :
     print(_) 
 
+for _ in  sorted(my_list)   :
+    print(_) 
+
+for _ in  sorted(options.keys())    :
+    print(_) 
+
 EOS
 
-is map_document( \$script ), $expected, "keys() & values()";
+is map_document( \$script ), $expected, "sort(), keys() & values()";
 
 $script = <<'EOS';
 add_column_type('hstring', type => 'Glib::Scalar', attr => 'hidden', 'property-with-hyphen' => 'value');
