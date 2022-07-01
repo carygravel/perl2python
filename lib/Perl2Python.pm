@@ -1597,6 +1597,10 @@ sub map_include {
                       and $_[1]->schild(0) eq 'class';
                 }
             );
+            if ( not $class ) {
+                $element->delete;
+                return;
+            }
             my $list = $class->schild(0)->snext_sibling->snext_sibling;
             my @symbols =
               map_import_symbols( $import, $path, $module, $symbols );
