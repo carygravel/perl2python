@@ -255,6 +255,22 @@ sub has_rh_associativity2 {
     );
 }
 
+sub map_anonymous_sub {
+    my ($element) = @_;
+    if ( not $element->parent ) { return }
+    my $block = $element->snext_sibling;
+    if ( not $block->schild(0) ) {
+        my $statement = PPI::Statement->new;
+        my $word      = PPI::Token::Word->new('pass');
+        $word->{mapped} = 1;    # don't map this again.
+        $statement->add_element($word);
+        $block->add_element($statement);
+    }
+    my $name = add_anonymous_method( $element, $block->remove );
+    $element->{content} = $name;
+    return;
+}
+
 sub map_arrow_operator {
     my ($element) = @_;
     my $prev      = $element->sprevious_sibling;
@@ -1568,6 +1584,12 @@ sub map_include {
         when ('Image::Sane') {
             delete_everything_after($path);
             $module = 'sane';
+            $symbols->delete;
+            undef $symbols;
+        }
+        when ('Locale::gettext') {
+            delete_everything_after($path);
+            $module = 'gettext';
             $symbols->delete;
             undef $symbols;
         }
@@ -2950,6 +2972,14 @@ sub map_word {
         when ('Image.Magick') {
             map_image_magick($element);
         }
+        when ('Locale.gettext') {
+            $element->{content} = 'gettext';
+            my $operator = $element->snext_sibling;
+            my $method   = $operator->snext_sibling;
+            if ( $method eq 'domain' ) {
+                $method->{content} = 'translation';
+            }
+        }
         when ('POSIX.strftime') {
             map_posix_strftime($element);
         }
@@ -3155,22 +3185,9 @@ sub map_word {
                 $operator->remove, PPI::Token::Whitespace->new(q{ }) );
             $element->delete;
         }
-
-        # anonymous sub
         when ('sub') {
-            if ( not $element->parent ) { return }
-            my $block = $element->snext_sibling;
-            if ( not $block->schild(0) ) {
-                my $statement = PPI::Statement->new;
-                my $word      = PPI::Token::Word->new('pass');
-                $word->{mapped} = 1;    # don't map this again.
-                $statement->add_element($word);
-                $block->add_element($statement);
-            }
-            my $name = add_anonymous_method( $element, $block->remove );
-            $element->{content} = $name;
+            map_anonymous_sub($element);
         }
-
         when ('system') {
             map_system($element);
         }
