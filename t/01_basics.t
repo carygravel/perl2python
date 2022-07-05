@@ -220,6 +220,7 @@ is map_document( \$script ), $expected, "subclass basic GObject #2";
 
 $script = <<'EOS';
 package My::Object;
+Glib::Type->register_enum( 'Enum::Name', qw(list of values) );
 use Glib::Object::Subclass Gtk3::Object::, signals => {
     'signal_with_float' => {
         param_types => ['Glib::Float'],
@@ -235,6 +236,7 @@ use Glib::Object::Subclass Gtk3::Object::, signals => {
     Glib::ParamSpec->scalar('name1', 'Nick1', 'Blurb1', G_PARAM_READWRITE),
     Glib::ParamSpec->string('name2','Nick2','Blurb2','default',G_PARAM_READWRITE),
     Glib::ParamSpec->int('name-3','Nick3','Blurb3', 1, 999, 1, [qw/readable writable/]),
+    Glib::ParamSpec->enum('name4','Nick4','Blurb','Enum::Name','default',[qw/readable writable/]),
   ];
 EOS
 
@@ -245,9 +247,12 @@ class Object(Gtk.Object):
     name1=GObject.Property(type=object,nick='Nick1',blurb='Blurb1')
     name2=GObject.Property(type=str,default='default',nick='Nick2',blurb='Blurb2')
     name_3=GObject.Property(type=int,min=1,max=999,default=1,nick='Nick3',blurb='Blurb3')
+    name4=GObject.Property(type=GObject.GEnum,default='default',nick='Nick4',blurb='Blurb')
     def __init__(self):
         GObject.GObject.__init__(self)
         self.connect("show",show)
+    GObject.TypeModule.register_enum( 'Enum::Name', ["list","of","values"] )
+
 EOS
 
 is map_document( \$script ), $expected,

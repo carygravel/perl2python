@@ -1280,17 +1280,24 @@ sub map_gobject_subclass {
                     my $blurb = $nick->snext_sibling->snext_sibling;
                     my ( $min, $max, $default );
 
-                    if ( $type eq 'string' ) {
-                        $default = $blurb->snext_sibling->snext_sibling;
-                        $type->{content} = 'str';
-                    }
-                    elsif ( $type eq 'scalar' ) {
-                        $type->{content} = 'object';
-                    }
-                    elsif ( $type eq 'int' ) {
-                        $min     = $blurb->snext_sibling->snext_sibling;
-                        $max     = $min->snext_sibling->snext_sibling;
-                        $default = $max->snext_sibling->snext_sibling;
+                    given ( $type->{content} ) {
+                        when ('string') {
+                            $default = $blurb->snext_sibling->snext_sibling;
+                            $type->{content} = 'str';
+                        }
+                        when ('scalar') {
+                            $type->{content} = 'object';
+                        }
+                        when ('int') {
+                            $min     = $blurb->snext_sibling->snext_sibling;
+                            $max     = $min->snext_sibling->snext_sibling;
+                            $default = $max->snext_sibling->snext_sibling;
+                        }
+                        when ('enum') {
+                            my $enum = $blurb->snext_sibling->snext_sibling;
+                            $default = $enum->snext_sibling->snext_sibling;
+                            $type->{content} = 'GObject.GEnum';
+                        }
                     }
                     my $statement = PPI::Statement::Variable->new;
                     $first_child->parent->__insert_before_child( $first_child,
@@ -2968,6 +2975,9 @@ sub map_word {
         }
         when ('File.Temp') {
             map_file_temp($element);
+        }
+        when ('Glib.Type') {
+            $element->{content} = 'GObject.TypeModule';
         }
         when ('Image.Magick') {
             map_image_magick($element);
