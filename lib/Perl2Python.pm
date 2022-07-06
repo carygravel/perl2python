@@ -1169,7 +1169,7 @@ sub map_gobject_signals {
         $tuple->{finish} = PPI::Token::Structure->new(')');
         $dict->add_element($tuple);
         $tuple->add_element(
-            PPI::Token::Word->new('GObject.SIGNAL_RUN_FIRST') );
+            PPI::Token::Word->new('GObject.SignalFlags.RUN_FIRST') );
         $tuple->add_element( PPI::Token::Operator->new(q{,}) );
         $tuple->add_element( PPI::Token::Word->new('None') );
         $tuple->add_element( PPI::Token::Operator->new(q{,}) );
@@ -1202,7 +1202,7 @@ sub map_gobject_signals {
             }
         }
         if ( not $type_expression ) {
-            $tuple->add_element( PPI::Token::Word->new('None') );
+            $tuple->add_element( PPI::Token::Word->new('(None,)') );
         }
         $op1->delete;
         $def->delete;

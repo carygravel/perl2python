@@ -243,7 +243,7 @@ EOS
 $expected = <<'EOS';
 from gi.repository import GObject
 class Object(Gtk.Object):
-    __gsignals__={'signal_with_float':(GObject.SIGNAL_RUN_FIRST,None,(float,)),'signal_with_ints':(GObject.SIGNAL_RUN_FIRST,None,( int,int, )),'signal_without_value':(GObject.SIGNAL_RUN_FIRST,None,None),'signal_without_param_types':(GObject.SIGNAL_RUN_FIRST,None,None),}
+    __gsignals__={'signal_with_float':(GObject.SignalFlags.RUN_FIRST,None,(float,)),'signal_with_ints':(GObject.SignalFlags.RUN_FIRST,None,( int,int, )),'signal_without_value':(GObject.SignalFlags.RUN_FIRST,None,(None,)),'signal_without_param_types':(GObject.SignalFlags.RUN_FIRST,None,(None,)),}
     name1=GObject.Property(type=object,nick='Nick1',blurb='Blurb1')
     name2=GObject.Property(type=str,default='default',nick='Nick2',blurb='Blurb2')
     name_3=GObject.Property(type=int,min=1,max=999,default=1,nick='Nick3',blurb='Blurb3')
