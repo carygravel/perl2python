@@ -1281,22 +1281,27 @@ sub map_gobject_subclass {
                     my ( $min, $max, $default );
 
                     given ( $type->{content} ) {
-                        when ('string') {
+                        when ('boolean') {
                             $default = $blurb->snext_sibling->snext_sibling;
-                            $type->{content} = 'str';
+                            map_element($default);
+                            $type->{content} = 'bool';
                         }
-                        when ('scalar') {
-                            $type->{content} = 'object';
+                        when ('enum') {
+                            my $enum = $blurb->snext_sibling->snext_sibling;
+                            $default = $enum->snext_sibling->snext_sibling;
+                            $type->{content} = 'GObject.GEnum';
                         }
                         when ('int') {
                             $min     = $blurb->snext_sibling->snext_sibling;
                             $max     = $min->snext_sibling->snext_sibling;
                             $default = $max->snext_sibling->snext_sibling;
                         }
-                        when ('enum') {
-                            my $enum = $blurb->snext_sibling->snext_sibling;
-                            $default = $enum->snext_sibling->snext_sibling;
-                            $type->{content} = 'GObject.GEnum';
+                        when ('scalar') {
+                            $type->{content} = 'object';
+                        }
+                        when ('string') {
+                            $default = $blurb->snext_sibling->snext_sibling;
+                            $type->{content} = 'str';
                         }
                     }
                     my $statement = PPI::Statement::Variable->new;
