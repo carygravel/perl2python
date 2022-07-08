@@ -2984,6 +2984,9 @@ sub map_word {
         when ('Glib.Type') {
             $element->{content} = 'GObject.TypeModule';
         }
+        when (/Gtk\d/xsm) {
+            $element->{content} =~ s/Gtk\d/Gtk/gsmx;
+        }
         when ('Image.Magick') {
             map_image_magick($element);
         }

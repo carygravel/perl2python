@@ -176,12 +176,14 @@ is map_document( \$script ), $expected,
 
 $script = <<'EOS';
 use Gtk3 0.028 -init;
+my $window = Gtk3::Window->new;
 EOS
 
 $expected = <<'EOS';
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
+window = Gtk.Window()
 EOS
 
 is map_document( \$script ), $expected, "special case import Gtk3";
