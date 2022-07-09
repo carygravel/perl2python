@@ -989,6 +989,7 @@ sub map_fat_comma {    # =>
 
 sub map_file {
     my ($file) = @_;
+    $ANONYMOUS = 0;
     my $pid = open3( undef, my $chld_out, undef, 'file', $file );
     waitpid $pid, 0;
     my $magic = <$chld_out>;
