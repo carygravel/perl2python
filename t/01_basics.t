@@ -197,8 +197,8 @@ EOS
 $expected = <<'EOS';
 from gi.repository import GObject
 class Object(Parent.Object):
-    def __init__(self):
-        GObject.GObject.__init__(self)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 EOS
 
 is map_document( \$script ), $expected, "subclass basic GObject";
@@ -214,8 +214,8 @@ from gi.repository import GObject
 import Some.Other.Package
 class Package(GObject.Object):
 
-    def __init__(self):
-        GObject.GObject.__init__(self)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 EOS
 
 is map_document( \$script ), $expected, "subclass basic GObject #2";
@@ -252,8 +252,8 @@ class Object(Gtk.Object):
     name_3=GObject.Property(type=int,min=1,max=999,default=1,nick='Nick3',blurb='Blurb3')
     name4=GObject.Property(type=GObject.GEnum,default='default',nick='Nick4',blurb='Blurb')
     name5=GObject.Property(type=bool,default=False,nick='Nick5',blurb='Blurb')
-    def __init__(self):
-        GObject.GObject.__init__(self)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.connect("show",show)
     GObject.TypeModule.register_enum( 'Enum::Name', ["list","of","values"] )
 
@@ -1430,8 +1430,8 @@ EOS
 $expected = <<'EOS';
 from gi.repository import GObject
 class Options(GObject.Object):
-    def __init__(self):
-        GObject.GObject.__init__(self)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     def by_title( self, title ) :
     
         for _ in          self.array  :

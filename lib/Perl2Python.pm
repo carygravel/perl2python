@@ -1362,7 +1362,7 @@ sub map_gobject_subclass {
       PPI::Structure::List->new( PPI::Token::Structure->new('(') );
     $init_list->{finish} = PPI::Token::Structure->new(')');
     $init->add_element($init_list);
-    $init_list->add_element( PPI::Token::Word->new('self') );
+    $init_list->add_element( PPI::Token::Word->new('self, *args, **kwargs') );
     my $init_block =
       PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
     $init_block->{start}->{content} = q{:};
@@ -1370,7 +1370,7 @@ sub map_gobject_subclass {
     my $statement = PPI::Statement->new;
     $init_block->add_element($statement);
     $statement->add_element(
-        PPI::Token::Word->new('GObject.GObject.__init__(self)') );
+        PPI::Token::Word->new('super().__init__(*args, **kwargs)') );
     indent_element($init);
     indent_element($statement);
     $element->delete;
