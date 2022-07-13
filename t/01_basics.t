@@ -241,6 +241,7 @@ use Glib::Object::Subclass Gtk3::Object::, signals => {
     Glib::ParamSpec->enum('name4','Nick4','Blurb','Enum::Name','default',[qw/readable writable/]),
     Glib::ParamSpec->boolean('name5','Nick5','Blurb',FALSE,[qw/readable writable/]),
   ];
+$dialog->signal_emit( 'delete_event', undef );
 EOS
 
 $expected = <<'EOS';
@@ -257,6 +258,7 @@ class Object(Gtk.Object):
         self.connect("show",show)
     GObject.TypeModule.register_enum( 'Enum::Name', ["list","of","values"] )
 
+    dialog.emit( 'delete_event', None )
 EOS
 
 is map_document( \$script ), $expected,

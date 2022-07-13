@@ -3175,6 +3175,9 @@ sub map_word {
                 $element->snext_sibling->insert_after( $element->remove );
             }
         }
+        when ('signal_emit') {
+            $element->{content} = 'emit';
+        }
         when ('sort') {
             my $list = map_built_in($element);
             $element->{content} = 'sorted';
