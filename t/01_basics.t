@@ -177,16 +177,19 @@ is map_document( \$script ), $expected,
 $script = <<'EOS';
 use Gtk3 0.028 -init;
 my $window = Gtk3::Window->new;
+$event = Gtk3::Gdk::Event->new('key-press');
 EOS
 
 $expected = <<'EOS';
+from gi.repository import Gdk
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 window = Gtk.Window()
+event = Gdk.Event('key-press')
 EOS
 
-is map_document( \$script ), $expected, "special case import Gtk3";
+is map_document( \$script ), $expected, "special case import Gtk3/Gdk";
 
 $script = <<'EOS';
 package My::Object;

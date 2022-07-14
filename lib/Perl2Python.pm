@@ -2985,6 +2985,10 @@ sub map_word {
         when ('Glib.Type') {
             $element->{content} = 'GObject.TypeModule';
         }
+        when (/Gtk\d[.]Gdk/xsm) {
+            $element->{content} =~ s/Gtk\d[.]//gsmx;
+            add_import( $element, 'gi.repository', 'Gdk' );
+        }
         when (/Gtk\d/xsm) {
             $element->{content} =~ s/Gtk\d/Gtk/gsmx;
         }
