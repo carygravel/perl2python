@@ -2861,6 +2861,30 @@ sub map_sane_enums {
     return;
 }
 
+sub map_shift {
+    my ($element) = @_;
+    my $argument = $element->snext_sibling;
+
+    # deal with implied @_ in shift
+    if ( not $argument ) {
+        my $parent = $element->parent;
+        my $source = $parent->find_first('PPI::Token::Symbol');
+        my $dest_list =
+          $parent->parent->parent->find_first('PPI::Structure::List');
+        if ( $dest_list->children ) {
+            $dest_list->add_element( PPI::Token::Operator->new(q{,}) );
+        }
+        $dest_list->add_element( $source->remove );
+        $parent->delete;
+        map_element($dest_list);
+    }
+    else {
+        $element->{content} = '.pop(0)';
+        $element->snext_sibling->insert_after( $element->remove );
+    }
+    return;
+}
+
 sub map_undef {
     my ($element) = @_;
     my $prev      = $element->sprevious_sibling;
@@ -3099,6 +3123,19 @@ sub map_word {
             }
             $element->insert_before( PPI::Token::Operator->new(q{.}) );
         }
+        when ('keyval') {
+            my $list     = map_built_in($element);
+            my @children = $list->children;
+            if (@children) {
+                $list->insert_before( PPI::Token::Operator->new(q{=}) );
+                for my $child (@children) {
+                    map_element($child);
+                    $element->parent->__insert_after_child( $list,
+                        $child->remove );
+                }
+                $list->delete;
+            }
+        }
         when ('last') {
             $element->{content} = 'break';
         }
@@ -3159,25 +3196,7 @@ sub map_word {
             map_setlocale($element);
         }
         when ('shift') {
-            my $argument = $element->snext_sibling;
-
-            # deal with implied @_ in shift
-            if ( not $argument ) {
-                my $parent = $element->parent;
-                my $source = $parent->find_first('PPI::Token::Symbol');
-                my $dest_list =
-                  $parent->parent->parent->find_first('PPI::Structure::List');
-                if ( $dest_list->children ) {
-                    $dest_list->add_element( PPI::Token::Operator->new(q{,}) );
-                }
-                $dest_list->add_element( $source->remove );
-                $parent->delete;
-                map_element($dest_list);
-            }
-            else {
-                $element->{content} = '.pop(0)';
-                $element->snext_sibling->insert_after( $element->remove );
-            }
+            map_shift($element);
         }
         when ('signal_emit') {
             $element->{content} = 'emit';

@@ -178,6 +178,7 @@ $script = <<'EOS';
 use Gtk3 0.028 -init;
 my $window = Gtk3::Window->new;
 $event = Gtk3::Gdk::Event->new('key-press');
+$event->keyval(Gtk3::Gdk::KEY_Delete);
 EOS
 
 $expected = <<'EOS';
@@ -187,6 +188,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 window = Gtk.Window()
 event = Gdk.Event('key-press')
+event.keyval=Gdk.KEY_Delete
 EOS
 
 is map_document( \$script ), $expected, "special case import Gtk3/Gdk";
