@@ -3598,7 +3598,7 @@ and thus either the import statements or their calls will often have to be
 adjusted.
 
 =item *
-Capture groups in Perl subsitutions cannot trivially be transcribed, as they
+Capture groups in Perl substitutions cannot trivially be transcribed, as they
 typically contain modifiers, e.g.:
 
  s/(^\w)/\U$1/xsmg
