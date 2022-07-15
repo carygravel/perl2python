@@ -3198,8 +3198,18 @@ sub map_word {
         when ('shift') {
             map_shift($element);
         }
-        when ('signal_emit') {
-            $element->{content} = 'emit';
+        when (/^signal_(connect|connect_after|emit)$/xsm) {
+            $element->{content} = $1;
+            if ( $element->{content} =~ /connect/xsm ) {
+                my $list = map_built_in($element);
+                map_element($list);
+                my $exp   = $list->schild(0);
+                my $event = $exp->schild(0);
+                $event->{content} =~ s/_/-/gxsm;
+                $event->{content} = "'$event->{content}'";
+                my $op = $exp->schild(1);
+                $op->{content} = q{,};
+            }
         }
         when ('sort') {
             my $list = map_built_in($element);

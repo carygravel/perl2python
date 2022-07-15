@@ -179,6 +179,7 @@ use Gtk3 0.028 -init;
 my $window = Gtk3::Window->new;
 $event = Gtk3::Gdk::Event->new('key-press');
 $event->keyval(Gtk3::Gdk::KEY_Delete);
+$dialog->signal_connect_after( key_press_event => sub {} );
 EOS
 
 $expected = <<'EOS';
@@ -189,6 +190,10 @@ from gi.repository import Gtk
 window = Gtk.Window()
 event = Gdk.Event('key-press')
 event.keyval=Gdk.KEY_Delete
+def anonymous_01():
+    pass
+
+dialog.connect_after( 'key-press-event' , anonymous_01  )
 EOS
 
 is map_document( \$script ), $expected, "special case import Gtk3/Gdk";
@@ -822,10 +827,10 @@ EOS
 
 $expected = <<'EOS';
 import re
-def anonymous_01(match):
+def anonymous_02(match):
     return       chr(oct(match[1])) if (match[1] is not None)  else     match[2]
 
-data = re.sub(r"\\(?:([0-7]{1,3})|(.))",anonymous_01,data)
+data = re.sub(r"\\(?:([0-7]{1,3})|(.))",anonymous_02,data)
 EOS
 
 is map_document( \$script ), $expected, "substitution with expression";
@@ -1241,12 +1246,12 @@ override(
 EOS
 
 $expected = <<'EOS';
-def anonymous_02():
+def anonymous_03():
     return   '%d' % (  var ) if (var is not None)  else 'false'
 
 
 override(
-    set_option = anonymous_02 
+    set_option = anonymous_03 
 )
 EOS
 
@@ -1879,10 +1884,10 @@ function_with_callback( callback => sub { return "result" } );
 EOS
 
 $expected = <<'EOS';
-def anonymous_03():
+def anonymous_04():
     return "result"
 
-function_with_callback( callback = anonymous_03  )
+function_with_callback( callback = anonymous_04  )
 EOS
 
 is map_document( \$script ), $expected, "name anonymous subs";
@@ -1892,10 +1897,10 @@ function_with_callback( callback => sub { return update_something(@_) } );
 EOS
 
 $expected = <<'EOS';
-def anonymous_04(*argv):
+def anonymous_05(*argv):
     return update_something(*argv)
 
-function_with_callback( callback = anonymous_04  )
+function_with_callback( callback = anonymous_05  )
 EOS
 
 is map_document( \$script ), $expected, "magic in anonymous subs";
@@ -1914,7 +1919,7 @@ cmd(
 EOS
 
 $expected = <<'EOS';
-def anonymous_05(line):
+def anonymous_06(line):
         
     if line==mess:
         return
@@ -1922,7 +1927,7 @@ def anonymous_05(line):
 
 
 cmd(
-    callback     = anonymous_05 
+    callback     = anonymous_06 
 )
 EOS
 
@@ -1943,12 +1948,12 @@ $expected = <<'EOS';
 def iterator( option ) :
     
     iter=None
-    def anonymous_06(option2):
+    def anonymous_07(option2):
         
         return iter
 
 
-    return anonymous_06 
+    return anonymous_07 
 
 EOS
 
@@ -1959,10 +1964,10 @@ function_with_callback( callback => sub {  } );
 EOS
 
 $expected = <<'EOS';
-def anonymous_07():
+def anonymous_08():
     pass
 
-function_with_callback( callback = anonymous_07  )
+function_with_callback( callback = anonymous_08  )
 EOS
 
 is map_document( \$script ), $expected, "empty anonymous sub";
