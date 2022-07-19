@@ -2681,7 +2681,7 @@ sub map_symbol {
                 }
 
                 # map scalar @array -> len(array)
-                elsif ( $operator =~ /(?:==|<=|>=|!=|[><])/xsm
+                elsif ( $operator =~ /(?:==|<=|>=|!=|[><+-])/xsm
                     and ( not $method or $method ne 'assert' ) )
                 {
                     my $list =

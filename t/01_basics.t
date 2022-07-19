@@ -1198,7 +1198,7 @@ my %ahash = ( sentinel => \$sentinel, ( $data ? %{$data} : () ) );
 $last_index = $#array;
 $last_index = $#{$array};
 $last_index = $#{ $self->{array} };
-if (@array == 2 or @array > 2 or @array < 2) {
+if (@array == 2 or @array > 2 or @array < 2 or 2 < @array-1) {
     print @array, "\n";
 }
 return scalar @{ $self->{array} };
@@ -1209,7 +1209,7 @@ ahash = { "sentinel" : sentinel, (  data if data  else () ) }
 last_index = len(array)-1
 last_index = len(array)-1
 last_index = len( self.array )-1
-if len(array) == 2 or len(array) > 2 or len(array) < 2 :
+if len(array) == 2 or len(array) > 2 or len(array) < 2 or 2 < len(array)-1 :
     print(array)  
 
 return len(self.array) 
