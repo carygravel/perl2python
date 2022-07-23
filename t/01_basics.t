@@ -180,6 +180,7 @@ my $window = Gtk3::Window->new;
 $event = Gtk3::Gdk::Event->new('key-press');
 $event->keyval(Gtk3::Gdk::KEY_Delete);
 $dialog->signal_connect_after( key_press_event => sub {} );
+return Gtk3::EVENT_PROPAGATE;
 EOS
 
 $expected = <<'EOS';
@@ -194,6 +195,7 @@ def anonymous_01():
     pass
 
 dialog.connect_after( 'key-press-event' , anonymous_01  )
+return Gdk.EVENT_PROPAGATE
 EOS
 
 is map_document( \$script ), $expected, "special case import Gtk3/Gdk";

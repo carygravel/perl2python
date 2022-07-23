@@ -3013,6 +3013,10 @@ sub map_word {
             $element->{content} =~ s/Gtk\d[.]//gsmx;
             add_import( $element, 'gi.repository', 'Gdk' );
         }
+        when (/Gtk\d[.]EVENT/xsm) {
+            $element->{content} =~ s/Gtk\d/Gdk/gsmx;
+            add_import( $element, 'gi.repository', 'Gdk' );
+        }
         when (/Gtk\d/xsm) {
             $element->{content} =~ s/Gtk\d/Gtk/gsmx;
         }
