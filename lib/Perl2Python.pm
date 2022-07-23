@@ -3137,8 +3137,8 @@ sub map_word {
                     $element->parent->__insert_after_child( $list,
                         $child->remove );
                 }
-                $list->delete;
             }
+            $list->delete;
         }
         when ('last') {
             $element->{content} = 'break';

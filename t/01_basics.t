@@ -179,6 +179,7 @@ use Gtk3 0.028 -init;
 my $window = Gtk3::Window->new;
 $event = Gtk3::Gdk::Event->new('key-press');
 $event->keyval(Gtk3::Gdk::KEY_Delete);
+$val=$event->keyval();
 $dialog->signal_connect_after( key_press_event => sub {} );
 return Gtk3::EVENT_PROPAGATE;
 EOS
@@ -191,6 +192,7 @@ from gi.repository import Gtk
 window = Gtk.Window()
 event = Gdk.Event('key-press')
 event.keyval=Gdk.KEY_Delete
+val=event.keyval
 def anonymous_01():
     pass
 
