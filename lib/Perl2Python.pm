@@ -203,8 +203,8 @@ sub get_argument_for_operator {
             }
         }
         if (
-            not(   has_higher_precedence_than( $element, $iter, $n )
-                or has_rh_associativity($iter) )
+            not( has_higher_precedence_than( $element, $iter, $n )
+                or ( @sibling == 0 and has_rh_associativity($iter) ) )
           )
         {
 
@@ -273,18 +273,14 @@ sub map_anonymous_sub {
 
 sub map_arrow_operator {
     my ($element) = @_;
-    my $prev      = $element->sprevious_sibling;
-    my $next      = $element->snext_sibling;
-    if (    $next
-        and $next->isa('PPI::Structure::Subscript')
-        and $prev ne 'self' )
-    {
-        $element->delete;
-    }
+    my @prev = get_argument_for_operator( $element, 0 );
+    my $next = $element->snext_sibling;
 
     # closure -> iterator
-    elsif ( $next
-        and $next->isa('PPI::Structure::List') )
+    if (
+        $prev[0] eq 'iter' and $next    # hard-coded to iter. Fragile.
+        and $next and $next->isa('PPI::Structure::List')
+      )
     {
         $element->insert_before( PPI::Token::Word->new('next') );
 
@@ -292,12 +288,23 @@ sub map_arrow_operator {
         for my $child ( $next->children ) {
             $child->delete;
         }
-        $next->add_element( $prev->remove );
+        for my $prev (@prev) {
+            $next->add_element( $prev->remove );
+        }
+        $element->delete;
+    }
+    elsif (
+        $next
+        and (  $next->isa('PPI::Structure::Subscript')
+            or $next->isa('PPI::Structure::List') )
+        and $prev[0] ne 'self'
+      )
+    {
         $element->delete;
     }
     else {
         $element->{content} = q{.};
-        if (    $prev eq 'self'
+        if (    $prev[0] eq 'self'
             and $next->isa('PPI::Structure::Subscript') )
         {
             my $child = $next->schild(0);
@@ -2308,8 +2315,7 @@ sub map_regex_match {
 
     # in perl, the parent is a PPI::Statement::Expression, which we now
     # turn into re.search(regex, string, flags)
-    my $expression = $element->parent;
-    if ( not $expression ) { return }
+    if ( not $element->parent ) { return }
     my ( $method, @argument );
     if ( defined $element->{modifiers}{g} ) {
         $method = 'findall';
@@ -2338,8 +2344,6 @@ sub map_regex_match {
         }
     }
 
-    my ( $expression_operator, @expression_arg ) =
-      parse_subexpression( \@argument );
     $list->add_element( regex2quote($element) );
 
     if ( $operator eq q{=~} ) {
@@ -2352,6 +2356,7 @@ sub map_regex_match {
         $operator = PPI::Token::Operator->new(q{=~});
         @argument = ( PPI::Token::Symbol->new('_') );
     }
+    my $expression_operator = $argument[0]->sprevious_sibling;
     $operator->delete;
     $list->add_element( PPI::Token::Operator->new(q{,}) );
     for my $argument (@argument) {
@@ -2360,8 +2365,12 @@ sub map_regex_match {
 
     # map () = -> len()
     if ( defined $element->{modifiers}{g} ) {
+        my $expression_arg;
         if ( $expression_operator eq q{=} ) {
-            if ( $expression_arg[-1] =~ /[(]\s*[)]/xsm ) {
+            $expression_arg = $expression_operator->sprevious_sibling;
+        }
+        if ( $expression_operator eq q{=} ) {
+            if ( $expression_arg and $expression_arg =~ /[(]\s*[)]/xsm ) {
                 my $lenlist =
                   PPI::Structure::List->new( PPI::Token::Structure->new('(') );
                 $lenlist->{finish} = PPI::Token::Structure->new(')');
@@ -2371,7 +2380,7 @@ sub map_regex_match {
                     $lenlist->add_element( $child->remove );
                 }
                 $expression_operator->delete;
-                $expression_arg[-1]->delete;
+                $expression_arg->delete;
             }
         }
         delete $element->{modifiers}{g};
@@ -3305,21 +3314,6 @@ sub nest_level {
         $element = $parent;
     }
     return $level;
-}
-
-sub parse_subexpression {
-    my ($argument) = @_;
-    my ( @expression_arg, $expression_operator );
-    while ( "@{$argument}" =~ /=/xsm ) {
-        my $item = shift @{$argument};
-        if ( "@{$argument}" =~ /=/xsm ) {
-            push @expression_arg, $item;
-        }
-        else {
-            $expression_operator = $item;
-        }
-    }
-    return $expression_operator, @expression_arg;
 }
 
 sub remove_trailing_semicolon {

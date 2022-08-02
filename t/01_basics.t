@@ -2236,14 +2236,17 @@ is map_document( \$script ), $expected, "map ref() eq ... -> isinstance()";
 $script = <<'EOS';
 my $next_value = $iter->();
 $next_value = $iter->(0);
+$callbacks{$response}->();
 EOS
 
 $expected = <<'EOS';
 next_value = next(iter)
 next_value = next(iter)
+callbacks[response]()
 EOS
 
-is map_document( \$script ), $expected, "closure -> iterator";
+is map_document( \$script ), $expected,
+  "closure -> iterator, call method by variable";
 
 #########################
 
