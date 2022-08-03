@@ -2030,11 +2030,11 @@ Log::Log4perl->easy_init($ERROR);
 EOS
 
 $expected = <<'EOS';
-import logger
+import logging
 
 EOS
 
-is map_document( \$script ), $expected, "map log4perl -> logger";
+is map_document( \$script ), $expected, "map log4perl -> logging";
 
 #########################
 

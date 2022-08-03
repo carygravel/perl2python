@@ -1615,7 +1615,7 @@ sub map_include {
         }
         when ('Log::Log4perl') {
             delete_everything_after($path);
-            $module = 'logger';
+            $module = 'logging';
             $symbols->delete;
             undef $symbols;
         }
