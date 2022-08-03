@@ -1303,6 +1303,7 @@ open my $fh, '<', $filename or return;
 close($fh);
 l = length $line;
 unlink $filename;
+rmdir $dir;
 last;
 push @my_array, $item;
 push @{ $self->{data} }, $item;
@@ -1328,6 +1329,7 @@ except:
 fh.close()
 l = len(line) 
 os.remove(filename) 
+os.rmdir(dir) 
 break
 my_array.append(item)  
 self.data.append(item)  

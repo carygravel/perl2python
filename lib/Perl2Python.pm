@@ -3202,6 +3202,11 @@ sub map_word {
         when ('ref') {
             map_ref($element);
         }
+        when ('rmdir') {
+            my $list = map_built_in($element);
+            add_import( $element, 'os' );
+            $element->{content} = 'os.rmdir';
+        }
         when ('scalar') {
             map_scalar($element);
         }
