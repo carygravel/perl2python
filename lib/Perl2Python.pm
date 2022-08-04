@@ -1965,6 +1965,12 @@ sub map_operator {
         }
         when (q{++}) {
             $element->{content} = q{+=};
+            my @next = get_argument_for_operator( $element, 1 );
+            if (@next) {
+                for my $next (@next) {
+                    $element->insert_before( $next->remove );
+                }
+            }
             $element->insert_after( PPI::Token::Number->new(1) );
         }
         when (q{.}) {

@@ -1317,6 +1317,7 @@ $ahash{key} = undef;
 $HEX_FF = hex 'ff';
 ref($object);
 $ahash{key}++;
+++$ahash{key};
 EOS
 
 $expected = <<'EOS';
@@ -1342,6 +1343,7 @@ ahash["key"]=None
 ahash["key"] = None
 HEX_FF = hex('ff') 
 type(object)
+ahash["key"]+=1
 ahash["key"]+=1
 EOS
 
