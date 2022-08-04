@@ -305,7 +305,8 @@ sub map_arrow_operator {
     else {
         $element->{content} = q{.};
         if (    $prev[0] eq 'self'
-            and $next->isa('PPI::Structure::Subscript') )
+            and $next->isa('PPI::Structure::Subscript')
+            and not $next->find_first('PPI::Token::Symbol') )
         {
             my $child = $next->schild(0);
             $element->parent->__insert_after_child( $element, $child->remove );
@@ -321,6 +322,9 @@ sub map_arrow_operator {
                 $list->{finish} = PPI::Token::Structure->new(')');
                 $next->insert_after($list);
             }
+        }
+        else {
+            $element->delete;
         }
     }
     return;
