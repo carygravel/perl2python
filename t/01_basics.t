@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 127;
+use Test::More tests => 128;
 
 sub slurp {
     my ($file) = @_;
@@ -2267,6 +2267,23 @@ d = gettext.translation(prog_name)
 EOS
 
 is map_document( \$script ), $expected, "map gettext";
+
+#########################
+
+$script = <<'EOS';
+sub setup {
+    ( my $class, $logger ) = @_;
+    do_something();
+}
+EOS
+
+$expected = <<'EOS';
+def setup(  class, logger=None ) :
+    do_something()
+
+EOS
+
+is map_document( \$script ), $expected, "more sub args";
 
 #########################
 

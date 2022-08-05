@@ -1747,7 +1747,7 @@ sub map_magic {
         my $dest_list = $sub->find_first('PPI::Structure::List');
 
         # sub argument definition
-        if (    $expression->isa('PPI::Statement::Variable')
+        if (    $expression->isa('PPI::Statement')
             and $sub->isa('PPI::Statement::Sub') )
         {
             my $source_list = $expression->find_first('PPI::Structure::List');
@@ -3341,6 +3341,20 @@ sub remove_trailing_semicolon {
     return;
 }
 
+sub element_should_be_indented {
+    my ($element) = @_;
+    my $parent = $element->parent;
+    return (
+        (
+            $element->isa('PPI::Statement')
+              and not $element->isa('PPI::Statement::Expression')
+        )
+          or (  $element->isa('PPI::Statement::Variable')
+            and $parent
+            and not $parent->isa('PPI::Structure::List') )
+    );
+}
+
 # Having mapped the code structure, clean up the whitespace enough so that
 # Python can parse it.
 sub indent_element {
@@ -3348,14 +3362,7 @@ sub indent_element {
     if ( not $element or not defined $element or ref($element) eq 'HASH' ) {
         return;
     }
-    if (
-        (
-            $element->isa('PPI::Statement')
-            and not $element->isa('PPI::Statement::Expression')
-        )
-        or $element->isa('PPI::Statement::Variable')
-      )
-    {
+    if ( element_should_be_indented($element) ) {
 
         # trim leading whitespace inside statement
         my $child = $element->child(0);
