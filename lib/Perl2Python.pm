@@ -88,6 +88,8 @@ my %REGEX_MODIFIERS = (
 my $IGNORED_INCLUDES =
 q/^(?:warnings|strict|feature|if|Carp|English|Exporter|File::Copy|IPC::System::Simple|POSIX|Readonly|Try::Tiny)$/;
 
+my @RESERVED_WORDS = qw(class def print);
+
 my $ANONYMOUS = 0;
 
 sub add_anonymous_method {
@@ -1845,7 +1847,7 @@ sub map_new {
     map_built_in($element);
     my $op    = $element->sprevious_sibling;
     my $class = $op->sprevious_sibling;
-    if ( $class eq 'class' ) {
+    if ( $class eq '_class' ) {
         $class->{content} = '__class__';
     }
     $op->delete;
@@ -2715,6 +2717,9 @@ sub map_symbol {
         }
         $element->{content} =~ s/^[\$@%]//smx;
         $element->{content} =~ s/::/./gsmx;
+        if ( $element->{content} ~~ @RESERVED_WORDS ) {
+            $element->{content} = "_$element->{content}";
+        }
     }
     return;
 }
