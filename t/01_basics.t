@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 129;
+use Test::More tests => 130;
 
 sub slurp {
     my ($file) = @_;
@@ -2296,6 +2296,26 @@ def setup(  _class, logger=None ) :
 EOS
 
 is map_document( \$script ), $expected, "more sub args";
+
+#########################
+
+$script = <<'EOS';
+use threads;
+use threads::shared;
+use Thread::Queue;
+share $_self->{progress};
+$_self->{thread} = threads->new( \&_thread_main, $_self );
+EOS
+
+$expected = <<'EOS';
+import threading
+
+import queue
+_self["progress"]=queue.Queue() 
+_self["thread"] = threading.Thread( target=_thread_main,args=(_self,)  )
+EOS
+
+is map_document( \$script ), $expected, "special-case threads";
 
 #########################
 

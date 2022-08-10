@@ -1638,6 +1638,9 @@ sub map_include {
                 $module = 'copy';
             }
         }
+        when ('Thread::Queue') {
+            $module = 'queue';
+        }
         when ('base') {
             my $class = $top->find_first(
                 sub {
@@ -1664,6 +1667,12 @@ sub map_include {
             }
             $element->delete;
             return;
+        }
+        when ('threads') {
+            $module = 'threading';
+        }
+        when ('threads::shared') {
+            $element->delete;
         }
     }
     if ( $symbols and $symbols->isa('PPI::Token::Number') ) {
@@ -2715,7 +2724,7 @@ sub map_symbol {
                 }
             }
         }
-        $element->{content} =~ s/^[\$@%]//smx;
+        $element->{content} =~ s/^[\$@%&]//smx;
         $element->{content} =~ s/::/./gsmx;
         if ( $element->{content} ~~ @RESERVED_WORDS ) {
             $element->{content} = "_$element->{content}";
@@ -2905,6 +2914,26 @@ sub map_shift {
     else {
         $element->{content} = '.pop(0)';
         $element->snext_sibling->insert_after( $element->remove );
+    }
+    return;
+}
+
+sub map_threads {
+    my ($element) = @_;
+    $element->{content} = 'threading.Thread';
+    my $op = $element->snext_sibling;
+    if ($op) {
+        my $method = $op->snext_sibling;
+        my $list   = map_built_in($method);
+        my $expr   = $list->schild(0);
+        my $target = $expr->schild(0);
+        $op   = $expr->schild(2);
+        $list = map_built_in($op);
+        if ( $list->children == 1 ) {
+            $list->add_element( PPI::Token::Operator->new(q{,}) );
+        }
+        $target->insert_before( PPI::Token::Word->new('target=') );
+        $list->insert_before( PPI::Token::Word->new('args=') );
     }
     return;
 }
@@ -3228,6 +3257,16 @@ sub map_word {
         when ('setlocale') {
             map_setlocale($element);
         }
+        when ('share') {
+            my $list = map_built_in($element);
+            $list->insert_after( PPI::Token::Symbol->new('queue.Queue()') );
+            $list->insert_after( PPI::Token::Operator->new(q{=}) );
+            for my $child ( $list->children ) {
+                $list->insert_before( $child->remove );
+            }
+            $element->delete;
+            $list->delete;
+        }
         when ('shift') {
             map_shift($element);
         }
@@ -3278,6 +3317,9 @@ sub map_word {
         }
         when ('system') {
             map_system($element);
+        }
+        when ('threads') {
+            map_threads($element);
         }
         when ('undef') {
             map_undef($element);
