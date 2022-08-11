@@ -182,6 +182,7 @@ $event->keyval(Gtk3::Gdk::KEY_Delete);
 $val=$event->keyval();
 $dialog->signal_connect_after( key_press_event => sub {} );
 return Gtk3::EVENT_PROPAGATE;
+$flags = ${ Gtk3::TargetFlags->new(qw/same-widget/) };
 EOS
 
 $expected = <<'EOS';
@@ -198,6 +199,7 @@ def anonymous_01():
 
 dialog.connect_after( 'key-press-event' , anonymous_01  )
 return Gdk.EVENT_PROPAGATE
+flags = Gtk.TargetFlags(["same-widget"])
 EOS
 
 is map_document( \$script ), $expected, "special case import Gtk3/Gdk";

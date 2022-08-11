@@ -435,8 +435,9 @@ sub map_cast {
         }
     }
 
-    # cast from hashref to hash -> remove cast
-    elsif ( $element eq q{%} and $block->isa('PPI::Structure::Block') ) {
+    # cast from hashref to hash or scalar ref to scalar -> remove cast
+    elsif ( $element =~ /^[\$%]$/xsm and $block->isa('PPI::Structure::Block') )
+    {
         remove_cast( $element, $block, $parent );
     }
 
