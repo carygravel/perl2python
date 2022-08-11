@@ -3201,6 +3201,9 @@ sub map_word {
             my $list = map_built_in($element);
             $element->{content} = 'len';
         }
+        when ('local') {    # no equivalent in python
+            $element->delete;
+        }
         when ('log') {
             add_import( $element, 'math' );
             $element->{content} = 'math.log';

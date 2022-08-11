@@ -1332,6 +1332,7 @@ $HEX_FF = hex 'ff';
 ref($object);
 $ahash{key}++;
 ++$ahash{key};
+local $SIG{CHLD} = 'IGNORE'; # local has no equivalent in python
 EOS
 
 $expected = <<'EOS';
@@ -1359,6 +1360,7 @@ HEX_FF = hex('ff')
 type(object)
 ahash["key"]+=1
 ahash["key"]+=1
+SIG["CHLD"] = 'IGNORE' # local has no equivalent in python
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";
