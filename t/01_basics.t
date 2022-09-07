@@ -1637,14 +1637,18 @@ system( qw(ls -l) );
 system( 'ls', '-l' );
 system( qw(ls -l), 'file with a space' );
 system( qw(ls -l), $variable );
+use Proc::Killfam;
+killfam 'KILL', ($pid);
 EOS
 
 $expected = <<'EOS';
+import os
 import subprocess
 subprocess.run([ "ls","-l" ])
 subprocess.run([ 'ls', '-l' ])
 subprocess.run([ "ls","-l", 'file with a space' ])
 subprocess.run([ "ls","-l", str(variable) ])
+os.killpg(os.getpgid(pid),signal.SIGKILL)  
 EOS
 
 is map_document( \$script ), $expected, "subprocess";

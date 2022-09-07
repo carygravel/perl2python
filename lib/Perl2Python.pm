@@ -86,7 +86,7 @@ my %REGEX_MODIFIERS = (
 );
 
 my $IGNORED_INCLUDES =
-q/^(?:warnings|strict|feature|if|Carp|English|Exporter|File::Copy|IPC::System::Simple|POSIX|Readonly|Try::Tiny)$/;
+q/^(?:warnings|strict|feature|if|Carp|English|Exporter|File::Copy|IPC::System::Simple|POSIX|Proc::Killfam|Readonly|Try::Tiny)$/;
 
 my @RESERVED_WORDS = qw(class def print);
 
@@ -1707,9 +1707,18 @@ sub map_is {
     }
 
     # we've got a unit test - map to assert
-    $element->{content} = 'assert';
-    my @result   = get_argument_for_operator( $element, 1 );
-    my $operator = $result[-1]->snext_sibling;
+    my @result = get_argument_for_operator( $element, 1 );
+    my $operator;
+    for (@result) {
+        if ( $_ eq q{,} ) {
+            $operator = $_;
+            last;
+        }
+    }
+    if ( not defined $operator ) {
+        $operator = $result[-1]->snext_sibling;
+    }
+    $element->{content}  = 'assert';
     $operator->{content} = q{==};
     return;
 }
@@ -2536,16 +2545,19 @@ sub map_splice {
     $element->{content} = 'del';
     my $list = map_built_in($element);
     map_element($list);
-    my @array = get_argument_from_list( $list, 1 );
     my $subscript =
       PPI::Structure::Subscript->new( PPI::Token::Structure->new('[') );
     $subscript->{finish} = PPI::Token::Structure->new(']');
-    $list->add_element($subscript);
-    my $operator = $list->snext_sibling;
-    my @start    = get_argument_for_operator( $operator, 1 );
-    $operator->delete;
-    $operator = $start[-1]->snext_sibling;
-
+    my $commas = $list->find(
+        sub {
+            $_[1]->isa('PPI::Token::Operator')
+              and $_[1]->content eq q{,};
+        }
+    );
+    $commas->[0]->insert_before($subscript);
+    my @start = get_argument_for_operator( $commas->[0], 1 );
+    $commas->[0]->delete;
+    my $operator = $start[-1]->snext_sibling;
     for my $child (@start) {
         $subscript->add_element( $child->remove );
     }
@@ -2919,6 +2931,28 @@ sub map_shift {
     return;
 }
 
+sub map_sprintf {
+    my ($element) = @_;
+    my $list = map_built_in($element);
+    if ( not $list ) { return }
+    my $expression = $list->schild(0);
+    if ( not $expression->isa('PPI::Statement::Expression') ) {
+        $expression = $list;
+    }
+    my @format   = get_argument_for_operator( $element, 1 );
+    my $operator = $format[-1]->snext_sibling;
+    $operator->{content} = q{%};
+    for ( 0 .. $#format ) {
+        $format[$_] = $format[$_]->remove;
+    }
+    my $parent = $element->parent;
+    $parent->__insert_before_child( $element, @format,
+        PPI::Token::Whitespace->new(q{ }),
+        $operator->remove, PPI::Token::Whitespace->new(q{ }) );
+    $element->delete;
+    return;
+}
+
 sub map_threads {
     my ($element) = @_;
     $element->{content} = 'threading.Thread';
@@ -3194,6 +3228,23 @@ sub map_word {
             }
             $list->delete;
         }
+        when ('killfam') {
+            add_import( $element, 'os' );
+            $element->{content} = 'os.killpg';
+            my $list   = map_built_in($element);
+            my $sig    = $list->schild(0);
+            my $op     = $list->schild(1);
+            my $pid    = $list->schild(2);
+            my $method = PPI::Token::Word->new('os.getpgid');
+            $pid->insert_before($method);
+            map_built_in($method);
+            $list->add_element( $op->remove );
+
+            if ( $sig =~ /KILL/xsm ) {
+                $sig->{content} = 'signal.SIGKILL';
+            }
+            $list->add_element( $sig->remove );
+        }
         when ('last') {
             $element->{content} = 'break';
         }
@@ -3298,23 +3349,7 @@ sub map_word {
             map_split($element);
         }
         when ('sprintf') {
-            my $list = map_built_in($element);
-            if ( not $list ) { return }
-            my $expression = $list->schild(0);
-            if ( not $expression->isa('PPI::Statement::Expression') ) {
-                $expression = $list;
-            }
-            my @format   = get_argument_for_operator( $element, 1 );
-            my $operator = $format[-1]->snext_sibling;
-            $operator->{content} = q{%};
-            for ( 0 .. $#format ) {
-                $format[$_] = $format[$_]->remove;
-            }
-            my $parent = $element->parent;
-            $parent->__insert_before_child( $element, @format,
-                PPI::Token::Whitespace->new(q{ }),
-                $operator->remove, PPI::Token::Whitespace->new(q{ }) );
-            $element->delete;
+            map_sprintf($element);
         }
         when ('sub') {
             map_anonymous_sub($element);
@@ -3357,8 +3392,6 @@ sub map_word {
             add_import( $element, 'os' );
             my $list = map_built_in($element);
             $element->{content} = 'os.waitpid';
-            $list->add_element( $list->snext_sibling->remove );    #comma
-            $list->add_element( $list->snext_sibling->remove );    #flags
         }
     }
     return;
@@ -3566,7 +3599,19 @@ sub has_higher_precedence_than {
     # don't swallow built-ins looking left for arguments
     if ( $direction == 0 and defined $BUILTINS{$op2} ) { return }
 
-    $op1 = check_operator( $op1, $direction );
+    my $res = check_operator( $op1, $direction );
+    if (    not defined $BUILTINS{$op1}
+        and $op1->isa('PPI::Token::Word')
+        and $res eq 'term' )
+    {
+        if ( $direction > 0 ) {
+            $res = 'list operator (rightward)';
+        }
+        else {
+            $res = 'list operator (leftward)';
+        }
+    }
+    $op1 = $res;
     $op2 = check_operator( $op2, $direction );
     return $PRECEDENCE{$op1} < $PRECEDENCE{$op2};
 }
