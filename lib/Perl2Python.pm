@@ -104,6 +104,7 @@ sub add_anonymous_method {
 
     while (not $statement->isa('PPI::Statement')
         or $statement->isa('PPI::Statement::Expression')
+        or $parent->isa('PPI::Structure::List')
         or $parent->isa('PPI::Statement::Expression') )
     {
         $statement = $parent;
