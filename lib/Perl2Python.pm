@@ -354,7 +354,6 @@ sub map_built_in {
     # deal with return value from built-in
     my $child = $list->snext_sibling;
     if ( $child eq 'or' ) {
-        $child->delete;
         my $try    = PPI::Statement::Compound->new;
         my $parent = $statement->parent;
         $parent->__insert_before_child( $statement, $try );
@@ -377,9 +376,10 @@ sub map_built_in {
         $statement = PPI::Statement->new;
         $block->add_element($statement);
 
-        while ( my $rest = $list->next_sibling ) {
+        while ( my $rest = $child->next_sibling ) {
             $statement->add_element( $rest->remove );
         }
+        $child->delete;
 
         # indent the added code explicitly
         indent_element($try);
@@ -3165,7 +3165,7 @@ sub map_word {
             $list->add_element($list2);
             $operator->delete;
         }
-        when ('croak') {
+        when (/^(?:croak|die)$/xsm) {
             $element->{content} = 'raise';
         }
         when ('dclone') {

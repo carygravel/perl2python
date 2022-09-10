@@ -1316,6 +1316,8 @@ open my $fh, '<', $filename;
 my $line = <$fh>;
 close $fh;
 open my $fh, '<', $filename or return;
+open my $fh, '<', $filename ## no critic (RequireBriefOpen)
+  or die "can't open $filename: $ERRNO\n";
 close($fh);
 l = length $line;
 unlink $filename;
@@ -1341,9 +1343,13 @@ fh=open(filename,mode='r')
 line = fh.readline()
 fh.close() 
 try:
-    fh=open(filename,mode='r')
+    fh=open(filename,mode='r')     
 except:
     return
+try:
+    fh=open(filename,mode='r')     ## no critic (RequireBriefOpen)   
+except:
+    raise f"can't open {filename}: {ERRNO}\n"
 fh.close()
 l = len(line) 
 os.remove(filename) 
@@ -2122,7 +2128,7 @@ $expected = <<'EOS';
 import shutil
 import os
 try:
-    os.rename(old,new)
+    os.rename(old,new)   
 except:
     return
 os.rename(old, new)
