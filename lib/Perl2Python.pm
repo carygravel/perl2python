@@ -2809,7 +2809,44 @@ sub map_data_uuid {
 sub map_print {
     my ($element) = @_;
     my $list      = map_built_in($element);
-    my $quote     = $list->schild($LAST);
+    my $block     = $list->schild(0);
+    if ( $block->isa('PPI::Structure::Block') ) {
+        my $statement = $block->schild(0);
+        my $fh        = $statement->schild(0);
+        map_element($fh);
+        $fh->{content} .= q{.};
+        $element->insert_before( $fh->remove );
+    }
+    else {
+        undef $block;
+    }
+
+    if ( $element eq 'printf' ) {
+
+        # add an extra set of parens for the tuple
+        my $tuple =
+          PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $tuple->{finish} = PPI::Token::Structure->new(')');
+
+        $element->insert_after($tuple);
+        $tuple->add_element( $list->remove );
+
+        my @format;
+        if ($block) {
+            @format = get_argument_for_operator( $block, 1 );
+        }
+        else {
+            @format = get_argument_for_operator( $element, 1 );
+        }
+        map_format_string( $list, @format );
+    }
+
+    if ($block) {
+        $element->{content} = 'write';
+        $block->delete;
+    }
+
+    my $quote = $list->schild($LAST);
     if ( $quote->isa('PPI::Token::Quote::Double') ) {
         $quote->{content} =~ s/\\n"$/"/gsmx;
         if ( $quote eq q{""} ) {
@@ -2936,11 +2973,14 @@ sub map_sprintf {
     my ($element) = @_;
     my $list = map_built_in($element);
     if ( not $list ) { return }
-    my $expression = $list->schild(0);
-    if ( not $expression->isa('PPI::Statement::Expression') ) {
-        $expression = $list;
-    }
-    my @format   = get_argument_for_operator( $element, 1 );
+    my @format = get_argument_for_operator( $element, 1 );
+    map_format_string( $element, @format );
+    $element->delete;
+    return;
+}
+
+sub map_format_string {
+    my ( $element, @format ) = @_;
     my $operator = $format[-1]->snext_sibling;
     $operator->{content} = q{%};
     for ( 0 .. $#format ) {
@@ -2950,7 +2990,6 @@ sub map_sprintf {
     $parent->__insert_before_child( $element, @format,
         PPI::Token::Whitespace->new(q{ }),
         $operator->remove, PPI::Token::Whitespace->new(q{ }) );
-    $element->delete;
     return;
 }
 
@@ -3293,7 +3332,7 @@ sub map_word {
                 $element->insert_after( PPI::Token::Operator->new(q{,}) );
             }
         }
-        when ('print') {
+        when (/^printf?$/xsm) {
             map_print($element);
         }
         when (/^(?:push|unshift)$/xsm) {
