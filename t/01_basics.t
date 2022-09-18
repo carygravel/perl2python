@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 134;
+use Test::More tests => 135;
 
 sub slurp {
     my ($file) = @_;
@@ -2234,6 +2234,20 @@ os.waitpid(pid,0)
 EOS
 
 is map_document( \$script ), $expected, "map waitpid";
+
+$script = <<'EOS';
+use File::stat;
+my $sb = stat($filename);
+my $mtime = $sb->mtime;
+EOS
+
+$expected = <<'EOS';
+import os
+sb = os.stat(filename)
+mtime = sb.mtime()
+EOS
+
+is map_document( \$script ), $expected, "map stat::mtime";
 
 #########################
 

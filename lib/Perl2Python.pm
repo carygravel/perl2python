@@ -1586,6 +1586,9 @@ sub map_include {
         when ('File::Temp') {
             $module = 'tempfile';
         }
+        when ('File::stat') {
+            $module = 'os';
+        }
         when ('Glib') {
             if ($symbols) {
                 $element->delete;
@@ -3413,6 +3416,9 @@ sub map_word {
         }
         when ('sprintf') {
             map_sprintf($element);
+        }
+        when ('stat') {
+            $element->{content} = 'os.stat';
         }
         when ('sub') {
             map_anonymous_sub($element);
