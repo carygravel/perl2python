@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 133;
+use Test::More tests => 134;
 
 sub slurp {
     my ($file) = @_;
@@ -2365,6 +2365,20 @@ _self["thread"] = threading.Thread( target=_thread_main,args=(_self,)  )
 EOS
 
 is map_document( \$script ), $expected, "special-case threads";
+
+#########################
+
+$script = <<'EOS';
+use Encode;
+$out = decode_utf8('ö')
+EOS
+
+$expected = <<'EOS';
+
+out = 'ö'.decode("utf8")
+EOS
+
+is map_document( \$script ), $expected, "character encoding";
 
 #########################
 

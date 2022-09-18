@@ -1580,6 +1580,9 @@ sub map_include {
         when ('Data::UUID') {
             $module = 'uuid';
         }
+        when ('Encode') {
+            $element->delete;
+        }
         when ('File::Temp') {
             $module = 'tempfile';
         }
@@ -3221,6 +3224,14 @@ sub map_word {
         }
         when ('dclone') {
             $element->{content} = 'deepcopy';
+        }
+        when ('decode_utf8') {
+            my $list       = map_built_in($element);
+            my $expression = $list->schild(0);
+            my $str        = $expression->schild(0);
+            $element->insert_before( $str->remove );
+            $element->{content} = '.decode';
+            $list->add_element( PPI::Token::Quote::Double->new('"utf8"') )
         }
         when ('defined') {
             map_defined($element);
