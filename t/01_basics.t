@@ -1849,7 +1849,7 @@ EOS
 is map_document( \$script ), $expected, "map hash->dict";
 
 $script = <<'EOS';
-@my_array = (1, 2, 3);
+@my_array = (01, 2, 3);
 EOS
 
 $expected = <<'EOS';

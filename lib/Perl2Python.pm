@@ -828,6 +828,11 @@ sub map_element {
         when (/PPI::Token::Magic/xsm) {
             $element = map_magic($element);
         }
+        when (/PPI::Token::Number/xsm) {
+            if ( $element->{content} =~ /^0+(\d+)$/xsm ) {
+                $element->{content} = $1;
+            }
+        }
     }
     if ( exists $element->{children} and $map_children ) {
         for my $child ( $element->children ) {
