@@ -88,7 +88,7 @@ my %REGEX_MODIFIERS = (
 my $IGNORED_INCLUDES =
 q/^(?:warnings|strict|feature|if|Carp|English|Exporter|File::Copy|IPC::System::Simple|POSIX|Proc::Killfam|Readonly|Try::Tiny)$/;
 
-my @RESERVED_WORDS = qw(class def print);
+my @RESERVED_WORDS = qw(class def print break);
 
 my $ANONYMOUS = 0;
 

@@ -466,11 +466,11 @@ is map_document( \$script ), $expected, "declare variables";
 #########################
 
 $script = <<'EOS';
-$class = $def + $print;
+$class = $def + $print + $break;
 EOS
 
 $expected = <<'EOS';
-_class = _def + _print
+_class = _def + _print + _break
 EOS
 
 is map_document( \$script ), $expected, "rename reserved words";
