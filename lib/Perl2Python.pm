@@ -1580,6 +1580,11 @@ sub map_include {
         when ('Data::UUID') {
             $module = 'uuid';
         }
+        when ('Date::Calc') {
+            $module = 'datetime';
+            $symbols->delete;
+            undef $symbols;
+        }
         when ('Encode') {
             $element->delete;
         }
@@ -3193,6 +3198,9 @@ sub map_word {
         }
         when ('TRUE') {
             $element->{content} = 'True';
+        }
+        when ('Time_to_Date') {
+            $element->{content} = 'datetime.datetime.fromtimestamp';
         }
         when ('bless') {
             $element->parent->delete;

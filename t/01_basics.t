@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 135;
+use Test::More tests => 136;
 
 sub slurp {
     my ($file) = @_;
@@ -2222,6 +2222,19 @@ result = datetime.datetime.date(year ,month ,day ,hour ,min ,sec ).strftime(temp
 EOS
 
 is map_document( \$script ), $expected, "map POSIX::strftime()->datetime";
+
+$script = <<'EOS';
+use Date::Calc qw(Time_to_Date);
+$date_list = Time_to_Date( $mtime );
+EOS
+
+$expected = <<'EOS';
+import datetime 
+date_list = datetime.datetime.fromtimestamp( mtime )
+EOS
+
+is map_document( \$script ), $expected,
+  "map Date::Calc::Time_to_Date()->datetime";
 
 $script = <<'EOS';
 use POSIX qw(:sys_wait_h);
