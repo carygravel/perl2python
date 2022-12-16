@@ -1028,7 +1028,7 @@ sub map_file {
     }
     open my $fh, '>', $outfile or croak "Error opening $outfile";
     print {$fh} $doc or croak "Error writing to $outfile";
-    close $fh        or croak "Error closing $outfile";
+    close $fh or croak "Error closing $outfile";
     return;
 }
 

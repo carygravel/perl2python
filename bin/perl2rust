@@ -1,0 +1,28 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use Perl2Rust qw(map_directory);
+use Carp;
+use Getopt::Long;
+
+our $VERSION = 1;
+
+# ignore blib directory by default
+my @xpaths;
+for my $file (@ARGV) {
+    push @xpaths, "$file/blib";
+}
+my @args =
+  ( 'debug' => sub { $Perl2Rust::DEBUG = 1 }, 'exclude=s' => \@xpaths, );
+
+if ( not GetOptions(@args) ) { exit 1 }
+
+# Catch and log perl warnings
+local $SIG{__DIE__} = sub {
+    confess "Error parsing code at line number $Perl2Rust::LINENUMBER";
+};
+
+for my $file (@ARGV) {
+    map_directory( $file, @xpaths );
+}

@@ -2,6 +2,7 @@ MANIFEST
 Makefile.PL
 README.md
 bin/perl2python
+bin/perl2rust
 lib/Perl2Python.pm
 lib/Perl2Rust.pm
 t/01_basic_perl2rust.t

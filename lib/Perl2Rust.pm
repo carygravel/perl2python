@@ -82,6 +82,8 @@ q/^(?:warnings|strict|feature|if|Carp|English|Exporter|File::Copy|IPC::System::S
 
 my @RESERVED_WORDS = qw(class def print break);
 
+my $ANONYMOUS = 0;
+
 sub check_operator {
     my ( $element, $direction ) = @_;
     if ( defined $element->{originally} ) {
@@ -114,6 +116,7 @@ sub element_should_be_indented {
             and not $parent->isa('PPI::Structure::List') )
     );
 }
+
 sub get_argument_for_operator {
     my ( $element, $n ) = @_;
 
@@ -422,6 +425,28 @@ sub map_built_in {
     return $list;
 }
 
+sub map_directory {
+    my ( $dir, @xpaths ) = @_;
+    for my $path (@xpaths) {
+        if ( $path eq $dir ) {
+            warn "Ignoring $dir, as in exclude list\n";
+            return;
+        }
+    }
+    if ( -d $dir ) {
+        for my $file ( glob( $dir . q{/*} ) ) {
+            map_directory( $file, @xpaths );
+        }
+    }
+    else {
+        $dir =~ /.*[.](\w+)$/xsm;
+        if ( not defined $1 or $1 =~ /(p[lm]|t)$/xsmi ) {
+            map_file($dir);
+        }
+    }
+    return;
+}
+
 sub map_document {
     my ($string) = @_;
     my $doc = PPI::Document->new($string);
@@ -599,23 +624,48 @@ sub map_element {
     }
     if ( exists $element->{children} and $map_children ) {
         for my $child ( $element->children ) {
-#            try {
+            try {
                 map_element($child);
-#            }
-#            catch {
-#                my $mess =
-#                  "Error mapping: '$child' at line number $LINENUMBER\n";
-#                if ($DEBUG) {
-#                    croak $mess;
-#                }
-#                else {
-#                    warn $mess;
-#                }
-#            };
+            }
+            catch {
+                my $mess =
+                  "Error mapping: '$child' at line number $LINENUMBER\n";
+                if ($DEBUG) {
+                    croak $mess;
+                }
+                else {
+                    warn $mess;
+                }
+            };
         }
     }
     indent_element($element);
     return $element;
+}
+
+sub map_file {
+    my ($file) = @_;
+    $ANONYMOUS = 0;
+    my $pid = open3( undef, my $chld_out, undef, 'file', $file );
+    waitpid $pid, 0;
+    my $magic = <$chld_out>;
+    if ( $magic !~ /Perl/xsm and $file !~ /[.]t$/xsm ) {
+        warn "Ignoring $file, as not Perl code\n";
+        return;
+    }
+    my $doc = PPI::Document::File->new($file);
+    warn "Reading from $file\n";
+    map_element($doc);
+    my $outfile = map_path($file);
+    warn "Writing to $outfile\n";
+    my ( undef, $directories, undef ) = File::Spec->splitpath($outfile);
+    if ( not -d $directories ) {
+        mkdir $directories;
+    }
+    open my $fh, '>', $outfile or croak "Error opening $outfile";
+    print {$fh} $doc or croak "Error writing to $outfile";
+    close $fh or croak "Error closing $outfile";
+    return;
 }
 
 sub map_include {
@@ -831,6 +881,41 @@ sub map_interpreted_string {
         $element->{content} = "f$element->{content}";
     }
     return;
+}
+
+#https://docs.python-guide.org/writing/structure/ i.e.:
+#  bin -> bin
+#  lib/package -> package
+#  t -> tests, then ensure the contents start with test_
+#  Makefile.PL -> setup.py + Makefile
+sub map_path {
+    my ($path) = @_;
+    my ( $volume, $directories, $file ) = File::Spec->splitpath($path);
+    my @dirs    = File::Spec->splitdir($directories);
+    my $outfile = "$file.rs";
+    if ( $file =~ /(.+?)(:?[.]t)$/xsm ) {
+        my $pref = $1;
+        if ( $pref =~ /^test/xsm ) {
+            $outfile = "$pref.rs";
+        }
+        else {
+            $outfile = "test_$pref.rs";
+        }
+    }
+    elsif ( $file =~ /(.+?)(:?[.]p[lm])$/xsm ) {
+        $outfile = "$1.rs";
+    }
+    my @outdirs;
+    for (@dirs) {
+        if ( $_ eq 't' ) {
+            push @outdirs, 'tests';
+        }
+        elsif ( $_ ne 'lib' ) {
+            push @outdirs, $_;
+        }
+    }
+    return File::Spec->catpath( $volume, File::Spec->catdir(@outdirs),
+        $outfile );
 }
 
 sub map_print {
