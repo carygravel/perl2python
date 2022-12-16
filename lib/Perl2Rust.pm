@@ -893,16 +893,7 @@ sub map_path {
     my ( $volume, $directories, $file ) = File::Spec->splitpath($path);
     my @dirs    = File::Spec->splitdir($directories);
     my $outfile = "$file.rs";
-    if ( $file =~ /(.+?)(:?[.]t)$/xsm ) {
-        my $pref = $1;
-        if ( $pref =~ /^test/xsm ) {
-            $outfile = "$pref.rs";
-        }
-        else {
-            $outfile = "test_$pref.rs";
-        }
-    }
-    elsif ( $file =~ /(.+?)(:?[.]p[lm])$/xsm ) {
+    if ( $file =~ /^(.+)[.](:?(:?p[lm])|t)$/xsm ) {
         $outfile = "$1.rs";
     }
     my @outdirs;

@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Rust qw(map_document map_path);
-use Test::More tests => 2;
+use Test::More tests => 5;
 
 sub slurp {
     my ($file) = @_;
@@ -36,3 +36,10 @@ close $fh;
 system("perl bin/perl2rust $in");
 is slurp($out), $expected, "Hello world";
 unlink $in, $out;
+
+#########################
+
+is map_path('lib/package/module.pm'), 'package/module.rs', "map_path lib";
+is map_path('base/lib/package/module.pm'), 'base/package/module.rs',
+  "map_path lib2";
+is map_path('t/01_basics.t'), 'tests/01_basics.rs', "map_path t";
