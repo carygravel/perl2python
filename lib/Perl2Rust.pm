@@ -117,6 +117,39 @@ sub element_should_be_indented {
     );
 }
 
+sub ensure_include_is_top_level {
+    my ( $element, $top ) = @_;
+    if ( $element->parent ne $top ) {
+
+        # find all top-level includes
+        my $includes = $top->find(
+            sub {
+                $_[1]->isa('PPI::Statement::Include')
+                  and $_[1]->parent eq $top;
+            }
+        );
+        if ($includes) {
+            $includes->[-1]->insert_after( PPI::Token::Whitespace->new("\n") );
+            $includes->[-1]->insert_after( $element->remove );
+        }
+        else {
+            my $first_child = $top->child(0);
+            $top->__insert_before_child( $first_child, $element->remove );
+            $top->__insert_before_child( $first_child,
+                PPI::Token::Whitespace->new("\n") );
+        }
+    }
+    return;
+}
+
+sub delete_everything_after {
+    my ($element) = @_;
+    while ( my $iter = $element->next_sibling ) {
+        $iter->delete;
+    }
+    return;
+}
+
 sub get_argument_for_operator {
     my ( $element, $n ) = @_;
 
@@ -369,6 +402,63 @@ sub logger {
     return;
 }
 
+sub map_arrow_operator {
+    my ($element) = @_;
+    my @prev      = get_argument_for_operator( $element, 0 );
+    my $next      = $element->snext_sibling;
+
+    # closure -> iterator
+    if (
+        $prev[0] eq 'iter' and $next    # hard-coded to iter. Fragile.
+        and $next          and $next->isa('PPI::Structure::List')
+      )
+    {
+        $element->{content} = q{.};
+        $element->parent->__insert_before_child( $element, $prev[0]->remove );
+        $element->insert_after( PPI::Token::Word->new('next') );
+
+      # FIXME: lose any arguments the closure takes, as next can't process them.
+        for my $child ( $next->children ) {
+            $child->delete;
+        }
+    }
+    elsif (    # hashref
+        $next and ( $next->isa('PPI::Structure::Subscript')
+            or $next->isa('PPI::Structure::List') )
+        and $prev[0] ne 'self'
+      )
+    {
+        $element->delete;
+        map_subscript($next);
+    }
+    else {     # class method call
+        $element->{content} = q{.};
+        if (    $prev[0] eq 'self'
+            and $next->isa('PPI::Structure::Subscript')
+            and not $next->find_first('PPI::Token::Symbol') )
+        {
+            my $child = $next->schild(0);
+            $element->parent->__insert_after_child( $element, $child->remove );
+            $next->delete;
+        }
+
+        # methods require parens
+        elsif ( $next->isa('PPI::Token::Word') ) {
+            my $parens = $next->snext_sibling;
+            if ( not $parens or not $parens->isa('PPI::Structure::List') ) {
+                my $list =
+                  PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+                $list->{finish} = PPI::Token::Structure->new(')');
+                $next->insert_after($list);
+            }
+        }
+        else {
+            $element->delete;
+        }
+    }
+    return;
+}
+
 sub map_built_in {
     my ( $element, @args ) = @_;
     my $statement = $element->parent;
@@ -396,7 +486,7 @@ sub map_built_in {
         $try->add_element( PPI::Token::Word->new('try') );
         my $block =
           PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
-        $block->{start}->{content} = q{:};
+        $block->{finish} = PPI::Token::Structure->new("}\n");
         $try->add_element($block);
         $block->add_element( PPI::Token::Whitespace->new("\n") );
         $block->add_element( $statement->remove );
@@ -406,7 +496,7 @@ sub map_built_in {
             PPI::Token::Whitespace->new("\n"), $except );
         $except->add_element( PPI::Token::Word->new('except') );
         $block = PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
-        $block->{start}->{content} = q{:};
+        $block->{finish} = PPI::Token::Structure->new("}\n");
         $except->add_element($block);
         $block->add_element( PPI::Token::Whitespace->new("\n") );
         $statement = PPI::Statement->new;
@@ -423,6 +513,66 @@ sub map_built_in {
         indent_element($statement);
     }
     return $list;
+}
+
+sub map_cast {
+    my ($element) = @_;
+
+    # implicit cast from array to scalar -> len()
+    my $operator = $element->sprevious_sibling;
+    my $parent   = $element->parent;
+    my $block    = $element->snext_sibling;
+    if (   $element eq q{@}
+        or $element eq q{$#} )    ## no critic (RequireInterpolationOfMetachars)
+    {
+
+        # array cast in list context
+        if ( not $operator
+            and $element ne
+            q{$#} )               ## no critic (RequireInterpolationOfMetachars)
+        {
+            remove_cast( $element, $block, $parent );
+        }
+
+        # array cast in scalar context -> len()
+        elsif ( defined $PRECEDENCE{$operator}
+            or $element eq
+            q{$#} )               ## no critic (RequireInterpolationOfMetachars)
+        {
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list->{finish} = PPI::Token::Structure->new(')');
+            $parent->__insert_after_child( $element,
+                PPI::Token::Word->new('len'), $list );
+            if ( not $block->isa('PPI::Structure::Block') ) {
+                croak "Expected block, found '$block'\n";
+            }
+            for my $child ( $block->children ) {
+                map_element($child);
+                $list->add_element( $child->remove );
+            }
+            if ( $element eq
+                q{$#} )    ## no critic (RequireInterpolationOfMetachars)
+            {
+                $list->insert_after( PPI::Token::Number->new(1) );
+                $list->insert_after( PPI::Token::Operator->new(q{-}) );
+            }
+            $element->delete;
+            $block->delete;
+        }
+    }
+
+    # cast from hashref to hash or scalar ref to scalar -> remove cast
+    elsif ( $element =~ /^[\$%]$/xsm and $block->isa('PPI::Structure::Block') )
+    {
+        remove_cast( $element, $block, $parent );
+    }
+
+    # cast to ref -> remove cast
+    elsif ( $element eq q{\\} ) {
+        $element->delete;
+    }
+    return;
 }
 
 sub map_directory {
@@ -513,10 +663,6 @@ sub map_element {
                 $element->delete;
                 return;
             }
-        }
-        when (/PPI::Structure::Block/xsm) {
-            $element->{start}->{content}  = q{:};
-            $element->{finish}->{content} = q{};
         }
         when (/PPI::Structure::Subscript/xsm) {
             map_subscript($element);
@@ -643,6 +789,34 @@ sub map_element {
     return $element;
 }
 
+sub map_expression {
+    my ($element) = @_;
+
+    # remove any newlines that aren't enclosed by parens
+    my $newlines = $element->find(
+        sub {
+            $_[1]->isa('PPI::Token::Whitespace')
+              and $_[1]->content =~ /\n/xsm;
+        }
+    );
+    if ($newlines) {
+        for my $newline ( @{$newlines} ) {
+            my $list;
+            my $parent = $newline;
+            while ( $parent = $parent->parent ) {
+                if (   $parent->isa('PPI::Structure::List')
+                    or $parent->isa('PPI::Structure::Constructor') )
+                {
+                    $list = $parent;
+                    break;
+                }
+            }
+            if ( not $list ) { $newline->delete }
+        }
+    }
+    return;
+}
+
 sub map_file {
     my ($file) = @_;
     $ANONYMOUS = 0;
@@ -693,7 +867,7 @@ sub map_include {
         }
         when ('Test::More') {
             my $def = PPI::Statement::Sub->new;
-            $def->add_element( PPI::Token::Word->new("\ndef") );
+            $def->add_element( PPI::Token::Word->new("\nfn") );
             $def->add_element( PPI::Token::Whitespace->new(q{ }) );
             $def->add_element( PPI::Token::Word->new('test_1') );
             my $list =
@@ -701,12 +875,13 @@ sub map_include {
             $list->{finish} = PPI::Token::Structure->new(')');
             $def->add_element($list);
             $element->insert_after($def);
+            $element->insert_before( PPI::Token::Comment->new('#[test]') );
             $element->delete;
 
             # Add a block to scope and indent things properly
             my $block =
               PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
-            $block->{start}->{content} = q{:};
+            $block->{finish} = PPI::Token::Structure->new("}\n");
             $def->add_element($block);
             while ( my $next = $def->next_sibling ) {
                 $block->add_element( $next->remove );
@@ -754,21 +929,9 @@ sub map_include {
             }
         }
         when ('Gtk3') {
-            add_import( $element, 'gi' );
-            my $parent    = $element->parent;
-            my $statement = PPI::Statement->new;
-            $statement->add_element(
-                PPI::Token::Word->new('gi.require_version("Gtk", "3.0")') );
-            $parent->__insert_before_child( $element, $statement );
-            $parent->__insert_before_child( $element,
-                PPI::Token::Whitespace->new("\n") );
-            $element->add_element( PPI::Token::Whitespace->new(q{ }) );
-            delete_everything_after($path);
-            $element->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $symbols = PPI::Token::Quote::Double->new('"Gtk"');
-            $element->add_element($symbols);
-            $module = 'gi.repository';
-            indent_element($statement);
+            $module = 'gtk';
+            $symbols->delete;
+            undef $symbols;
         }
         when ('Image::Magick') {
             $module = 'PythonMagick';
@@ -849,8 +1012,7 @@ sub map_include {
         map_import_symbols( $import, $path, $module, $symbols );
     }
     else {
-        $import->{content} = 'import';
-        $path->{content}   = $module;
+        $path->{content} = $module;
     }
     return;
 }
@@ -883,6 +1045,169 @@ sub map_interpreted_string {
     return;
 }
 
+sub map_is {
+    my ($element) = @_;
+    map_built_in($element);
+    $element->{content} = 'assert_eq!';
+    return;
+}
+
+sub map_ok {
+    my ($element) = @_;
+    map_built_in($element);
+    $element->{content} = 'assert!';
+    return;
+}
+
+sub map_operator {
+    my ($element) = @_;
+    if ( not $element->{content} ) { return }
+    $element->{originally} = $element->{content};
+    given ("$element") {
+        when (q{?}) {
+            my @conditional = get_argument_for_operator( $element, 0 );
+            my @true        = get_argument_for_operator( $element, 1 );
+
+            # Work around https://github.com/Perl-Critic/PPI/issues/262
+            if ( $true[0]->isa('PPI::Token::Label') ) {
+                my $word = $true[0]->content;
+                $word =~ s/[ ]*:$//xsm;
+                $word = PPI::Token::Word->new($word);
+                $true[0]->insert_before($word);
+                map_word($word);
+                $true[0]->insert_after( PPI::Token::Operator->new(q{:}) );
+                $true[0]->delete;
+                @true = get_argument_for_operator( $element, 1 );
+            }
+
+            my $operator = $true[-1]->snext_sibling;
+            my @false    = get_argument_for_operator( $operator, 1 );
+
+            # map true/false expressions before mapping ternary in case we
+            # change the precedence in doing so
+            if ( defined $BUILTINS{ $true[0]->content } ) {
+                my $list = map_built_in(@true);
+                @true = ( $true[0], $list );
+            }
+            if ( defined $BUILTINS{ $false[0]->content } ) {
+                my $list = map_built_in(@false);
+                @false = ( $false[0], $list );
+            }
+
+            if ( $operator ne q{:} or not( @true and @false ) ) {
+                croak
+"Error parsing conditional operator: '@conditional $element @true $operator @false'\n";
+            }
+            $element->{content}  = 'if';
+            $operator->{content} = 'else';
+            my $parent = $element->parent;
+            for my $conditional (@conditional) {
+                $parent->__insert_after_child( $element, $conditional->remove );
+            }
+            $parent->__insert_after_child( $element,
+                PPI::Token::Whitespace->new(q{ }) );
+            for my $true (@true) {
+                $parent->__insert_before_child( $element, $true->remove );
+            }
+            $parent->__insert_before_child( $element,
+                PPI::Token::Whitespace->new(q{ }) );
+        }
+        when (q{.=}) {
+            $element->{content} = q{+=};
+        }
+        when (q{++}) {
+            $element->{content} = q{+=};
+            my @next = get_argument_for_operator( $element, 1 );
+            if (@next) {
+                for my $next (@next) {
+                    $element->insert_before( $next->remove );
+                }
+            }
+            $element->insert_after( PPI::Token::Number->new(1) );
+        }
+        when (q{.}) {
+            $element->{content} = q{+};
+        }
+        when (q{..}) {
+            my @start = get_argument_for_operator( $element, 0 );
+            my @stop  = get_argument_for_operator( $element, 1 );
+            $start[0]->insert_before( PPI::Token::Word->new('range') );
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list->{finish} = PPI::Token::Structure->new(')');
+            $start[0]->insert_before($list);
+            if ( $start[0] eq '0' ) {
+                $start[0]->delete;
+            }
+            else {
+                for my $child (@start) {
+                    $list->add_element( $child->remove );
+                }
+                $list->add_element( PPI::Token::Operator->new(q{,}) );
+            }
+            for my $child (@stop) {
+                $list->add_element( $child->remove );
+            }
+            $list->add_element( PPI::Token::Operator->new(q{+}) );
+            $list->add_element( PPI::Token::Number->new(1) );
+            $element->delete;
+        }
+        when (q{!}) {
+            $element->{content} = q{not};
+        }
+        when (q{=>}) {
+            map_fat_comma($element);
+        }
+        when (q{->}) {
+            map_arrow_operator($element);
+        }
+        when (/^-[fs]$/xsm) {
+            add_import( $element, 'os' );
+            my $parent = $element->parent;
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $list->{finish} = PPI::Token::Structure->new(')');
+            my @args = get_argument_for_operator( $element, 1 );
+            for (@args) {
+                $list->add_element( $_->remove );
+            }
+            my $method;
+            if ( $element eq '-f' ) {
+                $method = 'isfile';
+            }
+            elsif ( $element eq '-s' ) {
+                $method = 'getsize';
+            }
+            $parent->__insert_after_child( $element,
+                PPI::Token::Word->new("os.path.$method"), $list );
+            $element->delete;
+        }
+        when ('eq') {
+            $element->{content} = q{==};
+        }
+        when ('ge') {
+            $element->{content} = q{>=};
+        }
+        when ('gt') {
+            $element->{content} = q{>};
+        }
+        when ('le') {
+            $element->{content} = q{<=};
+        }
+        when ('lt') {
+            $element->{content} = q{<};
+        }
+        when ('ne') {
+            $element->{content} = q{!=};
+        }
+        when ('xor') {
+            $element->{content} = q{^};
+        }
+    }
+    return;
+}
+
+# FIXME:
 #https://docs.python-guide.org/writing/structure/ i.e.:
 #  bin -> bin
 #  lib/package -> package
@@ -966,10 +1291,82 @@ sub map_print {
     return;
 }
 
+sub map_subscript {
+    my ($element) = @_;
+    $element->{start}->{originally}  = $element->{start}->{content};
+    $element->{start}->{content}     = q{.get(};
+    $element->{finish}->{originally} = $element->{finish}->{content};
+    $element->{finish}->{content}    = q{)};
+    my $expression = $element->schild(0);
+    if (    $element->{start}->{originally}
+        and $element->{start}->{originally} eq '{'
+        and $expression )
+    {
+        my $key = $expression->schild(0);
+        if ( $key->isa('PPI::Token::Word') ) {
+            if ( $key ne 'scalar' ) {
+                $key->{content} = '&String::from("' . $key . '")';
+            }
+        }
+    }
+    return;
+}
+
+sub map_symbol {
+    my ($element) = @_;
+    if ( not $element->{content} ) { return }
+    if (
+        $element eq '$SIG'    ## no critic (RequireInterpolationOfMetachars)
+        and $element->snext_sibling eq '{__WARN__}'
+      )
+    {
+        add_import( $element, 'logging' );
+        my $statement = $element->parent;
+        for my $child ( $statement->children ) {
+            $child->delete;
+        }
+        $statement->add_element(
+            PPI::Token::Word->new('logging.captureWarnings(True)') );
+
+    }
+    else {
+        if ( $element->{content} =~ /^@/smx ) {
+            my $operator = $element->snext_sibling;
+            my $method   = $element->sprevious_sibling;
+            if ($operator) {
+                if ( $operator eq q{=} ) {
+                    my $list = $operator->snext_sibling;
+                    if ($list) {
+                        $list->{start}->{content}  = q{[};
+                        $list->{finish}->{content} = q{]};
+                    }
+                }
+
+                # map scalar @array -> len(array)
+                elsif ( $operator =~ /(?:==|<=|>=|!=|[><+-])/xsm
+                    and ( not $method or $method ne 'assert' ) )
+                {
+                    my $list =
+                      PPI::Structure::List->new(
+                        PPI::Token::Structure->new('(') );
+                    $list->{finish} = PPI::Token::Structure->new(')');
+                    $element->insert_before( PPI::Token::Word->new('len') );
+                    $element->insert_before($list);
+                    $list->add_element( $element->remove );
+                }
+            }
+        }
+        $element->{content} =~ s/^[\$@%&]//smx;
+        if ( $element->{content} ~~ @RESERVED_WORDS ) {
+            $element->{content} = "_$element->{content}";
+        }
+    }
+    return;
+}
+
 sub map_word {
     my ($element) = @_;
     if ( not $element->{content} ) { return }
-    $element->{content} =~ s/::/./gsm;
     given ("$element") {
         when ('FALSE') {    # special-case common bare words
             $element->{content} = 'False';
@@ -992,7 +1389,7 @@ sub map_word {
             add_import( $element, 'gi.repository', 'Gdk' );
         }
         when (/Gtk\d/xsm) {
-            $element->{content} =~ s/Gtk\d/Gtk/gsmx;
+            $element->{content} =~ s/Gtk\d/gtk/gsmx;
         }
         when ('Image.Magick') {
             map_image_magick($element);
@@ -1098,11 +1495,11 @@ sub map_word {
             map_is($element);
         }
         when ('isa_ok') {
-            $element->insert_before( PPI::Token::Word->new('assert') );
-            $element->insert_before( PPI::Token::Whitespace->new(q{ }) );
-            $element->{content} = 'isinstance';
+            my $list = map_built_in($element);
+            $element->{content} = 'assert!';
+            my $operator = $element->snext_sibling->schild(0)->schild(1);
+            $operator->{content} = ' is';
             my $type = $element->snext_sibling->schild(0)->schild($LAST);
-            $type->{content} =~ s/::/./gsm;
             $type->{content} =~ s/["']//gsmx;
         }
         when (/^(?:keys|values)$/xsm) {
@@ -1184,9 +1581,12 @@ sub map_word {
             map_open($element);
         }
         when ('pass') {
-            $element->{content} = 'assert True';
-            if ( $element->snext_sibling ) {
-                $element->insert_after( PPI::Token::Operator->new(q{,}) );
+            my $list = map_built_in($element);
+            $element->{content} = 'assert!';
+            my $comment = $list->schild(0);
+            if ($comment) {
+                $comment->insert_before( PPI::Token::Word->new('true') );
+                $comment->insert_before( PPI::Token::Operator->new(q{,}) );
             }
         }
         when (/^printf?$/xsm) {
@@ -1318,6 +1718,20 @@ sub nest_level {
 sub next_sibling {
     my ( $element, $n ) = @_;
     return $n == 0 ? $element->sprevious_sibling : $element->snext_sibling;
+}
+
+sub remove_parens_map_children {
+    my ($element) = @_;
+
+    # map and move in separate step to keep context
+    for my $child ( $element->schild(0)->children ) {
+        map_element($child);
+    }
+    for my $child ( $element->schild(0)->children ) {
+        $element->insert_before( $child->remove );
+    }
+    $element->delete;
+    return;
 }
 
 1;
