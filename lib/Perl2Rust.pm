@@ -575,6 +575,60 @@ sub map_cast {
     return;
 }
 
+sub map_compound {
+    my ($element) = @_;
+    my $conditions = $element->find('PPI::Structure::Condition');
+    if ($conditions) {
+        for my $condition ( @{$conditions} ) {
+            if ( not $condition or $condition->parent ne $element ) { next }
+            my $expression =
+              $condition->find_first('PPI::Statement::Expression');
+
+            # variable assignments can only occur with for var in iterator
+            my $assignment = $expression->find_first(
+                sub {
+                    $_[1]->isa('PPI::Token::Operator')
+                      and $_[1]->content eq q{=};
+                }
+            );
+            if ($assignment) {
+                $assignment->{content} = 'in';
+                my $word = $element->schild(0);
+                if ( $word eq 'while' ) {
+                    $word->{content} = 'for';
+                }
+            }
+            $element->__insert_after_child( $condition, $expression->remove );
+            $condition->delete;
+        }
+    }
+    my $word = $element->schild(0);
+    my $list = $element->find_first('PPI::Structure::List');
+    if ( $word =~ /(?:while|for)/xsm and $list and $list->parent eq $element ) {
+
+        # if no variable assignment, map magic
+        my $var = $list->sprevious_sibling;
+        if ( $var eq $word ) {
+            $element->__insert_before_child(
+                $list,
+                PPI::Token::Symbol->new('_'),
+                PPI::Token::Whitespace->new(q{ })
+            );
+        }
+
+        for my $child ( $list->children ) {
+            $element->__insert_after_child( $list, $child->remove );
+        }
+        $element->__insert_after_child(
+            $list,
+            PPI::Token::Operator->new('in'),
+            PPI::Token::Whitespace->new(q{ })
+        );
+        $list->delete;
+    }
+    return;
+}
+
 sub map_directory {
     my ( $dir, @xpaths ) = @_;
     for my $path (@xpaths) {
@@ -770,23 +824,109 @@ sub map_element {
     }
     if ( exists $element->{children} and $map_children ) {
         for my $child ( $element->children ) {
-            try {
-                map_element($child);
-            }
-            catch {
-                my $mess =
-                  "Error mapping: '$child' at line number $LINENUMBER\n";
-                if ($DEBUG) {
-                    croak $mess;
-                }
-                else {
-                    warn $mess;
-                }
-            };
+
+            #            try {
+            map_element($child);
+
+      #            }
+      #            catch {
+      #                my $mess =
+      #                  "Error mapping: '$child' at line number $LINENUMBER\n";
+      #                if ($DEBUG) {
+      #                    croak $mess;
+      #                }
+      #                else {
+      #                    warn $mess;
+      #                }
+      #            };
         }
     }
     indent_element($element);
     return $element;
+}
+
+sub map_eval {
+    my ($element) = @_;
+
+    # map
+    #   if ( not eval { require Package; } ) {plan(skip_all)}
+    # or
+    #   eval "use Package";
+    #   plan skip_all => "Package required" if $@;
+    # -> match MyPackage::new() { Ok(package) => {}, Err(_) => {} }
+    my $arg = $element->snext_sibling;
+    my ( $module, $expression, $compound, $statement1, $statement2 );
+    if (
+        $arg->isa('PPI::Structure::Block')
+        and my $import = $arg->find_first(
+            sub {
+                $_[1]->isa('PPI::Token::Word')
+                  and $_[1]->content =~ /^(?:require|use)/xsm;
+            }
+        )
+      )
+    {
+        $module = $import->snext_sibling;
+    }
+    elsif ( $arg->isa('PPI::Token::Quote')
+        and $arg =~ /^["'](?:require|use)\s+([\w:]+)/xsm )
+    {
+        $module = $1;
+    }
+    if ($module) {
+        if (
+                $expression = $element->parent
+            and $expression->isa('PPI::Statement::Expression')
+            and $compound = $expression->parent
+            and $compound->isa('PPI::Statement::Compound')
+            and $compound->find_first(
+                sub {
+                    $_[1]->isa('PPI::Token::Word')
+                      and $_[1]->content eq 'skip_all';
+                }
+            )
+          )
+        {
+            my $message = $compound->find_first('PPI::Token::Quote');
+            $compound->parent->__insert_before_child(
+                $compound,
+                PPI::Token::Word->new(
+                        "match $module"
+                      . "::new() { Ok(package) => {}, Err(_) => { println!($message); } }"
+                )
+            );
+            $compound->delete;
+            return;
+        }
+        elsif (
+                $statement1 = $element->parent
+            and $statement1->isa('PPI::Statement')
+            and $statement2 = $statement1->snext_sibling
+            and $statement2->isa('PPI::Statement')
+            and $statement2->find_first(
+                sub {
+                    $_[1]->isa('PPI::Token::Word')
+                      and $_[1]->content eq 'skip_all';
+                }
+            )
+          )
+        {
+            my $message = $statement2->find_first('PPI::Token::Quote');
+            $statement1->parent->__insert_before_child(
+                $statement1,
+                PPI::Token::Word->new(
+                        "match $module"
+                      . "::new() { Ok(package) => {}, Err(_) => { println!($message); } }"
+                )
+            );
+            $statement1->delete;
+            $statement2->delete;
+            return;
+        }
+    }
+
+    map_built_in($element);
+    return;
 }
 
 sub map_expression {
@@ -1232,6 +1372,26 @@ sub map_path {
     }
     return File::Spec->catpath( $volume, File::Spec->catdir(@outdirs),
         $outfile );
+}
+
+sub map_postfix_if {
+    my ($element) = @_;
+    my $prev = $element->sprevious_sibling;
+    if ( not $prev ) { return }
+    my $cstatement = PPI::Statement::Compound->new;
+    my $ostatement = $element->parent;
+    my $condition  = $element->snext_sibling;
+    my $expression = $condition->schild(0);
+    $ostatement->insert_before($cstatement);
+    my $block = PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+    $block->{start}->{content} = q{:};
+    $cstatement->add_element( $element->remove );
+    $cstatement->add_element( PPI::Token::Whitespace->new(q{ }) );
+    $cstatement->add_element( $condition->remove );
+    $condition->insert_after($block);
+    $block->add_element( $ostatement->remove );
+    indent_element($cstatement);
+    return;
 }
 
 sub map_print {

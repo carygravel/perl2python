@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English   qw( -no_match_vars );        # for $INPUT_RECORD_SEPARATOR
 use Perl2Rust qw(map_document map_path);
-use Test::More tests => 6;
+use Test::More tests => 7;
 
 sub slurp {
     my ($file) = @_;
@@ -95,3 +95,15 @@ close $fh;
 system("perl bin/perl2rust $in");
 is slurp($out), $expected, "Basic test";
 unlink $in, $out;
+
+$script = <<'EOS';
+if ( not eval { require MyPackage; } ) {
+    plan( skip_all => "MyPackage required to run tests" );
+}
+EOS
+
+$expected = <<'EOS';
+match MyPackage::new() { Ok(package) => {}, Err(_) => { println!("MyPackage required to run tests"); } }
+EOS
+
+is map_document( \$script ), $expected, "conditionally skip tests";
