@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English   qw( -no_match_vars );        # for $INPUT_RECORD_SEPARATOR
 use Perl2Rust qw(map_document map_path);
-use Test::More tests => 11;
+use Test::More tests => 12;
 
 sub slurp {
     my ($file) = @_;
@@ -66,7 +66,7 @@ ok( $dialog->get('property') == 'value', 'comment' );
 EOS
 
 $expected = <<'EOS';
-use gtk ;
+use gtk;
 #[test]
 fn test_1(){
 
@@ -78,8 +78,8 @@ fn test_1(){
     method_with_is();
     assert_eq!(result, expected, "comment");
     assert_eq!( hashref.get(&String::from("array")), that, 'comment' );
-    assert_eq!( MyClass.method(), 'return value', 'comment' );
-    assert_eq!( MyClass.method(), 'return value', 'comment' );
+    assert_eq!( MyClass::method(), 'return value', 'comment' );
+    assert_eq!( MyClass::method(), 'return value', 'comment' );
     assert_eq!( iter.next(), 'return value', 'comment' );
     assert!( object is My::Class );
     assert!(true,'comment') ;
@@ -170,3 +170,27 @@ EOS
 
 is map_document( \$script ), $expected,
   "map use with symbol, special casing import Glib";
+
+$script = <<'EOS';
+use Gtk3 0.028 -init;
+my $window = Gtk3::Window->new;
+$event = Gtk3::Gdk::Event->new('key-press');
+$event->keyval(Gtk3::Gdk::KEY_Delete);
+$val=$event->keyval();
+$dialog->signal_connect_after( key_press_event => sub {} );
+return Gtk3::EVENT_PROPAGATE;
+$flags = ${ Gtk3::TargetFlags->new(qw/same-widget/) };
+EOS
+
+$expected = <<'EOS';
+use gtk;
+let window = gtk::Window::new();
+event = gdk::Event::new('key-press');
+event.keyval=gdk::KEY_Delete;
+val=event.keyval();
+dialog.connect_after( "key_press_event" , sub {} );
+return gdk::EVENT_PROPAGATE;
+flags = gtk::TargetFlags::new(["same-widget"]);
+EOS
+
+is map_document( \$script ), $expected, "special case import Gtk3/Gdk";

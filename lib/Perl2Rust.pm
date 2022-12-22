@@ -437,7 +437,10 @@ sub map_arrow_operator {
         map_subscript($next);
     }
     else {     # class method call
-        $element->{content} = q{.};
+        if ( $prev[-1]->isa('PPI::Token::Word') ) {
+            $element->{content} = q{::};
+        }
+        else { $element->{content} = q{.} }
         if (    $prev[0] eq 'self'
             and $next->isa('PPI::Structure::Subscript')
             and not $next->find_first('PPI::Token::Symbol') )
@@ -990,7 +993,7 @@ sub map_file {
 sub map_import_symbols {
     my ( $import, $path, $module, $symbols ) = @_;
     my $whitespace = $symbols->previous_sibling;
-    $whitespace->{content} = q{::};
+    if ($whitespace) { $whitespace->{content} = q{::} }
     my @symbols;
     if ( $symbols->isa('PPI::Token::Quote') ) {
         $symbols->{content} = quote2content($symbols);
@@ -1105,6 +1108,7 @@ sub map_include {
         }
         when ('Gtk3') {
             $module = 'gtk';
+            delete_everything_after($path);
             $symbols->delete;
             undef $symbols;
         }
@@ -1224,6 +1228,58 @@ sub map_is {
     my ($element) = @_;
     map_built_in($element);
     $element->{content} = 'assert_eq!';
+    return;
+}
+
+sub map_fat_comma {    # =>
+    my ($element)  = @_;
+    my $expression = $element->parent;
+    my $parent     = $expression->parent;
+    my $prev       = $parent->sprevious_sibling;
+    my @largument  = get_argument_for_operator( $element, 0 );
+    my @rargument  = get_argument_for_operator( $element, 1 );
+
+    # function call - map -> name arguments
+    if (    $expression->isa('PPI::Statement')
+        and $parent->isa('PPI::Structure::List')
+        and $prev->isa('PPI::Token::Word') )
+    {
+        $element->{content} = q{=};
+        my $property = $element->sprevious_sibling;
+
+        # remove quotes from properties, mapping hyphens to underscores
+        if ( $property->isa('PPI::Token::Quote') ) {
+            my $word = PPI::Token::Word->new( substr $property->{content},
+                1, length( $property->{content} ) - 2 );
+            $word->{content} =~ s/-/_/gxsm;
+            $property->insert_after($word);
+            $property->delete;
+        }
+        return;
+    }
+    if ( @largument == 1 and $largument[0]->isa('PPI::Token::Word') ) {
+        my $key = PPI::Token::Quote::Double->new( q{"} . $largument[0] . q{"} );
+        $expression->__insert_before_child( $largument[0], $key );
+        $largument[0]->delete;
+    }
+    if ( not $parent->isa('PPI::Structure::Constructor') ) {
+        if ( $parent->isa('PPI::Structure::List')
+            and not $prev->isa('PPI::Token::Word') )
+        {
+            if ( $parent->{start} ne '{' ) {
+                $parent->{start}{content}  = '{';
+                $parent->{finish}{content} = '}';
+            }
+        }
+        else {
+            my $list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('{') );
+            $list->{finish} = PPI::Token::Structure->new('}');
+            $parent->__insert_before_child( $expression, $list );
+            $list->add_element( $expression->remove );
+        }
+    }
+    $element->{content} = q{:};
     return;
 }
 
@@ -1486,6 +1542,73 @@ sub map_print {
     return;
 }
 
+sub map_sub {
+    my ($element) = @_;
+    my $name = $element->name;
+    if ( not defined $name or $name eq q{} ) {
+        croak "Anonymous subs not yet supported\n";
+    }
+    my $child = $element->schild(0);
+    if ( $child ne 'sub' ) {
+        croak "Unknown sub: $element\n";
+    }
+    $child->{content} = 'def';
+    $child = $child->snext_sibling;
+
+    # new -> __init__ for classes
+    if ( $child eq 'new' ) {
+        my $parent = $child;
+        while ( $parent = $parent->parent ) {
+            if (    $parent->isa('PPI::Statement::Sub')
+                and $parent->schild(0) eq 'class' )
+            {
+                $child->{content} = '__init__';
+                last;
+            }
+        }
+
+    }
+
+    my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+    $list->{finish} = PPI::Token::Structure->new(')');
+    $child->insert_after($list);
+
+    my (@docstring);
+    my $prev = $element;
+    while (
+        $prev = $prev->previous_sibling
+        and (  $prev->isa('PPI::Token::Comment')
+            or $prev->isa('PPI::Token::Whitespace') )
+      )
+    {
+        unshift @docstring, $prev;
+    }
+
+    # trim docstring
+    while ( @docstring and $docstring[0]->isa('PPI::Token::Whitespace') ) {
+        shift @docstring;
+    }
+    while ( @docstring and $docstring[-1]->isa('PPI::Token::Whitespace') ) {
+        pop @docstring;
+    }
+
+    # convert to string
+    if (@docstring) {
+        my $docstring = PPI::Token::Quote::Single->new(q{"""});
+        my $statement = PPI::Statement->new;
+        $statement->add_element($docstring);
+        for my $item (@docstring) {
+            $item->{content} =~ s/^[#]\s*//xsm;
+            $docstring->{content} .= $item->{content};
+            $item->delete;
+        }
+        $docstring->{content} .= q{"""};
+        my $block = $element->find_first('PPI::Structure::Block');
+        $block->__insert_after_child( $block->child(0), $statement );
+    }
+    return;
+}
+
 sub map_subscript {
     my ($element) = @_;
     $element->{start}->{originally}  = $element->{start}->{content};
@@ -1644,13 +1767,11 @@ sub map_word {
         when ('Glib.Type') {
             $element->{content} = 'GObject.TypeModule';
         }
-        when (/Gtk\d[.]Gdk/xsm) {
-            $element->{content} =~ s/Gtk\d[.]//gsmx;
-            add_import( $element, 'gi.repository', 'Gdk' );
+        when (/Gtk\d::Gdk/xsm) {
+            $element->{content} =~ s/Gtk\d::Gdk/gdk/gsmx;
         }
-        when (/Gtk\d[.]EVENT/xsm) {
-            $element->{content} =~ s/Gtk\d/Gdk/gsmx;
-            add_import( $element, 'gi.repository', 'Gdk' );
+        when (/Gtk\d::EVENT/xsm) {
+            $element->{content} =~ s/Gtk\d/gdk/gsmx;
         }
         when (/Gtk\d/xsm) {
             $element->{content} =~ s/Gtk\d/gtk/gsmx;
@@ -1783,8 +1904,8 @@ sub map_word {
                     $element->parent->__insert_after_child( $list,
                         $child->remove );
                 }
+                $list->delete;
             }
-            $list->delete;
         }
         when ('killfam') {
             add_import( $element, 'os' );
@@ -1833,10 +1954,6 @@ sub map_word {
         }
         when ('next') {
             map_built_in($element);
-        }
-
-        when ('new') {
-            map_new($element);
         }
         when ('ok') {
             map_ok($element);
@@ -1893,8 +2010,7 @@ sub map_word {
                 map_element($list);
                 my $exp   = $list->schild(0);
                 my $event = $exp->schild(0);
-                $event->{content} =~ s/_/-/gxsm;
-                $event->{content} = "'$event->{content}'";
+                $event->{content} = '"' . $event->{content} . '"';
                 my $op = $exp->schild(1);
                 $op->{content} = q{,};
             }
@@ -1914,9 +2030,6 @@ sub map_word {
         }
         when ('stat') {
             $element->{content} = 'os.stat';
-        }
-        when ('sub') {
-            map_anonymous_sub($element);
         }
         when ('system') {
             map_system($element);
@@ -1949,7 +2062,6 @@ sub map_word {
                 my $separator = $quote->{separator};
                 $quote->{content} =~ s{^$separator}{}xsm;
                 $quote->{content} =~ s{$separator$}{}xsm;
-                $quote->{content} =~ s/::/./gsm;
             }
         }
         when ('waitpid') {
@@ -1987,6 +2099,16 @@ sub next_sibling {
 sub quote2content {
     my ($element) = @_;
     return substr $element->{content}, 1, length( $element->{content} ) - 2;
+}
+
+sub remove_cast {
+    my ( $element, $block, $parent ) = @_;
+    my $child = $block->schild(0);
+    map_element($child);
+    $parent->__insert_after_child( $block, $child->remove );
+    $element->delete;
+    $block->delete;
+    return;
 }
 
 sub remove_parens_map_children {
