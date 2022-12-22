@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English   qw( -no_match_vars );        # for $INPUT_RECORD_SEPARATOR
 use Perl2Rust qw(map_document map_path);
-use Test::More tests => 9;
+use Test::More tests => 10;
 
 sub slurp {
     my ($file) = @_;
@@ -141,3 +141,13 @@ let var = MyModule::MySubModule::MODULE_CONSTANT;
 EOS
 
 is map_document( \$script ), $expected, "import";
+
+$script = <<'EOS';
+use MyModule::MySubModule::MySubSubModule 2.40;
+EOS
+
+$expected = <<'EOS';
+use MyModule::MySubModule::MySubSubModule ;
+EOS
+
+is map_document( \$script ), $expected, "import ignore version";
