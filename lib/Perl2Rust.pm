@@ -978,8 +978,35 @@ sub map_file {
     }
     open my $fh, '>', $outfile or croak "Error opening $outfile";
     print {$fh} $doc or croak "Error writing to $outfile";
-    close $fh or croak "Error closing $outfile";
+    close $fh        or croak "Error closing $outfile";
     return;
+}
+
+sub map_import_symbols {
+    my ( $import, $path, $module, $symbols ) = @_;
+    my @symbols;
+    if ( $symbols->isa('PPI::Token::Quote') ) {
+        $symbols->{content} = quote2content($symbols);
+        if ( $symbols eq ':all' ) {
+            $symbols->{content} = q{*};
+        }
+        push @symbols, $symbols;
+    }
+    else {
+        my $string = substr $symbols->content,
+          $symbols->{sections}[0]{position}, $symbols->{sections}[0]{size};
+        my $i = 0;
+        for ( split q{ }, $string ) {
+            if ( $i++ ) {
+                push @symbols, PPI::Token::Whitespace->new(q{,});
+                $symbols->insert_before( $symbols[-1] );
+            }
+            push @symbols, PPI::Token::Word->new($_);
+            $symbols->insert_before( $symbols[-1] );
+        }
+        $symbols->delete;
+    }
+    return @symbols;
 }
 
 sub map_include {
@@ -1032,13 +1059,13 @@ sub map_include {
             ensure_include_is_top_level( $element, $top );
         }
     }
-    $module =~ s/::/./gsm;
 
     if ( $import ne 'use' ) {
         croak "Unrecognised include $element\n";
     }
     my $path    = $import->snext_sibling;
     my $symbols = $path->snext_sibling;
+    if ( $symbols eq q{;} ) { undef $symbols }
     given ("$path") {
         when ('Data::UUID') {
             $module = 'uuid';
@@ -1524,6 +1551,75 @@ sub map_symbol {
     return;
 }
 
+sub map_variable {
+    my ($element) = @_;
+    my $operator = $element->find_first('PPI::Token::Operator');
+    if ( $operator eq 'in' ) {
+        my $iter = $operator->snext_sibling;
+        if ($iter) {
+            my $operator2 = $iter->snext_sibling;
+            if ( $operator2 eq '->' ) {
+                my $list = $operator2->snext_sibling;
+                if ( $list eq '()' ) {
+                    $list->delete;
+                    $operator2->delete;
+                }
+            }
+        }
+    }
+
+    # ensure global variables appear before class definitions
+    elsif (
+        $element->find_first(
+            sub {
+                $_[1]->isa('PPI::Token::Operator')
+                  and $_[1]->content eq q{=};
+            }
+        )
+      )
+    {
+        my $symbol = $element->find_first('PPI::Token::Symbol');
+        if ( $symbol =~ /^[\$@%][[:upper:]\d_]+$/xsm ) {
+            my $parent = $element->parent;
+            if ( not $parent->isa('PPI::Document') ) {
+                my $gparent = $parent->parent;
+                $gparent->insert_before( $element->remove );
+                $gparent->insert_before( PPI::Token::Whitespace->new("\n") );
+            }
+        }
+    }
+    else {
+        $element->add_element( PPI::Token::Operator->new(q{=}) );
+
+        # map my ($var1, @var2, %var3) -> (var1, var2) = (None, [], {})
+        if ( my $list = $element->find_first('PPI::Structure::List') ) {
+            my $dest_list =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $dest_list->{finish} = PPI::Token::Structure->new(')');
+            $element->add_element($dest_list);
+            for my $child ( $list->schild(0)->children ) {
+                if ( $child->isa('PPI::Token::Symbol') ) {
+                    $dest_list->add_element(
+                        create_variable_definition($child) );
+                }
+                elsif ( $child eq q{,} ) {
+                    $dest_list->add_element( PPI::Token::Operator->new(q{,}) );
+                }
+            }
+        }
+
+        # map my $var1 -> var1 = None
+        else {
+            $element->add_element(
+                create_variable_definition(
+                    $element->find_first('PPI::Token::Symbol')
+                )
+            );
+        }
+    }
+    return;
+}
+
 sub map_word {
     my ($element) = @_;
     if ( not $element->{content} ) { return }
@@ -1724,7 +1820,7 @@ sub map_word {
                 $element->parent->delete;
             }
             else {
-                $element->delete;
+                $element->{content} = 'let';
             }
         }
         when ('next') {

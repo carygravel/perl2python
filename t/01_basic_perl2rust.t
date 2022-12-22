@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English   qw( -no_match_vars );        # for $INPUT_RECORD_SEPARATOR
 use Perl2Rust qw(map_document map_path);
-use Test::More tests => 8;
+use Test::More tests => 9;
 
 sub slurp {
     my ($file) = @_;
@@ -119,3 +119,25 @@ match MyPackage::new() { Ok(package) => {}, Err(_) => { println!("MyPackage requ
 EOS
 
 is map_document( \$script ), $expected, "conditionally skip more tests";
+
+#########################
+
+$script = <<'EOS';
+use 5.008005;
+use feature 'switch';
+no if $] >= 5.018, warnings => 'experimental::smartmatch';
+use English qw( -no_match_vars );
+use Exporter ();
+use Carp;
+use MyModule::MySubModule::MySubSubModule;
+MyModule::MySubModule::MySubSubModule::my_method();
+my $var = $MyModule::MySubModule::MODULE_CONSTANT;
+EOS
+
+$expected = <<'EOS';
+use MyModule::MySubModule::MySubSubModule;
+MyModule::MySubModule::MySubSubModule::my_method();
+let var = MyModule::MySubModule::MODULE_CONSTANT;
+EOS
+
+is map_document( \$script ), $expected, "import";
