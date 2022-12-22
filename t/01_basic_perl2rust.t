@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English   qw( -no_match_vars );        # for $INPUT_RECORD_SEPARATOR
 use Perl2Rust qw(map_document map_path);
-use Test::More tests => 10;
+use Test::More tests => 11;
 
 sub slurp {
     my ($file) = @_;
@@ -151,3 +151,22 @@ use MyModule::MySubModule::MySubSubModule ;
 EOS
 
 is map_document( \$script ), $expected, "import ignore version";
+
+$script = <<'EOS';
+use MyModule 'symbol';
+use MyModule ':all';
+use MyModule qw(symbol1 symbol2);
+use Glib;
+use Glib qw(TRUE FALSE);    # To get TRUE and FALSE
+EOS
+
+$expected = <<'EOS';
+use MyModule::symbol;
+use MyModule::*;
+use MyModule::{symbol1,symbol2};
+use glib;
+    # To get TRUE and FALSE
+EOS
+
+is map_document( \$script ), $expected,
+  "map use with symbol, special casing import Glib";

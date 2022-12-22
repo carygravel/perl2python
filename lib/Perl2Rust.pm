@@ -145,7 +145,12 @@ sub ensure_include_is_top_level {
 sub delete_everything_after {
     my ($element) = @_;
     while ( my $iter = $element->next_sibling ) {
-        $iter->delete;
+        if ( $iter eq q{;} ) {
+            last;
+        }
+        else {
+            $iter->delete;
+        }
     }
     return;
 }
@@ -984,6 +989,8 @@ sub map_file {
 
 sub map_import_symbols {
     my ( $import, $path, $module, $symbols ) = @_;
+    my $whitespace = $symbols->previous_sibling;
+    $whitespace->{content} = q{::};
     my @symbols;
     if ( $symbols->isa('PPI::Token::Quote') ) {
         $symbols->{content} = quote2content($symbols);
@@ -995,14 +1002,17 @@ sub map_import_symbols {
     else {
         my $string = substr $symbols->content,
           $symbols->{sections}[0]{position}, $symbols->{sections}[0]{size};
-        my $i = 0;
+        my $i    = 0;
+        my $list = PPI::Structure::List->new( PPI::Token::Structure->new('{') );
+        $list->{finish} = PPI::Token::Structure->new('}');
+        $symbols->insert_before($list);
         for ( split q{ }, $string ) {
             if ( $i++ ) {
                 push @symbols, PPI::Token::Whitespace->new(q{,});
-                $symbols->insert_before( $symbols[-1] );
+                $list->add_element( $symbols[-1] );
             }
             push @symbols, PPI::Token::Word->new($_);
-            $symbols->insert_before( $symbols[-1] );
+            $list->add_element( $symbols[-1] );
         }
         $symbols->delete;
     }
@@ -1089,10 +1099,8 @@ sub map_include {
                 $element->delete;
             }
             else {
-                $element->add_element( PPI::Token::Whitespace->new(q{ }) );
-                $symbols = PPI::Token::Quote::Double->new('"GObject"');
-                $element->add_element($symbols);
-                $module = 'gi.repository';
+                $module = 'glib';
+                delete_everything_after($path);
             }
         }
         when ('Gtk3') {
@@ -1974,6 +1982,11 @@ sub nest_level {
 sub next_sibling {
     my ( $element, $n ) = @_;
     return $n == 0 ? $element->sprevious_sibling : $element->snext_sibling;
+}
+
+sub quote2content {
+    my ($element) = @_;
+    return substr $element->{content}, 1, length( $element->{content} ) - 2;
 }
 
 sub remove_parens_map_children {
