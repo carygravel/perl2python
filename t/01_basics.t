@@ -1,8 +1,8 @@
 use warnings;
 use strict;
-use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
+use English     qw( -no_match_vars );        # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 136;
+use Test::More tests => 137;
 
 sub slurp {
     my ($file) = @_;
@@ -279,6 +279,22 @@ EOS
 
 is map_document( \$script ), $expected,
   "subclass GObject with signals and properties";
+
+$script = <<'EOS';
+sub signal_connect {
+    my ( $self, @args ) = @_;
+    return $self->view->signal_connect(@args);
+}
+EOS
+
+$expected = <<'EOS';
+def connect( self, *args ) :
+    
+    return self.view().connect(*args)
+
+EOS
+
+is map_document( \$script ), $expected, "new signals";
 
 $script = <<'EOS';
 use Set::IntSpan 1.10;          # For size method for page numbering issues

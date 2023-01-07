@@ -2991,6 +2991,25 @@ sub map_shift {
     return;
 }
 
+sub map_signals {
+    my ( $element, $name ) = @_;
+    $element->{content} = $name;
+    my $prev = $element->sprevious_sibling;
+    if ( $prev ne 'def' and $element->{content} =~ /connect/xsm ) {
+        my $list = map_built_in($element);
+        map_element($list);
+        my $exp   = $list->schild(0);
+        my $event = $exp->schild(0);
+        if ( $event ne '*args' ) {
+            $event->{content} =~ s/_/-/gxsm;
+            $event->{content} = "'$event->{content}'";
+            my $op = $exp->schild(1);
+            $op->{content} = q{,};
+        }
+    }
+    return;
+}
+
 sub map_sprintf {
     my ($element) = @_;
     my $list = map_built_in($element);
@@ -3406,19 +3425,7 @@ sub map_word {
             map_shift($element);
         }
         when (/^signal_(connect|connect_after|emit)$/xsm) {
-            $element->{content} = $1;
-            if ( $element->{content} =~ /connect/xsm ) {
-                my $list = map_built_in($element);
-                map_element($list);
-                my $exp   = $list->schild(0);
-                my $event = $exp->schild(0);
-                if ( $event ne '*args' ) {
-                    $event->{content} =~ s/_/-/gxsm;
-                    $event->{content} = "'$event->{content}'";
-                    my $op = $exp->schild(1);
-                    $op->{content} = q{,};
-                }
-            }
+            map_signals( $element, $1 );
         }
         when ('sort') {
             my $list = map_built_in($element);
