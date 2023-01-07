@@ -11,6 +11,7 @@ use Carp;
 use File::Spec;
 use IPC::Open3 'open3';
 use Try::Tiny;
+use File::Path qw(make_path);
 use Readonly;
 Readonly my $LAST          => -1;
 Readonly my $INDENT_LENGTH => 4;
@@ -1024,7 +1025,7 @@ sub map_file {
     warn "Writing to $outfile\n";
     my ( undef, $directories, undef ) = File::Spec->splitpath($outfile);
     if ( not -d $directories ) {
-        mkdir $directories;
+        make_path($directories);
     }
     open my $fh, '>', $outfile or croak "Error opening $outfile";
     print {$fh} $doc or croak "Error writing to $outfile";
