@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English     qw( -no_match_vars );        # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 137;
+use Test::More tests => 138;
 
 sub slurp {
     my ($file) = @_;
@@ -279,6 +279,29 @@ EOS
 
 is map_document( \$script ), $expected,
   "subclass GObject with signals and properties";
+
+$script = <<'EOS';
+package Gtk3::ImageView::Tool::Dragger;
+use base 'Gtk3::ImageView::Tool';
+
+sub button_pressed {
+    my $self  = shift;
+    return;
+}
+EOS
+
+$expected = <<'EOS';
+
+class Dragger(Tool):
+
+
+    def button_pressed(self) :
+    
+        return
+
+EOS
+
+is map_document( \$script ), $expected, "subclass with use base";
 
 $script = <<'EOS';
 sub signal_connect {
@@ -1109,7 +1132,7 @@ EOS
 $expected = <<'EOS';
 
 VERSION = 1
-class MyPackage(My.ParentPackage):
+class MyPackage(ParentPackage):
     class_var          = 4
 
 

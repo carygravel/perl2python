@@ -1681,6 +1681,7 @@ sub map_include {
                 }
             }
             for my $symbol (@symbols) {
+                $symbol->{content} =~ s/.*:://xsm;
                 map_element($symbol);
                 $list->add_element( $symbol->remove );
             }
@@ -2104,6 +2105,18 @@ sub map_package {
             sub {
                 $_[1]->isa('PPI::Statement::Include')
                   and $_[1]->content =~ /Glib::Object::Subclass/xsm;
+            }
+        )
+      )
+    {
+        $new = 1;
+    }
+    elsif (
+        my $base = $element->top->find_first(
+            sub {
+                $_[1]->isa('PPI::Statement::Include')
+                  and $_[1]->content =~ /base/xsm
+                  and $_[1]->content !~ /[(]Exporter[)]/xsm;
             }
         )
       )
@@ -2828,6 +2841,23 @@ sub map_data_uuid {
     return;
 }
 
+sub map_myour {
+    my ($element) = @_;
+    my $symbol    = $element->snext_sibling;
+    my $parent    = $element->parent;
+    if (
+        $symbol eq '$self'    ## no critic (RequireInterpolationOfMetachars)
+        and $parent !~ /shift/xsm
+      )
+    {
+        $parent->delete;
+    }
+    else {
+        $element->delete;
+    }
+    return;
+}
+
 sub map_print {
     my ($element) = @_;
     my $list      = map_built_in($element);
@@ -3361,15 +3391,7 @@ sub map_word {
             map_move_copy($element);
         }
         when (/^(?:my|our)$/xsm) {
-            my $symbol = $element->snext_sibling;
-            if ( $symbol eq
-                '$self' )    ## no critic (RequireInterpolationOfMetachars)
-            {
-                $element->parent->delete;
-            }
-            else {
-                $element->delete;
-            }
+            map_myour($element);
         }
         when ('next') {
             map_built_in($element);
