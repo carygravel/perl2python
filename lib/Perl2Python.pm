@@ -2732,6 +2732,11 @@ sub map_symbol {
         if ( $element->{content} =~ /^@/smx ) {
             my $operator = $element->snext_sibling;
             my $method   = $element->sprevious_sibling;
+            if ( $element eq
+                '@args' )    ## no critic (RequireInterpolationOfMetachars)
+            {
+                $element->{content} = '*args';
+            }
             if ($operator) {
                 if ( $operator eq q{=} ) {
                     my $list = $operator->snext_sibling;
@@ -3407,10 +3412,12 @@ sub map_word {
                 map_element($list);
                 my $exp   = $list->schild(0);
                 my $event = $exp->schild(0);
-                $event->{content} =~ s/_/-/gxsm;
-                $event->{content} = "'$event->{content}'";
-                my $op = $exp->schild(1);
-                $op->{content} = q{,};
+                if ( $event ne '*args' ) {
+                    $event->{content} =~ s/_/-/gxsm;
+                    $event->{content} = "'$event->{content}'";
+                    my $op = $exp->schild(1);
+                    $op->{content} = q{,};
+                }
             }
         }
         when ('sort') {
