@@ -1478,11 +1478,14 @@ is map_document( \$script ), $expected, "indent else2";
 
 $script = <<'EOS';
 return $result if ( defined $result );
+warn "$x" if "$x";
 EOS
 
 $expected = <<'EOS';
 if (  (result is not None) ):
     return result  
+if f"{x}":
+    warn f"{x}"  
 EOS
 
 is map_document( \$script ), $expected, "postfix if";

@@ -2912,7 +2912,6 @@ sub map_postfix_if {
     my $cstatement = PPI::Statement::Compound->new;
     my $ostatement = $element->parent;
     my $condition  = $element->snext_sibling;
-    my $expression = $condition->schild(0);
     $ostatement->insert_before($cstatement);
     my $block = PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
     $block->{start}->{content} = q{:};
