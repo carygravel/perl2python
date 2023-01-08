@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English     qw( -no_match_vars );        # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 138;
+use Test::More tests => 139;
 
 sub slurp {
     my ($file) = @_;
@@ -1545,6 +1545,17 @@ class Options(GObject.Object):
 EOS
 
 is map_document( \$script ), $expected, "postfix if/subclass combination";
+
+$script = <<'EOS';
+if ( blessed $obj and $obj->isa('My::Package') ) {do_something()}
+EOS
+
+$expected = <<'EOS';
+if    issubclass(obj,Package) :
+    do_something()
+EOS
+
+is map_document( \$script ), $expected, "blessed & isa";
 
 $script = <<'EOS';
 if ( defined $ahash{key} ) {do_something()}

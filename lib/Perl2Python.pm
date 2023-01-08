@@ -3262,6 +3262,15 @@ sub map_word {
         when ('bless') {
             $element->parent->delete;
         }
+        when ('blessed') {    # no equivalent for blessed
+            my $list     = map_built_in($element);
+            my $operator = $list->snext_sibling;
+            $element->delete;
+            $list->delete;
+            if ( $operator->isa('PPI::Token::Operator') ) {
+                $operator->delete;
+            }
+        }
         when ('catch') {
             $element->{content} = 'except';
         }
@@ -3330,6 +3339,22 @@ sub map_word {
         }
         when (/^is(?:_deeply)?$/xsm) {
             map_is($element);
+        }
+        when ('isa') {
+            my $list = map_built_in($element);
+            my $prev = $element->sprevious_sibling;
+            my $obj  = $prev;
+            if ( $prev eq '->' or $prev->{originally} eq '->' ) {
+                $obj = $prev->sprevious_sibling;
+                $prev->delete;
+            }
+            $element->{content} = 'issubclass';
+            my $class = $list->find_first('PPI::Token::Quote');
+            $class->{content} =~ s/["']//gsmx;    # remove the quotes
+            $class->{content} =~ s/^.*:://smx;    # remove the class hierachy
+            $list->__insert_before_child( $class,
+                PPI::Token::Operator->new(q{,}) );
+            $list->__insert_before_child( $class, $obj->remove );
         }
         when ('isa_ok') {
             $element->insert_before( PPI::Token::Word->new('assert') );
