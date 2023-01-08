@@ -248,7 +248,7 @@ use Glib::Object::Subclass Gtk3::Object::, signals => {
         param_types => ['Glib::Float'],
     },
     'signal_with_ints' => {
-        param_types => [ 'Glib::Int', 'Glib::Int' ],
+        param_types => [ 'Glib::Int', 'Glib::UInt' ],
     },
     'signal_without_value' => { param_types => [], },
     'signal_without_param_types' => {},
