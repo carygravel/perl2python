@@ -87,7 +87,7 @@ my %REGEX_MODIFIERS = (
 );
 
 my $IGNORED_INCLUDES =
-q/^(?:warnings|strict|feature|if|Carp|English|Exporter|File::Copy|IPC::System::Simple|POSIX|Proc::Killfam|Readonly|Try::Tiny)$/;
+q/^(?:warnings|strict|feature|if|Carp|English|Exporter|File::Copy|IPC::System::Simple|List::Util|POSIX|Proc::Killfam|Readonly|Scalar::Util|Try::Tiny)$/;
 
 my @RESERVED_WORDS = qw(class def print break);
 
@@ -1578,6 +1578,9 @@ sub map_include {
     my $path    = $import->snext_sibling;
     my $symbols = $path->snext_sibling;
     given ("$path") {
+        when ('Cairo') {
+            $module = 'cairo';
+        }
         when ('Data::UUID') {
             $module = 'uuid';
         }

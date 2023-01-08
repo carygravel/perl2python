@@ -130,6 +130,8 @@ use 5.008005;
 use feature 'switch';
 no if $] >= 5.018, warnings => 'experimental::smartmatch';
 use English qw( -no_match_vars );
+use List::Util qw(min);
+use Scalar::Util qw(blessed);
 use Exporter ();
 use Carp;
 use MyModule::MySubModule::MySubSubModule;
@@ -176,6 +178,7 @@ is map_document( \$script ), $expected,
 
 $script = <<'EOS';
 use Gtk3 0.028 -init;
+use Cairo;
 my $window = Gtk3::Window->new;
 $event = Gtk3::Gdk::Event->new('key-press');
 $event->keyval(Gtk3::Gdk::KEY_Delete);
@@ -190,6 +193,7 @@ from gi.repository import Gdk
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
+import cairo
 window = Gtk.Window()
 event = Gdk.Event('key-press')
 event.keyval=Gdk.KEY_Delete
