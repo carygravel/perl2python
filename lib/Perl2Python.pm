@@ -1333,7 +1333,7 @@ sub map_gobject_subclass {
                             $default = $enum->snext_sibling->snext_sibling;
                             $type->{content} = 'GObject.GEnum';
                         }
-                        when ('int') {
+                        when (/(?:float|int)/xsm) {
                             $min     = $blurb->snext_sibling->snext_sibling;
                             $max     = $min->snext_sibling->snext_sibling;
                             $default = $max->snext_sibling->snext_sibling;
