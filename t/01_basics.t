@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English     qw( -no_match_vars );        # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 139;
+use Test::More tests => 140;
 
 sub slurp {
     my ($file) = @_;
@@ -122,6 +122,22 @@ pytest.importorskip('MyPackage')
 EOS
 
 is map_document( \$script ), $expected, "conditionally skip more tests";
+
+$script = <<'EOS';
+SKIP: {
+    skip "skip message", 1 if $expression;
+    is $y, 11, 'assert message';
+}
+EOS
+
+$expected = <<'EOS';
+if not $expression :
+    
+    assert y== 11, 'assert message'
+
+EOS
+
+is map_document( \$script ), $expected, "parse skip blocks";
 
 #########################
 

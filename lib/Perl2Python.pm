@@ -767,6 +767,23 @@ sub map_element {
             );
             $element->delete;
         }
+        when (/PPI::Token::Label/xsm) {
+            if ( $element eq 'SKIP:' ) {
+                my $block         = $element->snext_sibling;
+                my $skipstatement = $block->schild(0);
+                my $skip          = $skipstatement->schild(0);
+                my $skipmessage   = $skip->snext_sibling;
+                my $opr           = $skipmessage->snext_sibling;
+                my $count         = $opr->snext_sibling;
+                my $ifu           = $count->snext_sibling;
+                my $expression    = $ifu->snext_sibling;
+                $element->insert_before( $ifu->remove );
+                $element->insert_before( PPI::Token::Word->new(' not ') );
+                $element->insert_before( $expression->remove );
+                $element->delete;
+                $skipstatement->delete;
+            }
+        }
         when (/PPI::Token::Quote::Double/xsm) {
             map_interpreted_string($element);
         }
