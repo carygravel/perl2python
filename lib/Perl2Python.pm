@@ -2932,6 +2932,20 @@ sub map_myour {
     return;
 }
 
+sub map_pass_fail {
+    my ($element) = @_;
+    if ( $element->{content} eq 'pass' ) {
+        $element->{content} = 'assert True';
+    }
+    else {
+        $element->{content} = 'assert False';
+    }
+    if ( $element->snext_sibling ) {
+        $element->insert_after( PPI::Token::Operator->new(q{,}) );
+    }
+    return;
+}
+
 sub map_print {
     my ($element) = @_;
     my $list      = map_built_in($element);
@@ -3538,11 +3552,8 @@ sub map_word {
         when ('open') {
             map_open($element);
         }
-        when ('pass') {
-            $element->{content} = 'assert True';
-            if ( $element->snext_sibling ) {
-                $element->insert_after( PPI::Token::Operator->new(q{,}) );
-            }
+        when (/^(?:pass|fail)$/xsm) {
+            map_pass_fail($element);
         }
         when (/^printf?$/xsm) {
             map_print($element);
