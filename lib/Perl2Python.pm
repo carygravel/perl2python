@@ -1821,7 +1821,6 @@ sub map_label {
             $element->insert_before( PPI::Token::Word->new(' not ') );
             if ( @expression == 1 ) {
                 $element->insert_before( $expression[0] );
-                map_element( $expression[0] );
             }
             else {
                 my $list =
@@ -1829,9 +1828,11 @@ sub map_label {
                 $list->{finish} = PPI::Token::Structure->new(')');
                 for my $token (@expression) {
                     $list->add_element($token);
-                    map_element($token);
                 }
                 $element->insert_before($list);
+            }
+            for my $token (@expression) {
+                map_element($token);
             }
         }
         else {

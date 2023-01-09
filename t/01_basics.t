@@ -133,6 +133,10 @@ SKIP: {
     is $y, 11, 'assert message';
 }
 SKIP: {
+    skip "skip message", 1 if $x->get('name') > 1;
+    is $y, 11, 'assert message';
+}
+SKIP: {
     skip "not yet", 1;
     is $y, 11, 'assert message';
 }
@@ -144,6 +148,10 @@ if not x :
     assert y== 11, 'assert message'
 
 if not (x>1) :
+    
+    assert y== 11, 'assert message'
+
+if not (x.name>1) :
     
     assert y== 11, 'assert message'
 
