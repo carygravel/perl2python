@@ -776,10 +776,16 @@ sub map_element {
                 my $opr           = $skipmessage->snext_sibling;
                 my $count         = $opr->snext_sibling;
                 my $ifu           = $count->snext_sibling;
-                my $expression    = $ifu->snext_sibling;
-                $element->insert_before( $ifu->remove );
-                $element->insert_before( PPI::Token::Word->new(' not ') );
-                $element->insert_before( $expression->remove );
+                if ( $ifu =~ /(?:if|unless)/xsm ) {
+                    my $expression = $ifu->snext_sibling;
+                    $element->insert_before( $ifu->remove );
+                    $element->insert_before( PPI::Token::Word->new(' not ') );
+                    $element->insert_before( $expression->remove );
+                }
+                else {
+                    $element->insert_before(
+                        PPI::Token::Word->new('if False') );
+                }
                 $element->delete;
                 $skipstatement->delete;
             }

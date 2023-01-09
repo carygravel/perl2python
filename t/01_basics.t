@@ -128,10 +128,18 @@ SKIP: {
     skip "skip message", 1 if $expression;
     is $y, 11, 'assert message';
 }
+SKIP: {
+    skip "not yet", 1;
+    is $y, 11, 'assert message';
+}
 EOS
 
 $expected = <<'EOS';
 if not $expression :
+    
+    assert y== 11, 'assert message'
+
+if False :
     
     assert y== 11, 'assert message'
 
