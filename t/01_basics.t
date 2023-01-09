@@ -125,7 +125,11 @@ is map_document( \$script ), $expected, "conditionally skip more tests";
 
 $script = <<'EOS';
 SKIP: {
-    skip "skip message", 1 if $expression;
+    skip "skip message", 1 if $x;
+    is $y, 11, 'assert message';
+}
+SKIP: {
+    skip "skip message", 1 if $x > 1;
     is $y, 11, 'assert message';
 }
 SKIP: {
@@ -135,7 +139,11 @@ SKIP: {
 EOS
 
 $expected = <<'EOS';
-if not $expression :
+if not x :
+    
+    assert y== 11, 'assert message'
+
+if not (x>1) :
     
     assert y== 11, 'assert message'
 

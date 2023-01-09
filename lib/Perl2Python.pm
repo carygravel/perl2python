@@ -768,27 +768,7 @@ sub map_element {
             $element->delete;
         }
         when (/PPI::Token::Label/xsm) {
-            if ( $element eq 'SKIP:' ) {
-                my $block         = $element->snext_sibling;
-                my $skipstatement = $block->schild(0);
-                my $skip          = $skipstatement->schild(0);
-                my $skipmessage   = $skip->snext_sibling;
-                my $opr           = $skipmessage->snext_sibling;
-                my $count         = $opr->snext_sibling;
-                my $ifu           = $count->snext_sibling;
-                if ( $ifu =~ /(?:if|unless)/xsm ) {
-                    my $expression = $ifu->snext_sibling;
-                    $element->insert_before( $ifu->remove );
-                    $element->insert_before( PPI::Token::Word->new(' not ') );
-                    $element->insert_before( $expression->remove );
-                }
-                else {
-                    $element->insert_before(
-                        PPI::Token::Word->new('if False') );
-                }
-                $element->delete;
-                $skipstatement->delete;
-            }
+            map_label($element);
         }
         when (/PPI::Token::Quote::Double/xsm) {
             map_interpreted_string($element);
@@ -1812,6 +1792,53 @@ sub map_interpreted_string {
     }
     if ($formatted) {
         $element->{content} = "f$element->{content}";
+    }
+    return;
+}
+
+sub map_label {
+    my ($element) = @_;
+    if ( $element eq 'SKIP:' ) {
+        my $block         = $element->snext_sibling;
+        my $skipstatement = $block->schild(0);
+        my $skip          = $skipstatement->schild(0);
+        my $skipmessage   = $skip->snext_sibling;
+        my $opr           = $skipmessage->snext_sibling;
+        my $count         = $opr->snext_sibling;
+        my $ifu           = $count->snext_sibling;
+        if ( $ifu =~ /(?:if|unless)/xsm ) {
+            my @expression;
+            while ( my $token = $ifu->snext_sibling ) {
+                if ( $token eq q{;} ) {
+                    last;
+                }
+                else {
+                    push @expression, $token->remove;
+                }
+
+            }
+            $element->insert_before( $ifu->remove );
+            $element->insert_before( PPI::Token::Word->new(' not ') );
+            if ( @expression == 1 ) {
+                $element->insert_before( $expression[0] );
+                map_element( $expression[0] );
+            }
+            else {
+                my $list =
+                  PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+                $list->{finish} = PPI::Token::Structure->new(')');
+                for my $token (@expression) {
+                    $list->add_element($token);
+                    map_element($token);
+                }
+                $element->insert_before($list);
+            }
+        }
+        else {
+            $element->insert_before( PPI::Token::Word->new('if False') );
+        }
+        $element->delete;
+        $skipstatement->delete;
     }
     return;
 }
