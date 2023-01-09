@@ -87,7 +87,7 @@ def test_1():
     assert next(iter)== 'return value', 'comment'
     assert isinstance( object, My.Class )
     assert True, 'comment'
-    assert dialog.get('property') == 'value', 'comment'
+    assert dialog.property == 'value', 'comment'
 EOS
 
 $in  = 'test.t';
@@ -262,6 +262,8 @@ use Glib::Object::Subclass Gtk3::Object::, signals => {
     Glib::ParamSpec->boolean('name5','Nick5','Blurb',FALSE,[qw/readable writable/]),
   ];
 $dialog->signal_emit( 'delete_event', undef );
+return $self->get("zoom-to-fit");
+$self->set("zoom-to-fit", FALSE);
 EOS
 
 $expected = <<'EOS';
@@ -279,6 +281,8 @@ class Object(Gtk.Object):
     GObject.TypeModule.register_enum( 'Enum::Name', ["list","of","values"] )
 
     dialog.emit( 'delete_event', None )
+    return self.zoom_to_fit
+    self.zoom_to_fit=False
 EOS
 
 is map_document( \$script ), $expected,

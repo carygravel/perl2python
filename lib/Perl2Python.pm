@@ -1070,6 +1070,25 @@ sub map_file_temp {
     return;
 }
 
+# map getter to property
+sub map_get {
+    my ($element) = @_;
+    my $list      = map_built_in($element);
+    my $prev      = $element->sprevious_sibling;
+    my $name      = $list->find_first('PPI::Token::Quote');
+    if (    ( $prev eq '->' or $prev->{originally} eq '->' )
+        and $name
+        and $name->parent->children == 1 )
+    {
+        $name->{content} =~ s/["']//gsmx;    # remove the quotes
+        $name->{content} =~ s/-/_/gsmx;      # dash to underscore
+        $element->insert_before( $name->remove );
+        $element->delete;
+        $list->delete;
+    }
+    return;
+}
+
 sub map_given {
     my ($element) = @_;
     my $given     = $element->find_first('PPI::Structure::Given');
@@ -3000,6 +3019,27 @@ sub map_sane_enums {
     return;
 }
 
+# map setter to property
+sub map_set {
+    my ($element) = @_;
+    my $list      = map_built_in($element);
+    my $prev      = $element->sprevious_sibling;
+    my $name      = $list->find_first('PPI::Token::Quote');
+    if ( ( $prev eq '->' or $prev->{originally} eq '->' ) and $name ) {
+        my $opr   = $name->snext_sibling;
+        my $value = $opr->snext_sibling;
+        map_element($value);
+        $name->{content} =~ s/["']//gsmx;    # remove the quotes
+        $name->{content} =~ s/-/_/gsmx;      # dash to underscore
+        $element->insert_before( $name->remove );
+        $element->insert_before( PPI::Token::Operator->new(q{=}) );
+        $element->insert_before( $value->remove );
+        $element->delete;
+        $list->delete;
+    }
+    return;
+}
+
 sub map_shift {
     my ($element) = @_;
     my $argument = $element->snext_sibling;
@@ -3332,6 +3372,9 @@ sub map_word {
         when ('eval') {
             map_eval($element);
         }
+        when ('get') {
+            map_get($element);
+        }
         when ('grep') {
             map_grep($element);
         }
@@ -3460,6 +3503,9 @@ sub map_word {
         }
         when ('scalar') {
             map_scalar($element);
+        }
+        when ('set') {
+            map_set($element);
         }
         when ('setlocale') {
             map_setlocale($element);
