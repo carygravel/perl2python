@@ -63,6 +63,7 @@ is( MyClass->method(), 'return value', 'comment' );
 is( MyClass->method, 'return value', 'comment' );
 is( $iter->(), 'return value', 'comment' );
 isa_ok( $object, 'My::Class' );
+isa_ok( $object, 'My::Class', 'comment' );
 pass 'comment';
 ok( $dialog->get('property') == 'value', 'comment' );
 EOS
@@ -86,6 +87,7 @@ def test_1():
     assert MyClass.method()== 'return value', 'comment'
     assert next(iter)== 'return value', 'comment'
     assert isinstance( object, My.Class )
+    assert isinstance( object, My.Class ), 'comment'
     assert True, 'comment'
     assert dialog.property == 'value', 'comment'
 EOS

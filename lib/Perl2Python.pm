@@ -3455,12 +3455,18 @@ sub map_word {
             $list->__insert_before_child( $class, $obj->remove );
         }
         when ('isa_ok') {
+            my $parent = $element->parent;
+            my $list   = map_built_in($element);
             $element->insert_before( PPI::Token::Word->new('assert') );
             $element->insert_before( PPI::Token::Whitespace->new(q{ }) );
             $element->{content} = 'isinstance';
-            my $type = $element->snext_sibling->schild(0)->schild($LAST);
+            my $type = $list->find_first('PPI::Token::Quote');
             $type->{content} =~ s/::/./gsm;
             $type->{content} =~ s/["']//gsmx;
+
+            while ( my $token = $type->next_sibling ) {
+                $parent->add_element( $token->remove );
+            }
         }
         when (/^(?:keys|values)$/xsm) {
             my $list = map_built_in($element);
