@@ -1,6 +1,6 @@
 use warnings;
 use strict;
-use English     qw( -no_match_vars );        # for $INPUT_RECORD_SEPARATOR
+use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
 use Test::More tests => 140;
 
@@ -228,6 +228,7 @@ $event = Gtk3::Gdk::Event->new('key-press');
 $event->keyval(Gtk3::Gdk::KEY_Delete);
 $val=$event->keyval();
 $dialog->signal_connect_after( key_press_event => sub {} );
+$dialog->signal_handler_disconnect($signal);
 return Gtk3::EVENT_PROPAGATE;
 $flags = ${ Gtk3::TargetFlags->new(qw/same-widget/) };
 EOS
@@ -246,6 +247,7 @@ def anonymous_01():
     pass
 
 dialog.connect_after( 'key-press-event' , anonymous_01  )
+dialog.disconnect(signal)
 return Gdk.EVENT_PROPAGATE
 flags = Gtk.TargetFlags(["same-widget"])
 EOS

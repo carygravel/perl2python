@@ -53,7 +53,7 @@ my @PRECEDENCE = (
     [ 'right',    qw{**} ],
     [ 'nonassoc', qw{++ --} ],
     [ 'left',     qw{->} ],
-    [ 'left', 'term', 'list operator (leftward)' ],
+    [ 'left',     'term', 'list operator (leftward)' ],
 );
 my %PRECEDENCE    = ();
 my %ASSOCIATIVITY = ();
@@ -88,6 +88,8 @@ my %REGEX_MODIFIERS = (
 
 my $IGNORED_INCLUDES =
 q/^(?:warnings|strict|feature|if|Carp|English|Exporter|File::Copy|IPC::System::Simple|List::Util|POSIX|Proc::Killfam|Readonly|Scalar::Util|Try::Tiny)$/;
+my $SIGNAL_PREFIX = 'signal_(?:handler_)?';
+my $SIGNAL_SUFFIX = '(connect|connect_after|disconnect|emit)';
 
 my @RESERVED_WORDS = qw(class def print break);
 
@@ -277,13 +279,13 @@ sub map_anonymous_sub {
 
 sub map_arrow_operator {
     my ($element) = @_;
-    my @prev = get_argument_for_operator( $element, 0 );
-    my $next = $element->snext_sibling;
+    my @prev      = get_argument_for_operator( $element, 0 );
+    my $next      = $element->snext_sibling;
 
     # closure -> iterator
     if (
         $prev[0] eq 'iter' and $next    # hard-coded to iter. Fragile.
-        and $next and $next->isa('PPI::Structure::List')
+        and $next          and $next->isa('PPI::Structure::List')
       )
     {
         $element->insert_before( PPI::Token::Word->new('next') );
@@ -506,8 +508,8 @@ sub map_compound {
 
 sub map_defined {
     my ($element) = @_;
-    my $parent = $element->parent;
-    my @args = get_argument_for_operator( $element, 1 );
+    my $parent    = $element->parent;
+    my @args      = get_argument_for_operator( $element, 1 );
     if ( not @args ) {
         my $magic = PPI::Token::Symbol->new('_');
         $element->insert_after($magic);
@@ -964,8 +966,8 @@ sub map_fat_comma {    # =>
     my $expression = $element->parent;
     my $parent     = $expression->parent;
     my $prev       = $parent->sprevious_sibling;
-    my @largument = get_argument_for_operator( $element, 0 );
-    my @rargument = get_argument_for_operator( $element, 1 );
+    my @largument  = get_argument_for_operator( $element, 0 );
+    my @rargument  = get_argument_for_operator( $element, 1 );
 
     # function call - map -> name arguments
     if (    $expression->isa('PPI::Statement')
@@ -1032,7 +1034,7 @@ sub map_file {
     }
     open my $fh, '>', $outfile or croak "Error opening $outfile";
     print {$fh} $doc or croak "Error writing to $outfile";
-    close $fh or croak "Error closing $outfile";
+    close $fh        or croak "Error closing $outfile";
     return;
 }
 
@@ -3138,7 +3140,7 @@ sub map_signals {
         map_element($list);
         my $exp   = $list->schild(0);
         my $event = $exp->schild(0);
-        if ( $event ne '*args' ) {
+        if ( $event ne '*args' and $element->{content} !~ /dis/xsm ) {
             $event->{content} =~ s/_/-/gxsm;
             $event->{content} = "'$event->{content}'";
             my $op = $exp->schild(1);
@@ -3591,7 +3593,7 @@ sub map_word {
         when ('shift') {
             map_shift($element);
         }
-        when (/^signal_(connect|connect_after|emit)$/xsm) {
+        when (/^$SIGNAL_PREFIX$SIGNAL_SUFFIX$/xsm) {
             map_signals( $element, $1 );
         }
         when ('sort') {
