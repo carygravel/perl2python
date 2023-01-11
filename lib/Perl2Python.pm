@@ -3396,11 +3396,9 @@ sub map_word {
 
             for ( split q{ }, $string ) {
                 my $nstatement = PPI::Statement->new();
-                $nstatement->add_element(
-                    PPI::Token::Word->new(
-"assert hasattr($obj,'$_') and callable($obj.$_), $comment"
-                    )
-                );
+                my $str = "assert hasattr($obj,'$_') and callable($obj.$_)";
+                if ( defined $comment ) { $str .= ", $comment" }
+                $nstatement->add_element( PPI::Token::Word->new($str) );
                 $block->__insert_before_child( $statement, $nstatement );
                 indent_element($nstatement);
             }
