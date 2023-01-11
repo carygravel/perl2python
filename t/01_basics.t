@@ -64,6 +64,7 @@ is( MyClass->method, 'return value', 'comment' );
 is( $iter->(), 'return value', 'comment' );
 isa_ok( $object, 'My::Class' );
 isa_ok( $object, 'My::Class', 'comment' );
+can_ok( $object, qw(list of methods), 'comment' );
 pass 'comment';
 fail 'comment';
 ok( $dialog->get('property') == 'value', 'comment' );
@@ -89,6 +90,9 @@ def test_1():
     assert next(iter)== 'return value', 'comment'
     assert isinstance( object, My.Class )
     assert isinstance( object, My.Class ), 'comment'
+    assert hasattr(object,'list') and callable(object.list), 'comment'
+    assert hasattr(object,'of') and callable(object.of), 'comment'
+    assert hasattr(object,'methods') and callable(object.methods), 'comment'
     assert True, 'comment'
     assert False, 'comment'
     assert dialog.property == 'value', 'comment'

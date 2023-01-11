@@ -3382,6 +3382,30 @@ sub map_word {
                 $operator->delete;
             }
         }
+        when ('can_ok') {
+            my $statement = $element->parent;
+            my $block     = $statement->parent;
+            my $list      = map_built_in($element);
+            my $exp       = $list->schild(0);
+            my $obj       = $exp->schild(0);
+            map_element($obj);
+            my $methods = $exp->schild(2);
+            my $comment = $exp->schild( 2 + 2 );
+            my $string  = substr $methods->content,
+              $methods->{sections}[0]{position}, $methods->{sections}[0]{size};
+
+            for ( split q{ }, $string ) {
+                my $nstatement = PPI::Statement->new();
+                $nstatement->add_element(
+                    PPI::Token::Word->new(
+"assert hasattr($obj,'$_') and callable($obj.$_), $comment"
+                    )
+                );
+                $block->__insert_before_child( $statement, $nstatement );
+                indent_element($nstatement);
+            }
+            $statement->delete;
+        }
         when ('catch') {
             $element->{content} = 'except';
         }
