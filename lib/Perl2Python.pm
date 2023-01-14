@@ -1737,6 +1737,24 @@ sub map_include {
     return;
 }
 
+sub map_inc_dec {
+    my ($element) = @_;
+    if ( $element eq q{++} ) {
+        $element->{content} = q{+=};
+    }
+    else {
+        $element->{content} = q{-=};
+    }
+    my @next = get_argument_for_operator( $element, 1 );
+    if (@next) {
+        for my $next (@next) {
+            $element->insert_before( $next->remove );
+        }
+    }
+    $element->insert_after( PPI::Token::Number->new(1) );
+    return;
+}
+
 sub map_is {
     my ($element) = @_;
     my $next = $element->snext_sibling;
@@ -2082,15 +2100,8 @@ sub map_operator {
         when (q{.=}) {
             $element->{content} = q{+=};
         }
-        when (q{++}) {
-            $element->{content} = q{+=};
-            my @next = get_argument_for_operator( $element, 1 );
-            if (@next) {
-                for my $next (@next) {
-                    $element->insert_before( $next->remove );
-                }
-            }
-            $element->insert_after( PPI::Token::Number->new(1) );
+        when (/^(?:[+][+]|--)$/xsm) {
+            map_inc_dec($element);
         }
         when (q{.}) {
             $element->{content} = q{+};
