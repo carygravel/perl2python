@@ -1792,6 +1792,9 @@ sub map_interpreted_string {
             $element->{content} =~ s/\$(\w+)/{$1}/xsmg;
         }
     }
+    if ( defined $element->{content} and $element =~ /\n/xsm ) {
+        $element->{content} = q{""} . $element->{content} . q{""};
+    }
     if ($formatted) {
         $element->{content} = "f$element->{content}";
     }

@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 140;
+use Test::More tests => 141;
 
 sub slurp {
     my ($file) = @_;
@@ -2415,6 +2415,23 @@ line2
 EOS
 
 is map_document( \$script ), $expected, "map heredoc->multiline string";
+
+$script = <<'EOS';
+load_from_data( "
+    background-color: #ff0000;
+    background-image: none;
+" );
+EOS
+
+$expected = <<'EOS';
+load_from_data( """
+    background-color: #ff0000;
+    background-image: none;
+""" )
+EOS
+
+is map_document( \$script ), $expected,
+  "map multiline string->multiline string";
 
 #########################
 

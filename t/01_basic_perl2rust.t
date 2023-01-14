@@ -1,6 +1,6 @@
 use warnings;
 use strict;
-use English   qw( -no_match_vars );        # for $INPUT_RECORD_SEPARATOR
+use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Rust qw(map_document map_path);
 use Test::More tests => 12;
 

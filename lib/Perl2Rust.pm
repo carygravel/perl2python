@@ -52,7 +52,7 @@ my @PRECEDENCE = (
     [ 'right',    qw{**} ],
     [ 'nonassoc', qw{++ --} ],
     [ 'left',     qw{->} ],
-    [ 'left', 'term', 'list operator (leftward)' ],
+    [ 'left',     'term', 'list operator (leftward)' ],
 );
 my %PRECEDENCE    = ();
 my %ASSOCIATIVITY = ();
