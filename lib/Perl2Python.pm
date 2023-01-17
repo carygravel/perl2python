@@ -3487,7 +3487,7 @@ sub map_word {
         when ('if') {
             map_postfix_if($element);
         }
-        when (/^is(?:_deeply)?$/xsm) {
+        when (/^(?:is|cmp)(?:_deeply)?$/xsm) {
             map_is($element);
         }
         when ('isa') {
