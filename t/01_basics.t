@@ -56,7 +56,7 @@ is_deeply \@result, \@expected, "comment";
             is_deeply [ 1, 2, 3 ],
               [ 4, 5, 6 ],
               "comment";
-cmp_deeply \@result, \@expected, "comment";
+cmp_deeply $num, num($value, $tolerance), "comment";
 method_with_is();
 is_deeply(\@result, \@expected, "comment");
 is_deeply( $hashref->{array}, \@that, 'comment' );
@@ -73,6 +73,7 @@ ok( $dialog->get('property') == 'value', 'comment' );
 EOS
 
 $expected = <<'EOS';
+import pytest
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
@@ -84,7 +85,7 @@ def test_1():
     assert [
     1, 2, 3 ]==               [
     4, 5, 6 ],               "comment"
-    assert result== expected, "comment"
+    assert num== pytest.approx(value, tolerance), "comment"
     method_with_is()
     assert result== expected, "comment"
     assert hashref["array"]== that, 'comment'

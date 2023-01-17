@@ -3580,9 +3580,13 @@ sub map_word {
         when ('next') {
             map_built_in($element);
         }
-
         when ('new') {
             map_new($element);
+        }
+        when ('num') {
+            my $list = map_built_in($element);
+            add_import( $element, 'pytest' );
+            $element->{content} = 'pytest.approx';
         }
         when ('ok') {
             map_ok($element);
