@@ -979,8 +979,7 @@ sub map_fat_comma {    # =>
 
         # remove quotes from properties, mapping hyphens to underscores
         if ( $property->isa('PPI::Token::Quote') ) {
-            my $word = PPI::Token::Word->new( substr $property->{content},
-                1, length( $property->{content} ) - 2 );
+            my $word = PPI::Token::Word->new( quote2content($property) );
             $word->{content} =~ s/-/_/gxsm;
             $property->insert_after($word);
             $property->delete;
@@ -3430,6 +3429,21 @@ sub map_word {
             }
             $fh->{content} .= q{.};
             $element->insert_before( $fh->remove );
+        }
+        when ('cmp_ok') {
+            $element->{content} = 'assert';
+            my $list = map_built_in($element);
+            map_element($list);
+            my $exp  = $list->schild(0);
+            my $com1 = $exp->schild(1);
+            my $op   = $com1->snext_sibling;
+            my $com2 = $op->snext_sibling;
+            $com1->delete;
+            $com2->delete;
+            $op->{content} = quote2content($op);
+            $list->parent->__insert_after_child( $list, $exp->remove );
+            $list->delete;
+            $element->insert_after( PPI::Token::Whitespace->new(q{ }) );
         }
         when ('create_str') {
             $element->{content} = 'str';

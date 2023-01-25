@@ -57,6 +57,7 @@ is_deeply \@result, \@expected, "comment";
               [ 4, 5, 6 ],
               "comment";
 cmp_deeply $num, num($value, $tolerance), "comment";
+cmp_ok( $num1, '<', $num2, 'comment' );
 method_with_is();
 is_deeply(\@result, \@expected, "comment");
 is_deeply( $hashref->{array}, \@that, 'comment' );
@@ -86,6 +87,7 @@ def test_1():
     1, 2, 3 ]==               [
     4, 5, 6 ],               "comment"
     assert num== pytest.approx(value, tolerance), "comment"
+    assert num1 < num2, 'comment'
     method_with_is()
     assert result== expected, "comment"
     assert hashref["array"]== that, 'comment'
