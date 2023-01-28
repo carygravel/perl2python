@@ -1901,7 +1901,7 @@ EOS
 $expected = <<'EOS';
 for _ in my_list :
     if  (_ is None) :
-        next()
+        continue
 
 
 EOS

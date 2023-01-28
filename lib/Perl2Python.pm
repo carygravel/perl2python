@@ -3592,7 +3592,7 @@ sub map_word {
             map_myour($element);
         }
         when ('next') {
-            map_built_in($element);
+            $element->{content} = 'continue';
         }
         when ('new') {
             map_new($element);
