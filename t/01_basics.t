@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 141;
+use Test::More tests => 140;
 
 sub slurp {
     my ($file) = @_;
@@ -1923,27 +1923,18 @@ is map_document( \$script ), $expected, "regex count matches";
 
 $script = <<'EOS';
 my $size = -s $file;
+my $test = -f $file;
+my $test = -r $file;
 EOS
 
 $expected = <<'EOS';
 import os
 size = os.path.getsize(file) 
-EOS
-
-is map_document( \$script ), $expected, "-s -> getsize()";
-
-#########################
-
-$script = <<'EOS';
-my $test = -f $file;
-EOS
-
-$expected = <<'EOS';
-import os
 test = os.path.isfile(file) 
+test = os.access(file,os.R_OK) 
 EOS
 
-is map_document( \$script ), $expected, "-f -> isfile()";
+is map_document( \$script ), $expected, "file tests";
 
 #########################
 

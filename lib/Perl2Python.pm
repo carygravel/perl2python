@@ -2138,7 +2138,7 @@ sub map_operator {
         when (q{->}) {
             map_arrow_operator($element);
         }
-        when (/^-[fs]$/xsm) {
+        when (/^-[fsr]$/xsm) {
             add_import( $element, 'os' );
             my $parent = $element->parent;
             my $list =
@@ -2150,13 +2150,18 @@ sub map_operator {
             }
             my $method;
             if ( $element eq '-f' ) {
-                $method = 'isfile';
+                $method = 'os.path.isfile';
             }
             elsif ( $element eq '-s' ) {
-                $method = 'getsize';
+                $method = 'os.path.getsize';
+            }
+            elsif ( $element eq '-r' ) {
+                $method = 'os.access';
+                $list->add_element( PPI::Token::Operator->new(q{,}) );
+                $list->add_element( PPI::Token::Word->new('os.R_OK') );
             }
             $parent->__insert_after_child( $element,
-                PPI::Token::Word->new("os.path.$method"), $list );
+                PPI::Token::Word->new($method), $list );
             $element->delete;
         }
         when ('eq') {
