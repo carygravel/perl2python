@@ -1782,8 +1782,13 @@ sub map_is {
     if ( not defined $operator ) {
         $operator = $result[-1]->snext_sibling;
     }
-    $element->{content}  = 'assert';
-    $operator->{content} = q{==};
+    if ( $element eq 'isnt' ) {
+        $operator->{content} = q{!=};
+    }
+    else {
+        $operator->{content} = q{==};
+    }
+    $element->{content} = 'assert';
     return;
 }
 
@@ -3506,7 +3511,7 @@ sub map_word {
         when ('if') {
             map_postfix_if($element);
         }
-        when (/^(?:is|cmp)(?:_deeply)?$/xsm) {
+        when (/^(?:is|cmp)(?:_deeply|nt)?$/xsm) {
             map_is($element);
         }
         when ('isa') {

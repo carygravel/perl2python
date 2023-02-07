@@ -52,6 +52,7 @@ $script = <<'EOS';
 use Test::More tests => 14;
 use Gtk3 -init;
 is $result, $expected, "comment";
+isnt $result, $expected, "comment";
 is_deeply \@result, \@expected, "comment";
             is_deeply [ 1, 2, 3 ],
               [ 4, 5, 6 ],
@@ -82,6 +83,7 @@ from gi.repository import Gtk
 def test_1():
 
     assert result== expected, "comment"
+    assert result!= expected, "comment"
     assert result== expected, "comment"
     assert [
     1, 2, 3 ]==               [
