@@ -66,7 +66,7 @@ for my $i ( 0 .. $#PRECEDENCE ) {
 }
 
 # https://perldoc.perl.org/functions
-my @BUILTINS = qw(defined eval keys scalar);
+my @BUILTINS = qw(chomp defined eval keys scalar);
 my ( %BUILTINS, %LIST_OPERATORS );
 for my $op (@BUILTINS) {
     $BUILTINS{$op} = 1;
@@ -449,6 +449,23 @@ sub map_cast {
     elsif ( $element eq q{\\} ) {
         $element->delete;
     }
+    return;
+}
+
+sub map_chomp {
+    my ($element) = @_;
+    my $list      = map_built_in($element);
+    my $var       = $list->schild(0);
+    if ( $var->isa('PPI::Statement::Expression') ) {
+        $var = $var->schild(0);
+    }
+    map_element($var);
+    my $operator = $element->sprevious_sibling;
+    if ( not defined $operator or $operator eq q{} ) {
+        $element->insert_before( PPI::Token::Operator->new("$var=") );
+    }
+    $element->{content} = '.rstrip';
+    $element->insert_before( $var->remove );
     return;
 }
 
@@ -3429,6 +3446,9 @@ sub map_word {
         }
         when ('catch') {
             $element->{content} = 'except';
+        }
+        when ('chomp') {
+            map_chomp($element);
         }
         when ('close') {
             my $list = map_built_in($element);

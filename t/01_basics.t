@@ -1456,6 +1456,9 @@ undef $ahash{key};
 $ahash{key} = undef;
 $HEX_FF = hex 'ff';
 ref($object);
+chomp $a;
+chomp($a);
+$b = chomp $a;
 $ahash{key}++;
 ++$ahash{key};
 $ahash{key}--;
@@ -1492,6 +1495,9 @@ ahash["key"]=None
 ahash["key"] = None
 HEX_FF = hex('ff') 
 type(object)
+a=a.rstrip() 
+a=a.rstrip()
+b = a.rstrip() 
 ahash["key"]+=1
 ahash["key"]+=1
 ahash["key"]-=1
