@@ -65,6 +65,7 @@ is_deeply( $hashref->{array}, \@that, 'comment' );
 is( MyClass->method(), 'return value', 'comment' );
 is( MyClass->method, 'return value', 'comment' );
 is( $iter->(), 'return value', 'comment' );
+is( scalar keys %{$var}, 2, 'comment' );
 isa_ok( $object, 'My::Class' );
 isa_ok( $object, 'My::Class', 'comment' );
 can_ok( $object, qw(list of methods), 'comment' );
@@ -96,6 +97,7 @@ def test_1():
     assert MyClass.method()== 'return value', 'comment'
     assert MyClass.method()== 'return value', 'comment'
     assert next(iter)== 'return value', 'comment'
+    assert len(var.keys())  == 2, 'comment'
     assert isinstance( object, My.Class )
     assert isinstance( object, My.Class ), 'comment'
     assert hasattr(object,'list') and callable(object.list), 'comment'

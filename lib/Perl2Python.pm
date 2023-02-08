@@ -66,7 +66,7 @@ for my $i ( 0 .. $#PRECEDENCE ) {
 }
 
 # https://perldoc.perl.org/functions
-my @BUILTINS = qw(defined eval);
+my @BUILTINS = qw(defined eval keys scalar);
 my ( %BUILTINS, %LIST_OPERATORS );
 for my $op (@BUILTINS) {
     $BUILTINS{$op} = 1;
@@ -2649,7 +2649,7 @@ sub map_scalar {
         $element->delete;
         $list->delete;
     }
-    elsif ( $arg->isa('PPI::Token::Cast') ) {
+    else {
         $element->{content} = 'len';
     }
     return;
