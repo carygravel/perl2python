@@ -793,14 +793,7 @@ sub map_element {
             map_interpreted_string($element);
         }
         when (/PPI::Token::Quote::Literal/xsm) {
-            my $content = substr
-              $element->content,
-              $element->{sections}[0]{position},
-              $element->{sections}[0]{size};
-            $content =~ s/"/\\"/xsm;
-            $element->insert_after(
-                PPI::Token::Quote::Double->new( q{"} . $content . q{"} ) );
-            $element->delete;
+            map_quote($element);
         }
         when (/PPI::Token::QuoteLike::Readline/xsm) {
             map_readline($element);
@@ -810,14 +803,7 @@ sub map_element {
                 map_regex_match($element);
             }
             else {
-                my $content = substr
-                  $element->content,
-                  $element->{sections}[0]{position},
-                  $element->{sections}[0]{size};
-                $content =~ s/"/\\"/xsm;
-                $element->insert_after(
-                    PPI::Token::Quote::Double->new( q{r"} . $content . q{"} ) );
-                $element->delete;
+                map_quote( $element, 'r' );
             }
         }
         when (/PPI::Token::QuoteLike::Words/xsm) {
@@ -2356,6 +2342,25 @@ sub map_push {
         $child->insert_before( PPI::Token::Number->new(0) );
         $child->insert_before( PPI::Token::Operator->new(q{,}) );
     }
+    return;
+}
+
+sub map_quote {
+    my ( $element, $prefix ) = @_;
+    if ( not defined $prefix ) { $prefix = q{} }
+    my $content = substr
+      $element->content,
+      $element->{sections}[0]{position},
+      $element->{sections}[0]{size};
+    $content =~ s/"/\\"/xsm;
+    my $quote = q{"};
+    if ( $content =~ /\n/xsm ) {
+        $quote = '"""';
+    }
+    $element->insert_after(
+        PPI::Token::Quote::Double->new( $prefix . $quote . $content . $quote )
+    );
+    $element->delete;
     return;
 }
 
