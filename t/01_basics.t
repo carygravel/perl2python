@@ -336,10 +336,10 @@ class Object(Gtk.Object):
     __gsignals__={'signal_with_float':(GObject.SignalFlags.RUN_FIRST,None,(float,)),'signal_with_ints':(GObject.SignalFlags.RUN_FIRST,None,( int,int, )),'signal_without_value':(GObject.SignalFlags.RUN_FIRST,None,(None,)),'signal_without_param_types':(GObject.SignalFlags.RUN_FIRST,None,(None,)),}
     name1=GObject.Property(type=object,nick='Nick1',blurb='Blurb1')
     name2=GObject.Property(type=str,default='default',nick='Nick2',blurb='Blurb2')
-    name_3=GObject.Property(type=int,min=1,max=999,default=1,nick='Nick3',blurb='Blurb3')
+    name_3=GObject.Property(type=int,minimum=1,maximum=999,default=1,nick='Nick3',blurb='Blurb3')
     name4=GObject.Property(type=GObject.GEnum,default='default',nick='Nick4',blurb='Blurb')
     name5=GObject.Property(type=bool,default=False,nick='Nick5',blurb='Blurb')
-    name6=GObject.Property(type=float,min=1,max=999,default=1,nick='Nick6',blurb='Blurb6')
+    name6=GObject.Property(type=float,minimum=1,maximum=999,default=1,nick='Nick6',blurb='Blurb6')
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.connect("show",show)

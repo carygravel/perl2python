@@ -1372,12 +1372,12 @@ sub map_gobject_subclass {
 
                     if ( defined $min ) {
                         $list->add_element( PPI::Token::Operator->new(q{,}) );
-                        $list->add_element( PPI::Token::Word->new('min=') );
+                        $list->add_element( PPI::Token::Word->new('minimum=') );
                         $list->add_element( $min->remove );
                     }
                     if ( defined $max ) {
                         $list->add_element( PPI::Token::Operator->new(q{,}) );
-                        $list->add_element( PPI::Token::Word->new('max=') );
+                        $list->add_element( PPI::Token::Word->new('maximum=') );
                         $list->add_element( $max->remove );
                     }
                     if ( defined $default ) {
