@@ -3074,6 +3074,9 @@ sub map_postfix_if {
     my ($element) = @_;
     my $prev = $element->sprevious_sibling;
     if ( not $prev ) { return }
+    if ( $element eq 'unless' ) {
+        $element->{content} = 'if not';
+    }
     my $cstatement = PPI::Statement::Compound->new;
     my $ostatement = $element->parent;
     my $condition  = $element->snext_sibling;
@@ -3533,7 +3536,7 @@ sub map_word {
         when ('hex') {
             map_built_in($element);
         }
-        when ('if') {
+        when (/^(?:if|unless)$/xsm) {
             map_postfix_if($element);
         }
         when (/^(?:is|cmp)(?:_deeply|nt)?$/xsm) {

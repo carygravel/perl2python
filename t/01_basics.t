@@ -1597,6 +1597,8 @@ is map_document( \$script ), $expected, "indent else2";
 $script = <<'EOS';
 return $result if ( defined $result );
 warn "$x" if "$x";
+return $result unless ( defined $result );
+warn "$x" unless "$x";
 EOS
 
 $expected = <<'EOS';
@@ -1604,9 +1606,13 @@ if (  (result is not None) ):
     return result  
 if f"{x}":
     warn f"{x}"  
+if not (  (result is not None) ):
+    return result  
+if not f"{x}":
+    warn f"{x}"  
 EOS
 
-is map_document( \$script ), $expected, "postfix if";
+is map_document( \$script ), $expected, "postfix if/unless";
 
 $script = <<'EOS';
 package Gscan2pdf::Scanner::Options;
