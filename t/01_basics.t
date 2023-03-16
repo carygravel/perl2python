@@ -1722,6 +1722,9 @@ given ( $result ) {
     when ($_ eq 'c' or $_ eq 'd') {
         return 3
     }
+    when (['c', 'd']) {
+        my $index = 0;
+    }
     default {
         return 2
     }
@@ -1739,6 +1742,9 @@ elif  result =='b':
 
 elif  result  == 'c' or  result  == 'd':
     return 3
+
+elif  result in ['c', 'd']:
+    index = 0
 
 else :
     return 2
