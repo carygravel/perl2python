@@ -1148,23 +1148,25 @@ sub map_given_structure {
     elsif ( $expression
         and $expression->find_first('PPI::Token::Operator') )
     {
-        for my $magic (
-            @{
-                $expression->find(
-                    sub {
-                        $_[1]->isa('PPI::Token::Magic')
-                          and $_[1]->content eq
-                          '$_'    ## no critic (RequireInterpolationOfMetachars)
-                          ;
-                    }
-                )
+        if ( $when->find_first('PPI::Token::Magic') ) {
+            for my $magic (
+                @{
+                    $expression->find(
+                        sub {
+                            $_[1]->isa('PPI::Token::Magic')
+                              and $_[1]->content eq
+                              '$_' ## no critic (RequireInterpolationOfMetachars)
+                              ;
+                        }
+                    )
+                }
+              )
+            {
+                for my $match ( $given->children ) {
+                    $expression->__insert_before_child( $magic, $match->clone );
+                }
+                $magic->delete;
             }
-          )
-        {
-            for my $match ( $given->children ) {
-                $expression->__insert_before_child( $magic, $match->clone );
-            }
-            $magic->delete;
         }
         $compound->add_element( $expression->remove );
     }
