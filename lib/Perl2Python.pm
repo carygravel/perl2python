@@ -1156,7 +1156,7 @@ sub map_given_structure {
                   ;
             }
         );
-        if (@when_magic) {
+        if ( @when_magic and $when_magic[0] ne q{} ) {
             for my $magic ( @{ $when_magic[0] } ) {
                 for my $match ( $given->children ) {
                     $magic->parent->__insert_before_child( $magic,

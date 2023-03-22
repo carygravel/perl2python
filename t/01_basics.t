@@ -1728,6 +1728,9 @@ given ( $result ) {
     when ($result->isa('Gtk3::CheckButton')) {
         my $index = $_;
     }
+    when ($result->isa('Gtk3::CheckButton')) {
+        return 4
+    }
     default {
         return 2
     }
@@ -1751,6 +1754,9 @@ elif  result in ['c', 'd']:
 
 elif issubclass(result,CheckButton):
     index =  result 
+
+elif issubclass(result,CheckButton):
+    return 4
 
 else :
     return 2
