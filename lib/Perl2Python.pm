@@ -1387,26 +1387,31 @@ sub map_gobject_subclass {
                     $list->add_element( $type->remove );
 
                     if ( defined $min ) {
+                        map_element($min);
                         $list->add_element( PPI::Token::Operator->new(q{,}) );
                         $list->add_element( PPI::Token::Word->new('minimum=') );
                         $list->add_element( $min->remove );
                     }
                     if ( defined $max ) {
+                        map_element($max);
                         $list->add_element( PPI::Token::Operator->new(q{,}) );
                         $list->add_element( PPI::Token::Word->new('maximum=') );
                         $list->add_element( $max->remove );
                     }
                     if ( defined $default ) {
+                        map_element($default);
                         $list->add_element( PPI::Token::Operator->new(q{,}) );
                         $list->add_element( PPI::Token::Word->new('default=') );
                         $list->add_element( $default->remove );
                     }
                     if ( length $nick > 2 ) {
+                        map_element($nick);
                         $list->add_element( PPI::Token::Operator->new(q{,}) );
                         $list->add_element( PPI::Token::Word->new('nick=') );
                         $list->add_element( $nick->remove );
                     }
                     if ( length $blurb > 2 ) {
+                        map_element($blurb);
                         $list->add_element( PPI::Token::Operator->new(q{,}) );
                         $list->add_element( PPI::Token::Word->new('blurb=') );
                         $list->add_element( $blurb->remove );
