@@ -324,7 +324,7 @@ use Glib::Object::Subclass Gtk3::Object::, signals => {
     Glib::ParamSpec->enum('name4','Nick4','Blurb','Enum::Name','default',[qw/readable writable/]),
     Glib::ParamSpec->boolean('name5','Nick5','Blurb',FALSE,[qw/readable writable/]),
     Glib::ParamSpec->float('name6','Nick6','Blurb6', 1, 999, 1, [qw/readable writable/]),
-    Glib::ParamSpec->int('name7','Nick3','Blurb3', 1, $VAR, 1, [qw/readable writable/]),
+    Glib::ParamSpec->int('name7','Nick3','Blurb3', -$VAR, $VAR, 1, [qw/readable writable/]),
   ];
 $dialog->signal_emit( 'delete_event', undef );
 return $self->get("zoom-to-fit");
@@ -341,7 +341,7 @@ class Object(Gtk.Object):
     name4=GObject.Property(type=GObject.GEnum,default='default',nick='Nick4',blurb='Blurb')
     name5=GObject.Property(type=bool,default=False,nick='Nick5',blurb='Blurb')
     name6=GObject.Property(type=float,minimum=1,maximum=999,default=1,nick='Nick6',blurb='Blurb6')
-    name7=GObject.Property(type=int,minimum=1,maximum=VAR,default=1,nick='Nick3',blurb='Blurb3')
+    name7=GObject.Property(type=int,minimum=-VAR,maximum=VAR,default=1,nick='Nick3',blurb='Blurb3')
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.connect("show",show)
