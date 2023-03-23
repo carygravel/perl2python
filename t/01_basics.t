@@ -1476,6 +1476,7 @@ $ahash{key}--;
 local $SIG{CHLD} = 'IGNORE'; # local has no equivalent in python
 $a = abs $b - $c;
 $a = int $b - $c;
+if ( $self->get('prop') or $options ) {do_something();}
 EOS
 
 $expected = <<'EOS';
@@ -1515,6 +1516,8 @@ ahash["key"]-=1
 SIG["CHLD"] = 'IGNORE' # local has no equivalent in python
 a = abs(b-c)   
 a = int(b-c)   
+if self.prop or options :
+    do_something()
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";

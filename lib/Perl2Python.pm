@@ -356,7 +356,11 @@ sub map_built_in {
 
     # deal with return value from built-in
     my $child = $list->snext_sibling;
-    if ( $child eq 'or' ) {
+    my $next;
+    if ($child) {
+        $next = $child->snext_sibling;
+    }
+    if ( $child eq 'or' and $next and $next->isa('PPI::Token::Word') ) {
         my $try    = PPI::Statement::Compound->new;
         my $parent = $statement->parent;
         $parent->__insert_before_child( $statement, $try );
