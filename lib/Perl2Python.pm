@@ -1296,16 +1296,6 @@ sub map_gobject_signal_type {
     return;
 }
 
-sub get_next_in_list {
-    my ($element) = @_;
-    my @list;
-    while ( $element and $element ne q{,} ) {
-        push @list, $element;
-        $element = $element->snext_sibling;
-    }
-    return @list;
-}
-
 sub list_add_elements {
     my ( $list, @elements ) = @_;
     if (@elements) {
@@ -1372,30 +1362,34 @@ sub map_gobject_subclass {
 
                     given ( $type->{content} ) {
                         when ('boolean') {
-                            @default = get_next_in_list(
-                                $blurb->snext_sibling->snext_sibling );
+                            @default =
+                              get_argument_for_operator( $blurb->snext_sibling,
+                                1 );
                             $type->{content} = 'bool';
                         }
                         when ('enum') {
                             my $enum = $blurb->snext_sibling->snext_sibling;
-                            @default = get_next_in_list(
-                                $enum->snext_sibling->snext_sibling );
+                            @default =
+                              get_argument_for_operator( $enum->snext_sibling,
+                                1 );
                             $type->{content} = 'GObject.GEnum';
                         }
                         when (/(?:float|int)/xsm) {
-                            @min = get_next_in_list(
-                                $blurb->snext_sibling->snext_sibling );
-                            @max = get_next_in_list(
-                                $min[-1]->snext_sibling->snext_sibling );
-                            @default = get_next_in_list(
-                                $max[-1]->snext_sibling->snext_sibling );
+                            @min =
+                              get_argument_for_operator( $blurb->snext_sibling,
+                                1 );
+                            @max = get_argument_for_operator(
+                                $min[-1]->snext_sibling, 1 );
+                            @default = get_argument_for_operator(
+                                $max[-1]->snext_sibling, 1 );
                         }
                         when ('scalar') {
                             $type->{content} = 'object';
                         }
                         when ('string') {
-                            @default = get_next_in_list(
-                                $blurb->snext_sibling->snext_sibling );
+                            @default =
+                              get_argument_for_operator( $blurb->snext_sibling,
+                                1 );
                             $type->{content} = 'str';
                         }
                     }
