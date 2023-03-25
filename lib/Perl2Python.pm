@@ -2750,23 +2750,68 @@ sub map_splice {
     my $subscript =
       PPI::Structure::Subscript->new( PPI::Token::Structure->new('[') );
     $subscript->{finish} = PPI::Token::Structure->new(']');
-    my $commas = $list->find(
-        sub {
-            $_[1]->isa('PPI::Token::Operator')
-              and $_[1]->content eq q{,};
-        }
-    );
-    $commas->[0]->insert_before($subscript);
-    my @start = get_argument_for_operator( $commas->[0], 1 );
-    $commas->[0]->delete;
-    my $operator = $start[-1]->snext_sibling;
+    my @commas = @{
+        $list->find(
+            sub {
+                $_[1]->isa('PPI::Token::Operator')
+                  and $_[1]->content eq q{,};
+            }
+        )
+    };
+    $commas[0]->insert_before($subscript);
+    my @start = get_argument_for_operator( $commas[0], 1 );
+    $commas[0]->delete;
     for my $child (@start) {
         $subscript->add_element( $child->remove );
     }
-    my @count = get_argument_for_operator( $operator, 1 );
-    $operator->delete;
-    for my $child (@count) {
-        $child->delete;
+    my @count = get_argument_for_operator( $commas[1], 1 );
+    if ( @commas > 1 ) {
+        if ( int("@count") > 1 ) {
+            for my $child (@start) {
+                $subscript->add_element( $child->clone );
+            }
+            $subscript->add_element( $commas[1]->remove );
+            $commas[1]->content = q{:};
+            for my $child (@count) {
+                $subscript->add_element( $child->remove );
+            }
+        }
+        else {
+            $commas[1]->delete;
+            for my $child (@count) {
+                $child->delete;
+            }
+        }
+    }
+    if ( @commas > 2 ) {
+        my @replacement = get_argument_for_operator( $commas[2], 1 );
+        my $parent      = $element->parent;
+        my ( @array, $item );
+        my $i = 0;
+        $item = $list->child($i);
+        while ( $item and not $item->isa('PPI::Structure::Subscript') ) {
+            push @array, $item->clone;
+            $item = $list->child( ++$i );
+        }
+        my $insert = PPI::Statement->new;
+        $parent->insert_after($insert);
+        $parent->insert_after( PPI::Token::Whitespace->new("\n") );
+        for my $child (@array) {
+            $insert->add_element( $child->clone );
+        }
+        $insert->add_element( PPI::Token::Word->new('.insert') );
+        my $list2 =
+          PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $list2->{finish} = PPI::Token::Structure->new(')');
+        $insert->add_element($list2);
+        for my $child (@start) {
+            $list2->add_element( $child->clone );
+        }
+        $list2->add_element( $commas[2]->remove );
+        for my $child (@replacement) {
+            $list2->add_element( $child->remove );
+        }
+        indent_element($insert);
     }
     return;
 }

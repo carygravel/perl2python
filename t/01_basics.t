@@ -1461,6 +1461,7 @@ push @my_array, $item;
 push @{ $self->{data} }, $item;
 unshift @my_array, $item;
 splice @{ $self->{data} }, $i - 1, 1;
+splice @{ $self->{data} }, $i - 1, 1, 'new item';
 delete $ahash{key};
 undef $ahash{key};
 $ahash{key} = undef;
@@ -1501,6 +1502,8 @@ my_array.append(item)
 self.data.append(item)  
 my_array.insert(0,item)  
 del(self.data[i-1])     
+del(self.data[i-1])      
+self.data.insert(i-1,'new item')
 del(ahash["key"]) 
 ahash["key"]=None
 ahash["key"] = None
