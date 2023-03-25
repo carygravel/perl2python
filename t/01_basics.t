@@ -2065,6 +2065,7 @@ for ( sort %my_list ) {
 for ( sort keys %options ) {
     print $_;
 }
+@new = sort { $a <=> $b } @old;
 EOS
 
 $expected = <<'EOS';
@@ -2083,6 +2084,7 @@ for _ in  sorted(my_list)   :
 for _ in  sorted(options.keys())    :
     print(_) 
 
+new = sorted(old)  
 EOS
 
 is map_document( \$script ), $expected, "sort(), keys() & values()";

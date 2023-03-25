@@ -3293,6 +3293,17 @@ sub map_signals {
     return;
 }
 
+sub map_sort {
+    my ($element) = @_;
+    my $method = $element->snext_sibling;
+    if ( $method->isa('PPI::Structure::Block') ) {
+        $method->delete;
+    }
+    my $list = map_built_in($element);
+    $element->{content} = 'sorted';
+    return;
+}
+
 sub map_sprintf {
     my ($element) = @_;
     my $list = map_built_in($element);
@@ -3784,8 +3795,7 @@ sub map_word {
             map_signals( $element, $1 );
         }
         when ('sort') {
-            my $list = map_built_in($element);
-            $element->{content} = 'sorted';
+            map_sort($element);
         }
         when ('splice') {
             map_splice($element);
