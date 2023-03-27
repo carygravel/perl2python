@@ -1081,6 +1081,32 @@ sub map_file_temp {
     return;
 }
 
+sub map_first_index {
+    my ($element) = @_;
+    $element->{content} = '.index';
+    my $list   = map_built_in($element);
+    my $method = $list->schild(0);
+    my @magic  = $method->find('PPI::Token::Magic');
+    if ( @magic and $magic[0][0] ne q{} ) {
+        for ( @{ $magic[0] } ) {
+            $_->delete;
+        }
+    }
+    my @operators = $method->find('PPI::Token::Operator');
+    if ( @operators and $operators[0][0] ne q{} ) {
+        for ( @{ $operators[0] } ) {
+            $_->delete;
+        }
+    }
+    my $array = $list->schild(1);
+    $element->insert_before( $array->remove );
+    for ( $method->children ) {
+        $list->add_element( $_->remove );
+    }
+    $method->delete;
+    return;
+}
+
 # map getter to property
 sub map_get {
     my ($element) = @_;
@@ -3632,6 +3658,9 @@ sub map_word {
         }
         when ('eval') {
             map_eval($element);
+        }
+        when ('first_index') {
+            map_first_index($element);
         }
         when ('get') {
             map_get($element);
