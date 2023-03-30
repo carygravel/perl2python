@@ -1099,7 +1099,12 @@ sub map_first_index {
         }
     }
     my $array = $list->schild(1);
-    $element->insert_before( $array->remove );
+    if ( $array eq q{@} and $list->schild(2)->isa('PPI::Structure::Block') ) {
+        remove_cast( $array, $list->schild(2), $array->parent );
+        $array = $list->schild(1);
+    }
+
+    $element->parent->__insert_before_child( $element, $array->remove );
     for ( $method->children ) {
         $list->add_element( $_->remove );
     }
@@ -4168,6 +4173,7 @@ sub regex2quote {
 
 sub remove_cast {
     my ( $element, $block, $parent ) = @_;
+    if ( not $block ) { return }
     my $child = $block->schild(0);
     map_element($child);
     $parent->__insert_after_child( $block, $child->remove );

@@ -2066,7 +2066,8 @@ for ( sort keys %options ) {
     print $_;
 }
 @new = sort { $a <=> $b } @old;
-i = first_index {$_ eq 'something'} @array
+i = first_index {$_ eq 'something'} @array;
+i = first_index {$_ eq 'something'} @{$self->{array}};
 EOS
 
 $expected = <<'EOS';
@@ -2087,6 +2088,7 @@ for _ in  sorted(options.keys())    :
 
 new = sorted(old)  
 i = array.index(  'something')  
+i = self.array.index(  'something')  
 EOS
 
 is map_document( \$script ), $expected, "sort(), keys() & values()";
