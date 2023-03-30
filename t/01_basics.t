@@ -2068,6 +2068,11 @@ for ( sort keys %options ) {
 @new = sort { $a <=> $b } @old;
 i = first_index {$_ eq 'something'} @array;
 i = first_index {$_ eq 'something'} @{$self->{array}};
+given ($var) {
+    when ( $var->isa('Something') ) {
+            my $i = first_index { $val } @array;
+    }
+}
 EOS
 
 $expected = <<'EOS';
@@ -2087,8 +2092,11 @@ for _ in  sorted(options.keys())    :
     print(_) 
 
 new = sorted(old)  
-i = array.index(  'something')  
-i = self.array.index(  'something')  
+i = array.index('something')  
+i = self.array.index('something')  
+if issubclass(var,Something):
+    i = array.index( val )  
+
 EOS
 
 is map_document( \$script ), $expected, "sort(), keys() & values()";

@@ -1087,13 +1087,13 @@ sub map_first_index {
     my $list   = map_built_in($element);
     my $method = $list->schild(0);
     my @magic  = $method->find('PPI::Token::Magic');
-    if ( @magic and $magic[0][0] ne q{} ) {
+    if ( @magic and $magic[0] ne q{} ) {
         for ( @{ $magic[0] } ) {
             $_->delete;
         }
     }
     my @operators = $method->find('PPI::Token::Operator');
-    if ( @operators and $operators[0][0] ne q{} ) {
+    if ( @operators and $operators[0] ne q{} ) {
         for ( @{ $operators[0] } ) {
             $_->delete;
         }
@@ -1106,6 +1106,7 @@ sub map_first_index {
 
     $element->parent->__insert_before_child( $element, $array->remove );
     for ( $method->children ) {
+        map_element($_);
         $list->add_element( $_->remove );
     }
     $method->delete;
