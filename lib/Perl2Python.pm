@@ -1302,7 +1302,7 @@ sub map_gobject_signals {
             }
         }
         if ( not $type_expression ) {
-            $tuple->add_element( PPI::Token::Word->new('(None,)') );
+            $tuple->add_element( PPI::Token::Word->new('()') );
         }
         $op1->delete;
         $def->delete;
