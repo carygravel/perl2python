@@ -1320,6 +1320,8 @@ sub map_gobject_signal_type {
     if ( $type->isa('PPI::Token::Quote') ) {
         $type->{content} =~ s/Glib:://xsm;
         $type->{content} =~ s/UInt/Int/xsm;
+        $type->{content} =~ s/String/str/xsm;
+        $type->{content} =~ s/Scalar/object/xsm;
         $type->{content} = lc $type;
         $type->insert_before( PPI::Token::Word->new( quote2content($type) ) );
         $type->insert_before( PPI::Token::Operator->new(q{,}) );
