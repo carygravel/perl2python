@@ -322,12 +322,7 @@ sub map_arrow_operator {
         # methods require parens
         elsif ( $next->isa('PPI::Token::Word') ) {
             my $parens = $next->snext_sibling;
-            if ( not $parens or not $parens->isa('PPI::Structure::List') ) {
-                my $list =
-                  PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-                $list->{finish} = PPI::Token::Structure->new(')');
-                $next->insert_after($list);
-            }
+            map_built_in($next);
         }
         else {
             $element->delete;
@@ -345,7 +340,7 @@ sub map_built_in {
         $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
         $list->{finish} = PPI::Token::Structure->new(')');
 
-        if ( not @args ) {
+        if ( not @args and $element->snext_sibling !~ /^(?:,|->)$/xsm ) {
             @args = get_argument_for_operator( $element, 1 );
         }
         for my $child (@args) {
@@ -3270,14 +3265,22 @@ sub map_set {
     my $prev      = $element->sprevious_sibling;
     my $name      = $list->find_first('PPI::Token::Quote');
     if ( ( $prev eq '->' or $prev->{originally} eq '->' ) and $name ) {
-        my $opr   = $name->snext_sibling;
-        my $value = $opr->snext_sibling;
-        map_element($value);
+        my @value = get_argument_for_operator( $name->snext_sibling, 1 );
+        for my $value (@value) {
+            map_element($value);
+        }
+
+        # refetch value incase mapping has changed things
+        @value = get_argument_for_operator( $name->snext_sibling, 1 );
         $name->{content} =~ s/["']//gsmx;    # remove the quotes
         $name->{content} =~ s/-/_/gsmx;      # dash to underscore
         $element->insert_before( $name->remove );
         $element->insert_before( PPI::Token::Operator->new(q{=}) );
-        $element->insert_before( $value->remove );
+
+        # loop twice to retain context whilst mapping
+        for my $value (@value) {
+            $element->insert_before( $value->remove );
+        }
         $element->delete;
         $list->delete;
     }

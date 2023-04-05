@@ -332,6 +332,7 @@ use Glib::Object::Subclass Gtk3::Object::, signals => {
 $dialog->signal_emit( 'delete_event', undef );
 return $self->get("zoom-to-fit");
 $self->set("zoom-to-fit", FALSE);
+$self->set( 'num-pages', $spin_button->get_value );
 EOS
 
 $expected = <<'EOS';
@@ -353,6 +354,7 @@ class Object(Gtk.Object):
     dialog.emit( 'delete_event', None )
     return self.zoom_to_fit
     self.zoom_to_fit=False
+    self.num_pages=spin_button.get_value()
 EOS
 
 is map_document( \$script ), $expected,
