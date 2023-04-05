@@ -105,10 +105,15 @@ sub add_anonymous_method {
     $sub->add_element($block);
     my $parent = $statement->parent;
 
-    while (not $statement->isa('PPI::Statement')
-        or $statement->isa('PPI::Statement::Expression')
-        or $parent->isa('PPI::Structure::List')
-        or $parent->isa('PPI::Statement::Expression') )
+    while (
+        (
+               not $statement->isa('PPI::Statement')
+            or $statement->isa('PPI::Statement::Expression')
+            or $parent->isa('PPI::Structure::List')
+            or $parent->isa('PPI::Statement::Expression')
+        )
+        and not $parent->isa('PPI::Document')
+      )
     {
         $statement = $parent;
         $parent    = $statement->parent;
