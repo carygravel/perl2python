@@ -1271,10 +1271,12 @@ is map_document( \$script ), $expected, "remove linebreaks inside statements";
 
 $script = <<'EOS';
 $result = $result_of_expression ? $result_if_true : $result_if_false;
+$result = $result_of_expression || '';
 EOS
 
 $expected = <<'EOS';
 result =  result_if_true if result_of_expression  else result_if_false
+result = result_of_expression if result_of_expression is not None else ''
 EOS
 
 is map_document( \$script ), $expected, "ternary operator";

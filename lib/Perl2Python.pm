@@ -2188,6 +2188,9 @@ sub map_operator {
             $parent->__insert_before_child( $element,
                 PPI::Token::Whitespace->new(q{ }) );
         }
+        when (q{||}) {
+            map_or($element);
+        }
         when (q{.=}) {
             $element->{content} = q{+=};
         }
@@ -2277,6 +2280,29 @@ sub map_operator {
         when ('xor') {
             $element->{content} = q{^};
         }
+    }
+    return;
+}
+
+sub map_or {
+    my ($element) = @_;
+    my $parent = $element->parent;
+
+    # defined-or
+    if (
+        $parent->find_first(
+            sub {
+                $_[1]->isa('PPI::Token::Operator')
+                  and $_[1]->content eq q{=};
+            }
+        )
+      )
+    {
+        my @defined = get_argument_for_operator( $element, 0 );
+        $element->{content} = "if @defined is not None else";
+    }
+    else {
+        $element->{content} = 'or';
     }
     return;
 }
