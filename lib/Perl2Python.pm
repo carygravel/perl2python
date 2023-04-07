@@ -3294,7 +3294,8 @@ sub map_set {
     my ($element) = @_;
     my $list      = map_built_in($element);
     my $prev      = $element->sprevious_sibling;
-    my $name      = $list->find_first('PPI::Token::Quote');
+    my $name      = $list->schild(0);
+    if ( $name->isa('PPI::Statement::Expression') ) { $name = $name->schild(0) }
     if ( ( $prev eq '->' or $prev->{originally} eq '->' ) and $name ) {
         my @value = get_argument_for_operator( $name->snext_sibling, 1 );
         for my $value (@value) {

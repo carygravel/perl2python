@@ -333,6 +333,7 @@ $dialog->signal_emit( 'delete_event', undef );
 return $self->get("zoom-to-fit");
 $self->set("zoom-to-fit", FALSE);
 $self->set( 'num-pages', $spin_button->get_value );
+$var->set (myprop => '' );
 EOS
 
 $expected = <<'EOS';
@@ -355,6 +356,7 @@ class Object(Gtk.Object):
     return self.zoom_to_fit
     self.zoom_to_fit=False
     self.num_pages=spin_button.get_value()
+    var.myprop='' 
 EOS
 
 is map_document( \$script ), $expected,
