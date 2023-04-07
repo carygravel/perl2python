@@ -1618,6 +1618,7 @@ return $result if ( defined $result );
 warn "$x" if "$x";
 return $result unless ( defined $result );
 warn "$x" unless "$x";
+croak "message"	unless defined ($obj);
 EOS
 
 $expected = <<'EOS';
@@ -1629,6 +1630,8 @@ if not (  (result is not None) ):
     return result  
 if not f"{x}":
     warn f"{x}"  
+if not (obj is not None):
+    raise "message"	  
 EOS
 
 is map_document( \$script ), $expected, "postfix if/unless";

@@ -3234,14 +3234,19 @@ sub map_postfix_if {
     }
     my $cstatement = PPI::Statement::Compound->new;
     my $ostatement = $element->parent;
-    my $condition  = $element->snext_sibling;
+
+    # could be multiple items, especially if the condition is not surrounded by
+    # parens.
+    my @condition = get_argument_for_operator( $element, 1 );
     $ostatement->insert_before($cstatement);
     my $block = PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
     $block->{start}->{content} = q{:};
     $cstatement->add_element( $element->remove );
     $cstatement->add_element( PPI::Token::Whitespace->new(q{ }) );
-    $cstatement->add_element( $condition->remove );
-    $condition->insert_after($block);
+    for my $child (@condition) {
+        $cstatement->add_element( $child->remove );
+    }
+    $condition[-1]->insert_after($block);
     $block->add_element( $ostatement->remove );
     indent_element($cstatement);
     return;
