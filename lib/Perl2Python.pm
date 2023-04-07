@@ -3327,6 +3327,9 @@ sub map_shift {
     if ( not $argument ) {
         my $parent = $element->parent;
         my $source = $parent->find_first('PPI::Token::Symbol');
+        if ( not $source ) {    # argument is discarded in Perl->replace with _
+            $source = PPI::Token::Symbol->new(q{_});
+        }
         my $dest_list =
           $parent->parent->parent->find_first('PPI::Structure::List');
         if ( $dest_list->children ) {

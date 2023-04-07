@@ -540,6 +540,7 @@ is map_document( \$script ), $expected, "sub";
 
 $script = <<'EOS';
 sub function {
+    shift;
     my $x = shift;
     my $y = shift;
     my $t = shift;
@@ -549,7 +550,8 @@ sub function {
 EOS
 
 $expected = <<'EOS';
-def function(x,y,t) :
+def function(_,x,y,t) :
+    
     
     
     
