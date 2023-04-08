@@ -408,9 +408,12 @@ sub map_cast {
     {
 
         # array cast in list context
-        if ( not $operator
-            and $element ne
-            q{$#} )               ## no critic (RequireInterpolationOfMetachars)
+        if (
+            ( not $operator
+                and $element ne
+                q{$#} )    ## no critic (RequireInterpolationOfMetachars)
+            or ( $operator eq q{=} and $element eq q{@} )
+          )
         {
             remove_cast( $element, $block, $parent );
         }
@@ -418,7 +421,7 @@ sub map_cast {
         # array cast in scalar context -> len()
         elsif ( defined $PRECEDENCE{$operator}
             or $element eq
-            q{$#} )               ## no critic (RequireInterpolationOfMetachars)
+            q{$#} )    ## no critic (RequireInterpolationOfMetachars)
         {
             my $list =
               PPI::Structure::List->new( PPI::Token::Structure->new('(') );
@@ -4222,7 +4225,13 @@ sub regex2quote {
 sub remove_cast {
     my ( $element, $block, $parent ) = @_;
     if ( not $block ) { return }
-    my $child = $block->schild(0);
+    my $child;
+    if ( $block->isa('PPI::Token::Magic') ) {
+        $child = $block->clone;
+    }
+    else {
+        $child = $block->schild(0);
+    }
     map_element($child);
     $parent->__insert_after_child( $block, $child->remove );
     $element->delete;

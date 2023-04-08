@@ -1354,6 +1354,7 @@ if (@array == 2 or @array > 2 or @array < 2 or 2 < @array-1) {
 }
 return scalar @{ $self->{array} };
 $self->{$name} = $newval;
+@var = @$_;
 EOS
 
 $expected = <<'EOS';
@@ -1366,6 +1367,7 @@ if len(array) == 2 or len(array) > 2 or len(array) < 2 or 2 < len(array)-1 :
 
 return len(self.array) 
 self[name] = newval
+var = _
 EOS
 
 is map_document( \$script ), $expected, "various casts";
