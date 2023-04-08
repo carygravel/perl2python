@@ -1618,6 +1618,7 @@ is map_document( \$script ), $expected, "indent else2";
 $script = <<'EOS';
 return $result if ( defined $result );
 warn "$x" if "$x";
+push @ret, $var if defined $var;
 return $result unless ( defined $result );
 warn "$x" unless "$x";
 croak "message"	unless defined ($obj);
@@ -1628,6 +1629,8 @@ if (  (result is not None) ):
     return result  
 if f"{x}":
     warn f"{x}"  
+if (var is not None):
+    ret.append(var)     
 if not (  (result is not None) ):
     return result  
 if not f"{x}":

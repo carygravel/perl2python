@@ -4142,6 +4142,9 @@ sub has_higher_precedence_than {
     # don't swallow built-ins looking left for arguments
     if ( $direction == 0 and defined $BUILTINS{$op2} ) { return }
 
+    # don't swallow postfix if/unless
+    if ( $direction == 1 and $op2 =~ /^(?:if|unless)$/xsm ) { return }
+
     my $res = check_operator( $op1, $direction );
     if (    not defined $BUILTINS{$op1}
         and $op1->isa('PPI::Token::Word')
