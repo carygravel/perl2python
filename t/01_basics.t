@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 141;
+use Test::More tests => 142;
 
 sub slurp {
     my ($file) = @_;
@@ -2135,6 +2135,16 @@ list_item ], key1 = "value1", key2 = "value2" )
 EOS
 
 is map_document( \$script ), $expected, "hash -> named arguments #2";
+
+$script = <<'EOS';
+some_function (undef);
+EOS
+
+$expected = <<'EOS';
+some_function (None)
+EOS
+
+is map_document( \$script ), $expected, "function call with explicit undef";
 
 $script = <<'EOS';
 function_with_callback( callback => sub { return "result" } );

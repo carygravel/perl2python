@@ -3430,11 +3430,13 @@ sub map_undef {
     my $prev      = $element->sprevious_sibling;
     my $next      = $element->snext_sibling;
     my $gparent   = $element->parent->parent;
-    if (    $gparent
-        and $gparent->isa('PPI::Structure::List')
-        and $gparent->snext_sibling eq q{=} )
-    {
-        $element->{content} = '_';
+    if ( $gparent and $gparent->isa('PPI::Structure::List') ) {
+        if ( $gparent->snext_sibling eq q{=} ) {
+            $element->{content} = '_';
+        }
+        else {
+            $element->{content} = 'None';
+        }
     }
     elsif ( $prev or ( $next and $next->isa('PPI::Token::Operator') ) ) {
         $element->{content} = 'None';
