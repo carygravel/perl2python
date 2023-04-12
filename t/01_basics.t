@@ -1621,6 +1621,7 @@ warn "$x" if "$x";
 push @ret, $var if defined $var;
 return $result unless ( defined $result );
 warn "$x" unless "$x";
+carp $message;
 croak "message"	unless defined ($obj);
 EOS
 
@@ -1635,6 +1636,7 @@ if not (  (result is not None) ):
     return result  
 if not f"{x}":
     warn f"{x}"  
+warn(message) 
 if not (obj is not None):
     raise "message"	  
 EOS

@@ -3643,6 +3643,10 @@ sub map_word {
             }
             $statement->delete;
         }
+        when ('carp') {
+            map_built_in($element);
+            $element->{content} = 'warn';
+        }
         when ('catch') {
             $element->{content} = 'except';
         }
