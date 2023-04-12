@@ -3721,6 +3721,9 @@ sub map_word {
         when ('first_index') {
             map_first_index($element);
         }
+        when ('foreach') {
+            $element->{content} = 'for';
+        }
         when ('get') {
             map_get($element);
         }

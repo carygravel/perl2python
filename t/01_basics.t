@@ -1078,7 +1078,7 @@ EOS
 is map_document( \$script ), $expected, "split on regex";
 
 $script = <<'EOS';
-for ( @array ) {
+foreach ( @array ) {
     my @paths = split /:/xsm;
 }
 EOS
