@@ -2194,6 +2194,9 @@ sub map_operator {
         when (q{||}) {
             map_or($element);
         }
+        when (q{&&}) {
+            $element->{content} = 'and';
+        }
         when (q{.=}) {
             $element->{content} = q{+=};
         }

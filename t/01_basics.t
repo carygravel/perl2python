@@ -1006,7 +1006,7 @@ is map_document( \$script ), $expected, "indenting of new lines";
 
 $script = <<'EOS';
 if ( $cond1
-     and $cond2 ) {
+     && $cond2 ) {
     print "true\n";
 }
 EOS
