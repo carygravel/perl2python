@@ -2830,14 +2830,19 @@ sub map_splice {
     for my $child (@start) {
         $subscript->add_element( $child->remove );
     }
-    my @count = get_argument_for_operator( $commas[1], 1 );
+    my @count         = get_argument_for_operator( $commas[1], 1 );
+    my $count_numeric = 1;
+    for (@count) {
+        if ( not $_->isa('PPI::Token::Number') ) { $count_numeric = 0 }
+    }
     if ( @commas > 1 ) {
-        if ( int("@count") > 1 ) {
+        if ( not $count_numeric or int("@count") > 1 ) {
+            $subscript->add_element( $commas[1]->remove );
+            $commas[1]->{content} = q{:};
             for my $child (@start) {
                 $subscript->add_element( $child->clone );
             }
-            $subscript->add_element( $commas[1]->remove );
-            $commas[1]->content = q{:};
+            $subscript->add_element( PPI::Token::Operator->new(q{+}) );
             for my $child (@count) {
                 $subscript->add_element( $child->remove );
             }
@@ -3042,7 +3047,7 @@ sub map_symbol {
                 }
 
                 # map scalar @array -> len(array)
-                elsif ( $operator =~ /(?:==|<=|>=|!=|[><+-])/xsm
+                elsif ( $operator =~ m{(?:==|<=|>=|!=|[><+*/-])}xsm
                     and ( not $method or $method ne 'assert' ) )
                 {
                     my $list =
