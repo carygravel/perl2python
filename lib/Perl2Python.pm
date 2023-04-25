@@ -66,13 +66,13 @@ for my $i ( 0 .. $#PRECEDENCE ) {
 }
 
 # https://perldoc.perl.org/functions
-my @BUILTINS = qw(chomp defined eval keys scalar);
+my @BUILTINS = qw(chomp defined eval keys length scalar);
 my ( %BUILTINS, %LIST_OPERATORS );
 for my $op (@BUILTINS) {
     $BUILTINS{$op} = 1;
 }
 my @LIST_OPERATORS =
-  qw(chmod chown close grep join length map next pack open print printf push return reverse say sort split sprintf unlink unshift);
+  qw(chmod chown close grep join map next pack open print printf push return reverse say sort split sprintf unlink unshift);
 for my $op (@LIST_OPERATORS) {
     $BUILTINS{$op}       = 1;
     $LIST_OPERATORS{$op} = 1;

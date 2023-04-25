@@ -73,6 +73,7 @@ can_ok( $object, qw(list of methods) );
 pass 'comment';
 fail 'comment';
 ok( $dialog->get('property') == 'value', 'comment' );
+is( length $fonts, 65537, 'is + length' );
 EOS
 
 $expected = <<'EOS';
@@ -109,6 +110,7 @@ def test_1():
     assert True, 'comment'
     assert False, 'comment'
     assert dialog.property == 'value', 'comment'
+    assert len(fonts) == 65537, 'is + length'
 EOS
 
 $in  = 'test.t';
