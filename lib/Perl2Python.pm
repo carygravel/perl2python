@@ -3869,6 +3869,10 @@ sub map_word {
         when ('ref') {
             map_ref($element);
         }
+        when ('reverse') {
+            map_built_in($element);
+            $element->{content} = 'reversed';
+        }
         when ('rmdir') {
             my $list = map_built_in($element);
             add_import( $element, 'os' );
