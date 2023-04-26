@@ -2026,6 +2026,38 @@ sub map_magic {
     return $element;
 }
 
+sub map_map {
+    my ($element) = @_;
+    my $list      = map_built_in($element);
+    my $block     = $list->schild(0);
+    if ( $block->isa('PPI::Structure::Block') ) {
+        $block->insert_before( PPI::Token::Word->new('lambda x: ') );
+        $block->insert_after( PPI::Token::Operator->new(q{,}) );
+        my $magic = $block->find('PPI::Token::Magic');
+        if ($magic) {
+            for ( @{$magic} ) {
+                $_->{content} = 'x';
+            }
+        }
+        for my $child ( $block->children ) {
+
+            # use Data::Dumper;
+            # print Dumper($child);
+            if ( $child->isa('PPI::Statement') ) {
+                for my $gchild ( $child->children ) {
+                    $list->__insert_before_child( $block, $gchild->remove );
+                }
+            }
+            else {
+                $list->__insert_before_child( $block, $child->remove );
+            }
+        }
+        map_element($list);
+        $block->delete;
+    }
+    return;
+}
+
 sub map_modifiers {
     my ($element) = @_;
     my @flags;
@@ -3828,6 +3860,9 @@ sub map_word {
         when ('log') {
             add_import( $element, 'math' );
             $element->{content} = 'math.log';
+        }
+        when ('map') {
+            map_map($element);
         }
         when (/^(?:copy|move)$/xsm) {
             map_move_copy($element);

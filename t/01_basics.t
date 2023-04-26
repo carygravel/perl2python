@@ -1500,7 +1500,8 @@ local $SIG{CHLD} = 'IGNORE'; # local has no equivalent in python
 $a = abs $b - $c;
 $a = int $b - $c;
 if ( $self->get('prop') or $options ) {do_something();}
-$bytes = pack( sprintf( 'b%d', length $data ), $data)
+$bytes = pack( sprintf( 'b%d', length $data ), $data);
+@new  = map { $self->{data}[$_][2]{key} } @old;
 EOS
 
 $expected = <<'EOS';
@@ -1547,6 +1548,7 @@ a = int(b-c)
 if self.prop or options :
     do_something()
 bytes = struct.pack( 'b%d' % (  len(data)  ), data)
+new  = map(lambda x:  self["data"][x][2]["key"] ,old)  
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";
