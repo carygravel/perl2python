@@ -3852,6 +3852,11 @@ sub map_word {
         when ('open') {
             map_open($element);
         }
+        when ('pack') {
+            add_import( $element, 'struct' );
+            map_built_in($element);
+            $element->{content} = 'struct.pack';
+        }
         when (/^(?:pass|fail)$/xsm) {
             map_pass_fail($element);
         }

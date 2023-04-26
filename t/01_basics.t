@@ -1494,9 +1494,11 @@ local $SIG{CHLD} = 'IGNORE'; # local has no equivalent in python
 $a = abs $b - $c;
 $a = int $b - $c;
 if ( $self->get('prop') or $options ) {do_something();}
+$bytes = pack( sprintf( 'b%d', length $data ), $data)
 EOS
 
 $expected = <<'EOS';
+import struct
 import os
 fh=open(filename,mode='r')    
 line = fh.readline()
@@ -1538,6 +1540,7 @@ a = abs(b-c)
 a = int(b-c)   
 if self.prop or options :
     do_something()
+bytes = struct.pack( 'b%d' % (  len(data)  ), data)
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";
