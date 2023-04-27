@@ -3810,6 +3810,14 @@ sub map_word {
                 $parent->add_element( $token->remove );
             }
         }
+        when ('join') {
+            $element->{content} = '.join';
+            my $list     = map_built_in($element);
+            my $string   = $list->schild(0);
+            my $operator = $string->snext_sibling;
+            $element->insert_before( $string->remove );
+            $operator->delete;
+        }
         when (/^(?:keys|values)$/xsm) {
             my $list = map_built_in($element);
             for my $child ( $list->children ) {
