@@ -1503,6 +1503,7 @@ if ( $self->get('prop') or $options ) {do_something();}
 $bytes = pack( sprintf( 'b%d', length $data ), $data);
 @new  = map { $self->{data}[$_][2]{key} } @old;
 $out = join $SPACE, @list;
+$out = join( $SPACE, @list );
 $thread->join();
 EOS
 
@@ -1552,6 +1553,7 @@ if self.prop or options :
 bytes = struct.pack( 'b%d' % (  len(data)  ), data)
 new  = map(lambda x:  self["data"][x][2]["key"] ,old)  
 out = SPACE.join(list)  
+out = SPACE.join(  list )
 thread.join()
 EOS
 

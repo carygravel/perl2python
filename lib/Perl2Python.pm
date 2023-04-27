@@ -1921,8 +1921,12 @@ sub map_join {
     my $prev = $element->sprevious_sibling;
     if ( $prev eq q{.} ) { return }
     $element->{content} = '.join';
-    my $list     = map_built_in($element);
-    my $string   = $list->schild(0);
+    my $list   = map_built_in($element);
+    my $string = $list->schild(0);
+    if ( $string->isa('PPI::Statement::Expression') ) {
+        $string = $string->schild(0);
+        map_element($string);
+    }
     my $operator = $string->snext_sibling;
     $element->insert_before( $string->remove );
     $operator->delete;
