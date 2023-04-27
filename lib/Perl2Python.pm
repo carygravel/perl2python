@@ -1913,6 +1913,19 @@ sub map_interpreted_string {
     return;
 }
 
+sub map_join {
+    my ($element) = @_;
+    my $prev = $element->sprevious_sibling;
+    if ( $prev eq q{.} ) { return }
+    $element->{content} = '.join';
+    my $list     = map_built_in($element);
+    my $string   = $list->schild(0);
+    my $operator = $string->snext_sibling;
+    $element->insert_before( $string->remove );
+    $operator->delete;
+    return;
+}
+
 sub map_label {
     my ($element) = @_;
     if ( $element eq 'SKIP:' ) {
@@ -3811,12 +3824,7 @@ sub map_word {
             }
         }
         when ('join') {
-            $element->{content} = '.join';
-            my $list     = map_built_in($element);
-            my $string   = $list->schild(0);
-            my $operator = $string->snext_sibling;
-            $element->insert_before( $string->remove );
-            $operator->delete;
+            map_join($element);
         }
         when (/^(?:keys|values)$/xsm) {
             my $list = map_built_in($element);
