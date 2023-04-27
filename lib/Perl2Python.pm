@@ -980,9 +980,12 @@ sub map_fat_comma {    # =>
     my @rargument  = get_argument_for_operator( $element, 1 );
 
     # function call - map -> name arguments
-    if (    $expression->isa('PPI::Statement')
+    if (
+            $expression->isa('PPI::Statement')
         and $parent->isa('PPI::Structure::List')
-        and $prev->isa('PPI::Token::Word') )
+        and
+        ( $prev->isa('PPI::Token::Word') or $prev->isa('PPI::Token::Symbol') )
+      )
     {
         $element->{content} = q{=};
         my $property = $element->sprevious_sibling;
@@ -2053,9 +2056,6 @@ sub map_map {
             }
         }
         for my $child ( $block->children ) {
-
-            # use Data::Dumper;
-            # print Dumper($child);
             if ( $child->isa('PPI::Statement') ) {
                 for my $gchild ( $child->children ) {
                     $list->__insert_before_child( $block, $gchild->remove );

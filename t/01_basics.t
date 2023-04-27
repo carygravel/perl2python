@@ -2596,12 +2596,14 @@ $script = <<'EOS';
 my $next_value = $iter->();
 $next_value = $iter->(0);
 $callbacks{$response}->();
+$callback->(arg => $var);
 EOS
 
 $expected = <<'EOS';
 next_value = next(iter)
 next_value = next(iter)
 callbacks[response]()
+callback(arg = var)
 EOS
 
 is map_document( \$script ), $expected,
