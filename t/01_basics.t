@@ -1501,6 +1501,7 @@ $a = abs $b - $c;
 $a = int $b - $c;
 if ( $self->get('prop') or $options ) {do_something();}
 $bytes = pack( sprintf( 'b%d', length $data ), $data);
+( $x, $y ) = unpack 'x69A6xA6';
 @new  = map { $self->{data}[$_][2]{key} } @old;
 $out = join $SPACE, @list;
 $out = join( $SPACE, @list );
@@ -1551,6 +1552,7 @@ a = int(b-c)
 if self.prop or options :
     do_something()
 bytes = struct.pack( 'b%d' % (  len(data)  ), data)
+( x, y ) = struct.unpack('x69A6xA6',_) 
 new  = map(lambda x:  self["data"][x][2]["key"] ,old)  
 out = SPACE.join(list)  
 out = SPACE.join(  list )

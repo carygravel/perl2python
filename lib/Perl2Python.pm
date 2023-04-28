@@ -3507,6 +3507,17 @@ sub map_undef {
     return;
 }
 
+sub map_unpack {
+    my ($element) = @_;
+    add_import( $element, 'struct' );
+    my $list = map_built_in($element);
+    $element->{content} = 'struct.unpack';
+    if ( $list->schildren < 2 ) {
+        $list->add_element( PPI::Token::Symbol->new(',_') );
+    }
+    return;
+}
+
 sub map_variable {
     my ($element) = @_;
     my $operator = $element->find_first('PPI::Token::Operator');
@@ -3986,6 +3997,9 @@ sub map_word {
             my $list = map_built_in($element);
             add_import( $element, 'os' );
             $element->{content} = 'os.remove';
+        }
+        when ('unpack') {
+            map_unpack($element);
         }
         when ('use_ok') {
             $element->{content} = 'import';
