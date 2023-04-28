@@ -1180,7 +1180,7 @@ sub map_given_structure {
     my ( $when, $given, $compound ) = @_;
     my $expression = $when->find_first('PPI::Statement::Expression');
     my $list       = $when->find_first('PPI::Structure::Constructor');
-    if ($list) {
+    if ( $list and $list->parent->parent->sprevious_sibling eq 'when' ) {
         for my $match ( $given->children ) {
             $compound->add_element( $match->clone );
         }

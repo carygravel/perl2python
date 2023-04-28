@@ -1767,7 +1767,7 @@ given ( $result ) {
         return 0
     }
     when ('b') {
-        return 1
+        exec_command([$arg1, $arg2]);
     }
     when ($_ eq 'c' or $_ eq 'd') {
         return 3
@@ -1794,7 +1794,8 @@ if re.search(r"a", result ):
     return 0
 
 elif  result =='b':
-    return 1
+    exec_command(
+    [arg1, arg2])
 
 elif  result  == 'c' or  result  == 'd':
     return 3
