@@ -2017,13 +2017,16 @@ $script = <<'EOS';
 my $size = -s $file;
 my $test = -f $file;
 my $test = -r $file;
+$test = -e $file;
 EOS
 
 $expected = <<'EOS';
+import pathlib
 import os
 size = os.path.getsize(file) 
 test = os.path.isfile(file) 
 test = os.access(file,os.R_OK) 
+test = pathlib.Path(file).exists() 
 EOS
 
 is map_document( \$script ), $expected, "file tests";

@@ -2288,31 +2288,28 @@ sub map_operator {
         when (q{->}) {
             map_arrow_operator($element);
         }
-        when (/^-[fsr]$/xsm) {
-            add_import( $element, 'os' );
+        when (/^-[efrs]$/xsm) {
             my $parent = $element->parent;
-            my $list =
-              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-            $list->{finish} = PPI::Token::Structure->new(')');
-            my @args = get_argument_for_operator( $element, 1 );
-            for (@args) {
-                $list->add_element( $_->remove );
+            my $list   = map_built_in($element);
+            if ( $element eq '-e' ) {
+                add_import( $element, 'pathlib' );
+                $element->{content} = 'pathlib.Path';
+                $list->insert_after( PPI::Token::Word->new('.exists()') );
             }
-            my $method;
             if ( $element eq '-f' ) {
-                $method = 'os.path.isfile';
-            }
-            elsif ( $element eq '-s' ) {
-                $method = 'os.path.getsize';
+                add_import( $element, 'os' );
+                $element->{content} = 'os.path.isfile';
             }
             elsif ( $element eq '-r' ) {
-                $method = 'os.access';
+                add_import( $element, 'os' );
+                $element->{content} = 'os.access';
                 $list->add_element( PPI::Token::Operator->new(q{,}) );
                 $list->add_element( PPI::Token::Word->new('os.R_OK') );
             }
-            $parent->__insert_after_child( $element,
-                PPI::Token::Word->new($method), $list );
-            $element->delete;
+            elsif ( $element eq '-s' ) {
+                add_import( $element, 'os' );
+                $element->{content} = 'os.path.getsize';
+            }
         }
         when ('eq') {
             $element->{content} = q{==};
