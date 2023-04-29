@@ -1597,12 +1597,14 @@ is map_document( \$script ), $expected, "map while reading a line at a time";
 
 $script = <<'EOS';
 unlink $filename, <$dir/*>;
+@files = glob 'x-??*.???';
 EOS
 
 $expected = <<'EOS';
 import glob
 import os
 os.remove([filename]+glob.glob(f"{dir}/*"))  
+files = glob.glob('x-??*.???') 
 EOS
 
 is map_document( \$script ), $expected, "glob + formatted string";

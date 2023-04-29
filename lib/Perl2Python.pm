@@ -3793,6 +3793,11 @@ sub map_word {
         when ('get') {
             map_get($element);
         }
+        when ('glob') {
+            add_import( $element, 'glob' );
+            map_built_in($element);
+            $element->{content} = 'glob.glob';
+        }
         when ('grep') {
             map_grep($element);
         }
