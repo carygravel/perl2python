@@ -1494,6 +1494,7 @@ chomp($a);
 $b = chomp $a;
 $out = substr $exp, $offset, $length;
 $ahash{key}++;
+print $ahash{key}++, "\n";
 ++$ahash{key};
 $ahash{key}--;
 --$ahash{key};
@@ -1545,6 +1546,8 @@ a=a.rstrip()
 a=a.rstrip()
 b = a.rstrip() 
 out = exp[offset:offset+length]   
+ahash["key"]+=1
+print(ahash["key"])  
 ahash["key"]+=1
 ahash["key"]+=1
 ahash["key"]-=1

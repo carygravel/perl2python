@@ -1831,13 +1831,30 @@ sub map_include {
 
 sub map_inc_dec {
     my ($element) = @_;
+    my @previous  = get_argument_for_operator( $element, 0 );
+    my @next      = get_argument_for_operator( $element, 1 );
     if ( $element eq q{++} ) {
         $element->{content} = q{+=};
     }
     else {
         $element->{content} = q{-=};
     }
-    my @next = get_argument_for_operator( $element, 1 );
+    my $parent  = $element->parent;
+    my $gparent = $parent;
+    while ( $gparent and not $gparent->isa('PPI::Statement') ) {
+        $gparent = $gparent->parent;
+    }
+    if ( "$gparent" ne "$parent" ) {
+        my $statement = PPI::Statement->new;
+        $gparent->insert_after($statement);
+        for my $item ( @previous, @next ) {
+            $statement->add_element( $item->clone );
+        }
+        $statement->add_element( $element->remove );
+        $statement->add_element( PPI::Token::Number->new(1) );
+        indent_element($statement);
+        return;
+    }
     if (@next) {
         for my $next (@next) {
             $element->insert_before( $next->remove );
