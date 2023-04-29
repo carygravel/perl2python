@@ -3518,6 +3518,29 @@ sub map_unpack {
     return;
 }
 
+sub map_use_ok {
+    my ($element) = @_;
+    $element->{content} = 'import';
+    my $parent = $element->parent;
+    my $list   = $parent->find_first('PPI::Structure::List');
+    if ($list) {
+        $parent->__insert_before_child( $list,
+            PPI::Token::Whitespace->new(q{ }) );
+        for my $child ( $list->children ) {
+            $parent->__insert_before_child( $list, $child->remove );
+        }
+        $list->delete;
+    }
+    my $quote = $parent->find_first('PPI::Token::Quote');
+    if ($quote) {
+        my $separator = $quote->{separator};
+        $quote->{content} =~ s{^$separator}{}xsm;
+        $quote->{content} =~ s{$separator$}{}xsm;
+        $quote->{content} =~ s/::/./gsm;
+    }
+    return;
+}
+
 sub map_variable {
     my ($element) = @_;
     my $operator = $element->find_first('PPI::Token::Operator');
@@ -3989,6 +4012,20 @@ sub map_word {
         when ('sub') {
             map_anonymous_sub($element);
         }
+        when ('substr') {
+            my $list = map_built_in($element);
+            $list->{start}->{content}  = q{[};
+            $list->{finish}->{content} = q{]};
+            $list->insert_before( $list->schild(0)->remove );
+            $list->schild(0)->delete;
+            $element->delete;
+            my $comma = $list->find_first('PPI::Token::Operator');
+            $comma->{content} = q{:};
+            $comma->insert_after( PPI::Token::Operator->new(q{+}) );
+            my $offset = $list->schild(0)->clone;
+            map_element($offset);
+            $comma->insert_after($offset);
+        }
         when ('system') {
             map_system($element);
         }
@@ -4007,24 +4044,20 @@ sub map_word {
             map_unpack($element);
         }
         when ('use_ok') {
-            $element->{content} = 'import';
-            my $parent = $element->parent;
-            my $list   = $parent->find_first('PPI::Structure::List');
-            if ($list) {
-                $parent->__insert_before_child( $list,
-                    PPI::Token::Whitespace->new(q{ }) );
-                for my $child ( $list->children ) {
-                    $parent->__insert_before_child( $list, $child->remove );
-                }
-                $list->delete;
+            map_use_ok($element);
+        }
+        when ('utime') {
+            add_import( $element, 'os' );
+            $element->{content} = 'os.utime';
+            my $list = map_built_in($element);
+            my $tuple =
+              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+            $tuple->{finish} = PPI::Token::Structure->new(')');
+            for ( 0 .. 2 ) {
+                $tuple->add_element( $list->schild(0)->remove );
             }
-            my $quote = $parent->find_first('PPI::Token::Quote');
-            if ($quote) {
-                my $separator = $quote->{separator};
-                $quote->{content} =~ s{^$separator}{}xsm;
-                $quote->{content} =~ s{$separator$}{}xsm;
-                $quote->{content} =~ s/::/./gsm;
-            }
+            $list->add_element( $list->schild(0)->remove );
+            $list->add_element($tuple);
         }
         when ('waitpid') {
             add_import( $element, 'os' );

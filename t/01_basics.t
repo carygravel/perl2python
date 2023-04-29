@@ -1492,6 +1492,7 @@ ref($object);
 chomp $a;
 chomp($a);
 $b = chomp $a;
+$out = substr $exp, $offset, $length;
 $ahash{key}++;
 ++$ahash{key};
 $ahash{key}--;
@@ -1506,6 +1507,7 @@ $bytes = pack( sprintf( 'b%d', length $data ), $data);
 $out = join $SPACE, @list;
 $out = join( $SPACE, @list );
 $thread->join();
+utime $ctime, $mtime, @files;
 EOS
 
 $expected = <<'EOS';
@@ -1542,6 +1544,7 @@ type(object)
 a=a.rstrip() 
 a=a.rstrip()
 b = a.rstrip() 
+out = exp[offset:offset+length]   
 ahash["key"]+=1
 ahash["key"]+=1
 ahash["key"]-=1
@@ -1557,6 +1560,7 @@ new  = map(lambda x:  self["data"][x][2]["key"] ,old)
 out = SPACE.join(list)  
 out = SPACE.join(  list )
 thread.join()
+os.utime(files,(ctime,mtime))   
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";
