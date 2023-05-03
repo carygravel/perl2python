@@ -494,6 +494,7 @@ more};
 my $regex = qr{(\d{4})-(\d\d)-(\d\d)}xsm;
 my $regex = qr{(\d{4})
 -(\d\d)-(\d\d)}xsm;
+$regex = qr{\s+"([^"]+)}xsm;
 my $var_with_var = "$var1 $var2";
 my $var_with_var = '$var1 $var2';
 EOS
@@ -506,6 +507,7 @@ more"""
 regex = r"(\d{4})-(\d\d)-(\d\d)"
 regex = r"""(\d{4})
 -(\d\d)-(\d\d)"""
+regex = r"\s+\"([^\"]+)"
 var_with_var = f"{var1} {var2}"
 var_with_var = '$var1 $var2'
 EOS

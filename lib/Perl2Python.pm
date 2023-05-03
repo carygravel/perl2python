@@ -2531,7 +2531,7 @@ sub map_quote {
       $element->content,
       $element->{sections}[0]{position},
       $element->{sections}[0]{size};
-    $content =~ s/"/\\"/xsm;
+    $content =~ s/"/\\"/xsmg;
     my $quote = q{"};
     if ( $content =~ /\n/xsm ) {
         $quote = '"""';
@@ -4344,7 +4344,7 @@ sub regex2search {
     return PPI::Token::Word->new('re.search'), $list;
 }
 
-sub regex2quote {
+sub regex2quote {    # FIXME: duplicate code with map_quote()
     my ( $element, $section ) = @_;
     if ( not defined $section ) {
         $section = 0;
