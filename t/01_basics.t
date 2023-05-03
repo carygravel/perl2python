@@ -901,7 +901,7 @@ EOS
 
 $expected = <<'EOS';
 import re
-if   re.search(r"""[(]\s+".*" # comment
+if   re.search(r"""[(]\s+\".*\" # comment
 [)]""",line,re.MULTILINE|re.DOTALL|re.VERBOSE)         :
     vara = 2
 
@@ -926,11 +926,13 @@ is map_document( \$script ), $expected, "regex with character classes";
 
 $script = <<'EOS';
 $data =~ s/in/out/s;
+$data =~ s/"/'/s;
 EOS
 
 $expected = <<'EOS';
 import re
 data = re.sub(r"in",r"out",data,count=1,flags=re.DOTALL)
+data = re.sub(r"\"",r"'",data,count=1,flags=re.DOTALL)
 EOS
 
 is map_document( \$script ), $expected, "regex substitute";

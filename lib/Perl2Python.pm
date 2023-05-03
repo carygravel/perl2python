@@ -4356,6 +4356,7 @@ sub regex2quote {    # FIXME: duplicate code with map_quote()
         return PPI::Token::Symbol->new($1);
     }
     $content =~ s/\[\[:alpha:\]\]/[A-Za-z]/xsm;
+    $content =~ s/"/\\"/xsmg;
     my $quote = q{"};
     my $type  = q{r};
     if ( $content =~ /\$(\w+)/xsm ) {
