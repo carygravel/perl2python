@@ -1502,6 +1502,7 @@ print $ahash{key}++, "\n";
 ++$ahash{key};
 $ahash{key}--;
 --$ahash{key};
+$a = $b++;
 local $SIG{CHLD} = 'IGNORE'; # local has no equivalent in python
 $a = abs $b - $c;
 $a = int $b - $c;
@@ -1556,6 +1557,8 @@ ahash["key"]+=1
 ahash["key"]+=1
 ahash["key"]-=1
 ahash["key"]-=1
+a = b
+b+=1
 SIG["CHLD"] = 'IGNORE' # local has no equivalent in python
 a = abs(b-c)   
 a = int(b-c)   

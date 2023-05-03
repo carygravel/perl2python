@@ -1844,7 +1844,18 @@ sub map_inc_dec {
     while ( $gparent and not $gparent->isa('PPI::Statement') ) {
         $gparent = $gparent->parent;
     }
-    if ( "$gparent" ne "$parent" ) {
+    my @operand;
+    if (@previous) {
+        if ( not $previous[-1]->isa('PPI::Token::Operator') ) {
+            @operand = @previous;
+        }
+        else {
+            @operand = $element;
+        }
+    }
+    if ( "$gparent" ne "$parent"
+        or ( @operand and $operand[0]->sprevious_sibling ) )
+    {
         my $statement = PPI::Statement->new;
         $gparent->insert_after($statement);
         for my $item ( @previous, @next ) {
