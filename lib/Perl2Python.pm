@@ -569,9 +569,7 @@ sub map_defined {
         $prev = $child;
     }
     my $not = $element->sprevious_sibling;
-    if (    $args[-1]->isa('PPI::Structure::Subscript')
-        and $args[-1]->{start}{originally} eq '{' )
-    {
+    if ( $args[-1]->isa('PPI::Structure::Subscript') ) {
         $element->{content} = 'in';
         my $insert = $args[0];
         if ( $not eq 'not' or $not eq q{!} ) {

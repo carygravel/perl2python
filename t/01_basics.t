@@ -1746,14 +1746,18 @@ is map_document( \$script ), $expected, "map hashref key defined";
 
 $script = <<'EOS';
 if ( not defined( $ahash->{key} ) ) {do_something()}
+if ( not defined( $array->[index] ) ) {do_something()}
 EOS
 
 $expected = <<'EOS';
 if "key" not  in ahash :
     do_something()
+if index not  in array :
+    do_something()
 EOS
 
-is map_document( \$script ), $expected, "map hashref key not defined";
+is map_document( \$script ), $expected,
+  "map hashref key/arrayref index not defined";
 
 $script = <<'EOS';
 if ( defined( $ahash->{scalar IMPORTED_SYMBOL} ) ) {do_something()}
@@ -1771,7 +1775,7 @@ if ( defined $alist[i] ) {do_something()}
 EOS
 
 $expected = <<'EOS';
-if  (alist[i] is not None) :
+if  i  in alist :
     do_something()
 EOS
 
