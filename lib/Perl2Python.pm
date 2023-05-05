@@ -3087,15 +3087,13 @@ sub map_subscript {
         and $expression )
     {
         my $key = $expression->schild(0);
-        if ( $key->isa('PPI::Token::Word') ) {
-            if ( $key ne 'scalar' ) {
-                $key->insert_after(
-                    PPI::Token::Quote::Double->new(
-                        q{"} . $key->{content} . q{"}
-                    )
-                );
-            }
+        if ( $expression->schildren == 1 and $key->isa('PPI::Token::Word') ) {
+            $key->{content} = q{"} . $key->{content} . q{"};
+            return;
+        }
+        if ( $key eq 'scalar' ) {
             $key->delete;
+            return;
         }
     }
     return;
@@ -4075,6 +4073,14 @@ sub map_word {
         }
         when ('threads') {
             map_threads($element);
+        }
+        when ('ucfirst') {
+            my $list = map_built_in($element);
+            $element->{content} = '.capitalize';
+            for my $child ( $list->children ) {
+                map_element($child);
+                $element->insert_before( $child->remove );
+            }
         }
         when ('undef') {
             map_undef($element);

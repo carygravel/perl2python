@@ -1767,11 +1767,13 @@ is map_document( \$script ), $expected,
 
 $script = <<'EOS';
 if ( defined( $ahash->{scalar IMPORTED_SYMBOL} ) ) {do_something()}
+$h{ ucfirst $key } = $v;
 EOS
 
 $expected = <<'EOS';
 if  IMPORTED_SYMBOL  in ahash :
     do_something()
+h[ key.capitalize()  ] = v
 EOS
 
 is map_document( \$script ), $expected, "map imported symbol as hashref key";
