@@ -1492,6 +1492,7 @@ unshift @my_array, $item;
 splice @{ $self->{data} }, $i - 1, 1;
 splice @{ $self->{data} }, $i - 1, 1, 'new item';
 splice @in, 0, @in / 2;
+@out = splice @in, 0, @in / 2;
 delete $ahash{key};
 undef $ahash{key};
 $ahash{key} = undef;
@@ -1546,6 +1547,7 @@ del(self.data[i-1])
 del(self.data[i-1])      
 self.data.insert(i-1,'new item')
 del(in[0:0+len(in)/2])     
+out = in[0:0+len(in)/2]     
 del(ahash["key"]) 
 ahash["key"]=None
 ahash["key"] = None

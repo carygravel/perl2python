@@ -2965,6 +2965,15 @@ sub map_splice {
         }
         indent_element($insert);
     }
+
+    # if we have an operator, then simply pass the string slice
+    if ( $element->sprevious_sibling ) {
+        for my $child ( $list->children ) {
+            $list->insert_before( $child->remove );
+        }
+        $element->delete;
+        $list->delete;
+    }
     return;
 }
 
