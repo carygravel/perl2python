@@ -618,6 +618,7 @@ if ( $line =~ /(\d+)\n/ ) {
     $maxval = "$1";
     $maxval = "$var1 $1";
 }
+if ( $output =~ $regex ) { return $1 }
 EOS
 
 $expected = <<'EOS';
@@ -628,6 +629,9 @@ if   regex :
     maxval = f"{regex.group(1)}"
     maxval = f"{var1} {regex.group(1)}"
 
+regex2=re.search(regex,output)
+if   regex2 :
+    return regex2.group(1)
 EOS
 
 is map_document( \$script ), $expected, "if + capture from regex";

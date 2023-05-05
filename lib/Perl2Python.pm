@@ -2311,6 +2311,14 @@ sub map_operator {
         when (q{=>}) {
             map_fat_comma($element);
         }
+        when (/^[=!]~$/xsm) {
+
+            # Most of the logic depends on the regex, so handle it there
+            my $next = $element->snext_sibling;
+            if ( $next->isa('PPI::Token::Symbol') ) {
+                map_regex_match($next);
+            }
+        }
         when (q{->}) {
             map_arrow_operator($element);
         }
@@ -2687,18 +2695,14 @@ sub map_regex_match {
     # in perl, the parent is a PPI::Statement::Expression, which we now
     # turn into re.search(regex, string, flags)
     if ( not $element->parent ) { return }
-    my ( $method, @argument );
-    if ( defined $element->{modifiers}{g} ) {
-        $method = 'findall';
-    }
-    else {
-        $method = 'search';
-    }
+    my @argument;
+    my $method   = defined $element->{modifiers}{g} ? 'findall' : 'search';
     my $operator = $element->sprevious_sibling;
     my $list     = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
     $list->{finish} = PPI::Token::Structure->new(')');
     $element->insert_after($list);
     $element->insert_after( PPI::Token::Word->new("re.$method") );
+
     if ( not $operator ) {
         $operator = PPI::Token::Operator->new(q{=~});
         push @argument, PPI::Token::Symbol->new('_');
@@ -2715,15 +2719,20 @@ sub map_regex_match {
         }
     }
 
-    $list->add_element( regex2quote($element) );
-
-    if ( $operator eq q{=~} ) {
+    if ( $element->isa('PPI::Token::Symbol') ) {
+        my $new = $element->clone;
+        map_element($new);
+        $list->add_element($new);
     }
-    elsif ( $operator eq q{!~} ) {
+    else {
+        $list->add_element( regex2quote($element) );
+    }
+
+    if ( $operator eq q{!~} ) {
         $element->insert_before( PPI::Token::Word->new('not'),
             PPI::Token::Whitespace->new(q{ }) );
     }
-    else {
+    elsif ( $operator ne q{=~} ) {
         $operator = PPI::Token::Operator->new(q{=~});
         @argument = ( PPI::Token::Symbol->new('_') );
     }
