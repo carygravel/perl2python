@@ -3585,6 +3585,9 @@ sub map_use_ok {
 
 sub map_variable {
     my ($element) = @_;
+
+    # don't define variables in the header of a compound
+    if ( $element->parent->isa('PPI::Statement::Compound') ) { return }
     my $operator = $element->find_first('PPI::Token::Operator');
     if ( $operator eq 'in' ) {
         my $iter = $operator->snext_sibling;
@@ -3842,6 +3845,13 @@ sub map_word {
         }
         when ('do') {
             map_do($element);
+        }
+        when ('each') {
+            my $list = map_built_in($element);
+            $element->{content} = '.items';
+            for my $child ( $list->children ) {
+                $element->insert_before( $child->remove );
+            }
         }
         when ('elsif') {
             $element->{content} = 'elif';

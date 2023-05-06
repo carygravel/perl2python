@@ -1,8 +1,8 @@
 use warnings;
 use strict;
-use English qw( -no_match_vars );    # for $INPUT_RECORD_SEPARATOR
+use English     qw( -no_match_vars );        # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 142;
+use Test::More tests => 143;
 
 sub slurp {
     my ($file) = @_;
@@ -2338,12 +2338,28 @@ EOS
 
 $expected = <<'EOS';
 iter = method_returning_iterator()
-for item in iter :
+for item in iter() :
     print(iter)  
 
 EOS
 
 is map_document( \$script ), $expected, "map iter";
+
+#########################
+
+$script = <<'EOS';
+while ( my ( $key, $value ) = each %my_hash ) {
+    print "$key, $value\n";
+}
+EOS
+
+$expected = <<'EOS';
+for ( key, value ) in my_hash.items()  :
+    print(f"{key}, {value}") 
+
+EOS
+
+is map_document( \$script ), $expected, "map each";
 
 #########################
 
