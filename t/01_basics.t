@@ -1519,6 +1519,8 @@ $out = join $SPACE, @list;
 $out = join( $SPACE, @list );
 $thread->join();
 utime $ctime, $mtime, @files;
+$x = chr $y;
+$x = ord $y;
 EOS
 
 $expected = <<'EOS';
@@ -1577,6 +1579,8 @@ out = SPACE.join(list)
 out = SPACE.join(  list )
 thread.join()
 os.utime(files,(ctime,mtime))   
+x = chr(y) 
+x = ord(y) 
 EOS
 
 is map_document( \$script ), $expected, "more built-ins";

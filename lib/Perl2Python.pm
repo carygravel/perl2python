@@ -3736,7 +3736,7 @@ sub map_word {
         when ('Time_to_Date') {
             $element->{content} = 'datetime.datetime.fromtimestamp';
         }
-        when (/^(?:abs|int)$/xsm) {
+        when (/^(?:abs|chr|int|ord)$/xsm) {
             map_built_in($element);
         }
         when ('bless') {
