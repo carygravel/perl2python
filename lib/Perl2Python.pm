@@ -89,7 +89,8 @@ my %REGEX_MODIFIERS = (
 my $IGNORED_INCLUDES =
 q/^(?:warnings|strict|feature|if|Carp|English|Exporter|File::Copy|IPC::System::Simple|List::Util|POSIX|Proc::Killfam|Readonly|Scalar::Util|Try::Tiny)$/;
 my $SIGNAL_PREFIX = 'signal_(?:handler_)?';
-my $SIGNAL_SUFFIX = '(connect|connect_after|disconnect|emit)';
+my $SIGNAL_SUFFIX =
+  '(connect|connect_after|disconnect|emit|handler_block|handler_unblock)';
 
 my @RESERVED_WORDS = qw(class def print break);
 

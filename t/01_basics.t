@@ -248,6 +248,8 @@ $event->keyval(Gtk3::Gdk::KEY_Delete);
 $val=$event->keyval();
 $dialog->signal_connect_after( key_press_event => sub {} );
 $dialog->signal_handler_disconnect($signal);
+$dialog->signal_handler_block($signal);
+$dialog->signal_handler_unblock($signal);
 return Gtk3::EVENT_PROPAGATE;
 $flags = ${ Gtk3::TargetFlags->new(qw/same-widget/) };
 EOS
@@ -267,6 +269,8 @@ def anonymous_01():
 
 dialog.connect_after( 'key-press-event' , anonymous_01  )
 dialog.disconnect(signal)
+dialog.handler_block(signal)
+dialog.handler_unblock(signal)
 return Gdk.EVENT_PROPAGATE
 flags = Gtk.TargetFlags(["same-widget"])
 EOS
