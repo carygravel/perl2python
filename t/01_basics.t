@@ -74,9 +74,11 @@ pass 'comment';
 fail 'comment';
 ok( $dialog->get('property') == 'value', 'comment' );
 is( length $fonts, 65537, 'is + length' );
+like( $output, qr/\w+/, 'comment' );
 EOS
 
 $expected = <<'EOS';
+import re
 import pytest
 import gi
 gi.require_version("Gtk", "3.0")
@@ -111,6 +113,7 @@ def test_1():
     assert False, 'comment'
     assert dialog.property == 'value', 'comment'
     assert len(fonts) == 65537, 'is + length'
+    assert re.search(  r"\w+" ,output) is not None, 'comment'
 EOS
 
 $in  = 'test.t';

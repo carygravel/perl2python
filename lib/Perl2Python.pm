@@ -2008,6 +2008,33 @@ sub map_label {
     return;
 }
 
+sub map_like {
+    my ($element) = @_;
+    add_import( $element, 're' );
+    $element->{content} = 'assert re.search';
+    my $list = map_built_in($element);
+    $list->insert_after( PPI::Token::Word->new(' is not None') );
+    my $comma = $list->find(
+        sub {
+            $_[1]->isa('PPI::Token::Operator')
+              and $_[1]->content eq q{,};
+        }
+    );
+    if ( @{$comma} > 1 ) {
+        my $regex  = $comma->[1]->previous_sibling;
+        my $parent = $element->parent;
+        while ( my $item = $regex->next_sibling ) {
+            $parent->add_element( $item->remove );
+        }
+    }
+    $list->add_element( PPI::Token::Operator->new(q{,}) );
+    while ( my $item = $comma->[0]->previous_sibling ) {
+        $list->add_element( $item->remove );
+    }
+    $comma->[0]->delete;
+    return;
+}
+
 sub map_magic {
     my ($element) = @_;
 
@@ -3962,6 +3989,9 @@ sub map_word {
         when ('length') {
             my $list = map_built_in($element);
             $element->{content} = 'len';
+        }
+        when ('like') {
+            map_like($element);
         }
         when ('local') {    # no equivalent in python
             $element->delete;
