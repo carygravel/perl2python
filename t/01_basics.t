@@ -1508,6 +1508,7 @@ ref($object);
 chomp $a;
 chomp($a);
 $b = chomp $a;
+chomp $data->{text};
 $out = substr $exp, $offset, $length;
 $ahash{key}++;
 print $ahash{key}++, "\n";
@@ -1565,6 +1566,7 @@ type(object)
 a=a.rstrip() 
 a=a.rstrip()
 b = a.rstrip() 
+data ["text"]=data["text"].rstrip() 
 out = exp[offset:offset+length]   
 ahash["key"]+=1
 print(ahash["key"])  

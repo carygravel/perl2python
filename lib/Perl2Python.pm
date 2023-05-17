@@ -462,18 +462,20 @@ sub map_cast {
 
 sub map_chomp {
     my ($element) = @_;
-    my $list      = map_built_in($element);
-    my $var       = $list->schild(0);
-    if ( $var->isa('PPI::Statement::Expression') ) {
-        $var = $var->schild(0);
+    my $list = map_built_in($element);
+    map_element($list);
+    my @var = $list->children;
+    if ( $var[0]->isa('PPI::Statement::Expression') ) {
+        @var = $var[0]->children;
     }
-    map_element($var);
     my $operator = $element->sprevious_sibling;
     if ( not defined $operator or $operator eq q{} ) {
-        $element->insert_before( PPI::Token::Operator->new("$var=") );
+        $element->insert_before( PPI::Token::Operator->new("@var=") );
     }
     $element->{content} = '.rstrip';
-    $element->insert_before( $var->remove );
+    for my $child (@var) {
+        $element->insert_before( $child->remove );
+    }
     return;
 }
 
