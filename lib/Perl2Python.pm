@@ -287,11 +287,15 @@ sub map_arrow_operator {
     my ($element) = @_;
     my @prev      = get_argument_for_operator( $element, 0 );
     my $next      = $element->snext_sibling;
+    if ( not $next ) {
+        $element->delete;
+        return;
+    }
 
     # closure -> iterator
     if (
-        $prev[0] eq 'iter' and $next    # hard-coded to iter. Fragile.
-        and $next          and $next->isa('PPI::Structure::List')
+        $prev[0] eq 'iter'    # hard-coded to iter. Fragile.
+        and $next->isa('PPI::Structure::List')
       )
     {
         $element->insert_before( PPI::Token::Word->new('next') );
@@ -306,9 +310,10 @@ sub map_arrow_operator {
         $element->delete;
     }
     elsif (
-        $next
-        and (  $next->isa('PPI::Structure::Subscript')
-            or $next->isa('PPI::Structure::List') )
+        (
+               $next->isa('PPI::Structure::Subscript')
+            or $next->isa('PPI::Structure::List')
+        )
         and $prev[0] ne 'self'
       )
     {
@@ -404,59 +409,64 @@ sub map_cast {
     my $operator = $element->sprevious_sibling;
     my $parent   = $element->parent;
     my $block    = $element->snext_sibling;
-    if (   $element eq q{@}
-        or $element eq q{$#} )    ## no critic (RequireInterpolationOfMetachars)
-    {
+    try {
+        if (   $element eq q{@}
+            or $element eq
+            q{$#} )    ## no critic (RequireInterpolationOfMetachars)
+        {
 
-        # array cast in list context
-        if (
-            ( not $operator
-                and $element ne
+            # array cast in list context
+            if (
+                ( not $operator
+                    and $element ne
+                    q{$#} )    ## no critic (RequireInterpolationOfMetachars)
+                or ( $operator eq q{=} and $element eq q{@} )
+              )
+            {
+                remove_cast( $element, $block, $parent );
+            }
+
+            # array cast in scalar context -> len()
+            elsif ( defined $PRECEDENCE{$operator}
+                or $element eq
                 q{$#} )    ## no critic (RequireInterpolationOfMetachars)
-            or ( $operator eq q{=} and $element eq q{@} )
-          )
+            {
+                my $list =
+                  PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+                $list->{finish} = PPI::Token::Structure->new(')');
+                $parent->__insert_after_child( $element,
+                    PPI::Token::Word->new('len'), $list );
+                if ( not $block->isa('PPI::Structure::Block') ) {
+                    croak "Expected block, found '$block'\n";
+                }
+                for my $child ( $block->children ) {
+                    map_element($child);
+                    $list->add_element( $child->remove );
+                }
+                if ( $element eq
+                    q{$#} )    ## no critic (RequireInterpolationOfMetachars)
+                {
+                    $list->insert_after( PPI::Token::Number->new(1) );
+                    $list->insert_after( PPI::Token::Operator->new(q{-}) );
+                }
+                $element->delete;
+                $block->delete;
+            }
+        }
+
+        # cast from hashref to hash or scalar ref to scalar -> remove cast
+        elsif ( $element =~ /^[\$%]$/xsm
+            and $block->isa('PPI::Structure::Block') )
         {
             remove_cast( $element, $block, $parent );
         }
 
-        # array cast in scalar context -> len()
-        elsif ( defined $PRECEDENCE{$operator}
-            or $element eq
-            q{$#} )    ## no critic (RequireInterpolationOfMetachars)
-        {
-            my $list =
-              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-            $list->{finish} = PPI::Token::Structure->new(')');
-            $parent->__insert_after_child( $element,
-                PPI::Token::Word->new('len'), $list );
-            if ( not $block->isa('PPI::Structure::Block') ) {
-                croak "Expected block, found '$block'\n";
-            }
-            for my $child ( $block->children ) {
-                map_element($child);
-                $list->add_element( $child->remove );
-            }
-            if ( $element eq
-                q{$#} )    ## no critic (RequireInterpolationOfMetachars)
-            {
-                $list->insert_after( PPI::Token::Number->new(1) );
-                $list->insert_after( PPI::Token::Operator->new(q{-}) );
-            }
+        # cast to ref -> remove cast
+        elsif ( $element eq q{\\} ) {
             $element->delete;
-            $block->delete;
         }
     }
-
-    # cast from hashref to hash or scalar ref to scalar -> remove cast
-    elsif ( $element =~ /^[\$%]$/xsm and $block->isa('PPI::Structure::Block') )
-    {
-        remove_cast( $element, $block, $parent );
-    }
-
-    # cast to ref -> remove cast
-    elsif ( $element eq q{\\} ) {
-        $element->delete;
-    }
+    catch { return };
     return;
 }
 
@@ -542,6 +552,12 @@ sub map_defined {
         $element->insert_after($magic);
         push @args, $magic;
     }
+    if ( $args[0]->isa('PPI::Token::Cast') ) {
+        @args = remove_cast( $args[0], $args[1], $parent );
+    }
+    elsif ( $args[0]->isa('PPI::Token::Magic') ) {
+        $args[0] = map_magic( $args[0] );
+    }
     my $list = $args[-1]->parent;
     if ( $list ne $parent ) {
         if ( $list->isa('PPI::Statement::Expression') ) {
@@ -555,26 +571,12 @@ sub map_defined {
         $list->delete;
         @args = @args2;
     }
-    my $prev;
-    for my $child (@args) {
 
-        # mapping one child can remove siblings, so check it still exists
-        if ($child) {
-            if ( $child->isa('PPI::Structure::Subscript')
-                and not $child->{children} )
-            {
-                $child = $prev->snext_sibling;
-            }
-            else {
-                $child = map_element($child);
-            }
-        }
-        $prev = $child;
-    }
     my $not = $element->sprevious_sibling;
     if ( $args[-1]->isa('PPI::Structure::Subscript') ) {
+        map_subscript( $args[-1] );
         $element->{content} = 'in';
-        my $insert = $args[0];
+        my $insert = map_element( $args[0] );
         if ( $not eq 'not' or $not eq q{!} ) {
             $insert = $not;
         }
@@ -587,30 +589,39 @@ sub map_defined {
             $args[0],         PPI::Token::Whitespace->new(q{ }),
             $element->remove, PPI::Token::Whitespace->new(q{ }),
         );
+        if ( $args[ -(2) ] eq '->' ) {
+            $args[ -(2) ]->delete;
+        }
+        return;
+    }
+
+    for my $child (@args) {
+
+        # mapping one child can remove siblings, so check it still exists
+        if ($child) {
+            map_element($child);
+        }
     }
 
     # pack in parens to ensure we don't change the precendence
-    else {
-        my $parens =
-          PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-        $parens->{finish} = PPI::Token::Structure->new(')');
-        $parent->__insert_after_child( $args[-1], $parens );
-        for my $child (@args) {
-            $parens->add_element( $child->remove );
-        }
-        $parens->add_element( PPI::Token::Whitespace->new(q{ }) );
-        $element->{content} = 'is';
-        $parens->add_element( $element->remove );
-        $parens->add_element( PPI::Token::Whitespace->new(q{ }) );
-        if ( $not eq 'not' or $not eq q{!} ) {
-            $not->delete;
-        }
-        else {
-            $parens->add_element( PPI::Token::Word->new('not') );
-            $parens->add_element( PPI::Token::Whitespace->new(q{ }) );
-        }
-        $parens->add_element( PPI::Token::Word->new('None') );
+    my $parens = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+    $parens->{finish} = PPI::Token::Structure->new(')');
+    $parent->__insert_after_child( $args[-1], $parens );
+    for my $child (@args) {
+        $parens->add_element( $child->remove );
     }
+    $parens->add_element( PPI::Token::Whitespace->new(q{ }) );
+    $element->{content} = 'is';
+    $parens->add_element( $element->remove );
+    $parens->add_element( PPI::Token::Whitespace->new(q{ }) );
+    if ( $not eq 'not' or $not eq q{!} ) {
+        $not->delete;
+    }
+    else {
+        $parens->add_element( PPI::Token::Word->new('not') );
+        $parens->add_element( PPI::Token::Whitespace->new(q{ }) );
+    }
+    $parens->add_element( PPI::Token::Word->new('None') );
     return;
 }
 
@@ -4461,7 +4472,7 @@ sub remove_cast {
     $parent->__insert_after_child( $block, $child->remove );
     $element->delete;
     $block->delete;
-    return;
+    return $child;
 }
 
 1;

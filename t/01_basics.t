@@ -1452,12 +1452,15 @@ $script = <<'EOS';
 if ( defined $self->by_name('source') ) {
     $self->{source} = $self->by_name('source');
 }
+if ( defined ${$var} ) { do_something() }
 EOS
 
 $expected = <<'EOS';
 if  (self.by_name('source') is not None) :
     self.source = self.by_name('source')
 
+if  (var is not None) :
+    do_something()
 EOS
 
 is map_document( \$script ), $expected,
@@ -1473,7 +1476,7 @@ EOS
 $expected = <<'EOS';
 def source_defined(self) :
     
-    return (  (self.source is not None) )
+    return (  "source"  in self )
 
 EOS
 
