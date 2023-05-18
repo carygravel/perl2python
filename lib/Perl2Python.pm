@@ -1925,6 +1925,24 @@ sub map_is {
     return;
 }
 
+sub map_isa {
+    my ($element) = @_;
+    my $list      = map_built_in($element);
+    my $prev      = $element->sprevious_sibling;
+    my $obj       = $prev;
+    if ( $prev eq '->' or $prev->{originally} eq '->' ) {
+        $obj = $prev->sprevious_sibling;
+        $prev->delete;
+    }
+    $element->{content} = 'issubclass';
+    my $class = $list->find_first('PPI::Token::Quote');
+    $class->{content} =~ s/["']//gsmx;    # remove the quotes
+    $class->{content} =~ s/^.*:://smx;    # remove the class hierachy
+    $list->__insert_before_child( $class, PPI::Token::Operator->new(q{,}) );
+    $list->__insert_before_child( $class, $obj->remove );
+    return;
+}
+
 sub map_interpreted_string {
     my ($element) = @_;
     my $formatted;
@@ -3927,20 +3945,7 @@ sub map_word {
             map_is($element);
         }
         when ('isa') {
-            my $list = map_built_in($element);
-            my $prev = $element->sprevious_sibling;
-            my $obj  = $prev;
-            if ( $prev eq '->' or $prev->{originally} eq '->' ) {
-                $obj = $prev->sprevious_sibling;
-                $prev->delete;
-            }
-            $element->{content} = 'issubclass';
-            my $class = $list->find_first('PPI::Token::Quote');
-            $class->{content} =~ s/["']//gsmx;    # remove the quotes
-            $class->{content} =~ s/^.*:://smx;    # remove the class hierachy
-            $list->__insert_before_child( $class,
-                PPI::Token::Operator->new(q{,}) );
-            $list->__insert_before_child( $class, $obj->remove );
+            map_isa($element);
         }
         when ('isa_ok') {
             my $parent = $element->parent;
@@ -4046,6 +4051,13 @@ sub map_word {
         }
         when (/^(?:pass|fail)$/xsm) {
             map_pass_fail($element);
+        }
+        when ('pop') {
+            my $list = map_built_in($element);
+            $element->{content} = '.pop';
+            for my $child ( $list->children ) {
+                $element->insert_before( $child->remove );
+            }
         }
         when (/^printf?$/xsm) {
             map_print($element);

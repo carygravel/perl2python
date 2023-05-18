@@ -1500,6 +1500,7 @@ rmdir $dir;
 last;
 push @my_array, $item;
 push @{ $self->{data} }, $item;
+$item = pop @my_array;
 unshift @my_array, $item;
 splice @{ $self->{data} }, $i - 1, 1;
 splice @{ $self->{data} }, $i - 1, 1, 'new item';
@@ -1557,6 +1558,7 @@ os.rmdir(dir)
 break
 my_array.append(item)  
 self.data.append(item)  
+item = my_array.pop() 
 my_array.insert(0,item)  
 del(self.data[i-1])     
 del(self.data[i-1])      
