@@ -351,7 +351,7 @@ sub map_built_in {
         $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
         $list->{finish} = PPI::Token::Structure->new(')');
 
-        if ( not @args and $element->snext_sibling !~ /^(?:,|->)$/xsm ) {
+        if ( not @args and $element->snext_sibling !~ /^(?:,|->|==)$/xsm ) {
             @args = get_argument_for_operator( $element, 1 );
         }
         for my $child (@args) {
