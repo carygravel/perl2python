@@ -711,155 +711,151 @@ sub map_element {
     logger($element);
     remove_trailing_semicolon($element);
     my $map_children = 1;
-    given ( ref $element ) {
-        when (/PPI::Token::Comment/xsm) {
-            if ( $element->line and $element->content =~ /^([#]!.*)perl/xsm ) {
-                $element->{content} = $1 . "python3\n";
-            }
+    my $ref          = ref $element;
+    if ( $ref =~ /PPI::Token::Comment/xsm ) {
+        if ( $element->line and $element->content =~ /^([#]!.*)perl/xsm ) {
+            $element->{content} = $1 . "python3\n";
         }
-        when (/PPI::Statement::End/xsm) {
-            while ( my $sibling = $element->next_sibling ) {
-                $sibling->delete;
-            }
+    }
+    elsif ( $ref =~ /PPI::Statement::End/xsm ) {
+        while ( my $sibling = $element->next_sibling ) {
+            $sibling->delete;
+        }
+        $element->delete;
+    }
+    elsif ( $ref =~ /PPI::Statement::Expression/xsm ) {
+        map_expression($element);
+    }
+    elsif ( $ref =~ /PPI::Statement::Given/xsm ) {
+        map_given($element);
+    }
+    elsif ( $ref =~ /PPI::Statement::Include/xsm ) {
+        map_include($element);
+        $map_children = 0;
+    }
+    elsif ( $ref =~ /PPI::Statement::Package/xsm ) {
+        map_package($element);
+    }
+    elsif ( $ref =~ /PPI::Statement::Scheduled/xsm ) {
+        my $block  = $element->find_first('PPI::Structure::Block');
+        my $parent = $element->parent;
+        for my $child ( $block->children ) {
+            $parent->__insert_before_child( $element, $child->remove );
+            map_element($child);
+        }
+        $element->delete;
+    }
+    elsif ( $ref =~ /PPI::Statement::Sub/xsm ) {
+        map_sub($element);
+    }
+    elsif ( $ref =~ /PPI::Statement::Compound/xsm ) {
+        map_compound($element);
+    }
+    elsif ( $ref =~ /PPI::Statement::Variable/xsm ) {
+        map_variable($element);
+    }
+    elsif ( $ref =~ /PPI::Statement/xsm ) {
+        if (
+            $element =~ /Log::Log4perl->easy_init/xsm
+            or ( not $element->isa('PPI::Statement::Expression')
+                and $element eq '1' )
+          )
+        {
             $element->delete;
+            return;
         }
-        when (/PPI::Statement::Expression/xsm) {
-            map_expression($element);
-        }
-        when (/PPI::Statement::Given/xsm) {
-            map_given($element);
-        }
-        when (/PPI::Statement::Include/xsm) {
-            map_include($element);
-            $map_children = 0;
-        }
-        when (/PPI::Statement::Package/xsm) {
-            map_package($element);
-        }
-        when (/PPI::Statement::Scheduled/xsm) {
-            my $block  = $element->find_first('PPI::Structure::Block');
-            my $parent = $element->parent;
-            for my $child ( $block->children ) {
-                $parent->__insert_before_child( $element, $child->remove );
-                map_element($child);
-            }
-            $element->delete
-        }
-        when (/PPI::Statement::Sub/xsm) {
-            map_sub($element);
-        }
-        when (/PPI::Statement::Compound/xsm) {
-            map_compound($element);
-        }
-        when (/PPI::Statement::Variable/xsm) {
-            map_variable($element);
-        }
-        when (/PPI::Statement/xsm) {
-            if (
-                $element =~ /Log::Log4perl->easy_init/xsm
-                or ( not $element->isa('PPI::Statement::Expression')
-                    and $element eq '1' )
-              )
-            {
-                $element->delete;
-                return;
-            }
-        }
-        when (/PPI::Structure::Block/xsm) {
-            $element->{start}->{content}  = q{:};
-            $element->{finish}->{content} = q{};
-        }
-        when (/PPI::Structure::Subscript/xsm) {
-            map_subscript($element);
-        }
+    }
+    elsif ( $ref =~ /PPI::Structure::Block/xsm ) {
+        $element->{start}->{content}  = q{:};
+        $element->{finish}->{content} = q{};
+    }
+    elsif ( $ref =~ /PPI::Structure::Subscript/xsm ) {
+        map_subscript($element);
+    }
 
-        # $# -> len()
-        when (/PPI::Token::ArrayIndex/xsm) {
-            $element->insert_before( PPI::Token::Word->new('len') );
-            my $list =
-              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-            $list->{finish} = PPI::Token::Structure->new(')');
-            $element->insert_before($list);
+    # $# -> len()
+    elsif ( $ref =~ /PPI::Token::ArrayIndex/xsm ) {
+        $element->insert_before( PPI::Token::Word->new('len') );
+        my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $list->{finish} = PPI::Token::Structure->new(')');
+        $element->insert_before($list);
+        $list->add_element(
+            PPI::Token::Word->new(
+                substr $element->{content},
+                2, length $element->{content}
+            )
+        );
+        $list->insert_after( PPI::Token::Number->new(1) );
+        $list->insert_after( PPI::Token::Operator->new(q{-}) );
+        $element->delete;
+    }
+    elsif ( $ref =~ /PPI::Token::Cast/xsm ) {
+        map_cast($element);
+    }
+    elsif ( $ref =~ /PPI::Token::Operator/xsm ) {
+        map_operator($element);
+    }
+    elsif ( $ref =~ /PPI::Token::HereDoc/xsm ) {
+        $element->insert_before(
+            PPI::Token::Quote::Double->new(
+                '"""' . join( q{}, @{ $element->{_heredoc} } ) . '"""'
+            )
+        );
+        $element->delete;
+    }
+    elsif ( $ref =~ /PPI::Token::Label/xsm ) {
+        map_label($element);
+    }
+    elsif ( $ref =~ /PPI::Token::Quote::Double/xsm ) {
+        map_interpreted_string($element);
+    }
+    elsif ( $ref =~ /PPI::Token::Quote::Literal/xsm ) {
+        map_quote($element);
+    }
+    elsif ( $ref =~ /PPI::Token::QuoteLike::Readline/xsm ) {
+        map_readline($element);
+    }
+    elsif ( $ref =~ /PPI::Token::QuoteLike::Regexp/xsm ) {
+        if ( $element->sprevious_sibling eq q{=~} ) {
+            map_regex_match($element);
+        }
+        else {
+            map_quote( $element, 'r' );
+        }
+    }
+    elsif ( $ref =~ /PPI::Token::QuoteLike::Words/xsm ) {
+        my $list = PPI::Structure::List->new( PPI::Token::Structure->new('[') );
+        $list->{finish} = PPI::Token::Structure->new(']');
+        my $string = substr $element->content,
+          $element->{sections}[0]{position}, $element->{sections}[0]{size};
+        for ( split q{ }, $string ) {
+            if ( $list->children ) {
+                $list->add_element( PPI::Token::Operator->new(q{,}) );
+            }
             $list->add_element(
-                PPI::Token::Word->new(
-                    substr $element->{content},
-                    2,
-                    length $element->{content}
-                )
-            );
-            $list->insert_after( PPI::Token::Number->new(1) );
-            $list->insert_after( PPI::Token::Operator->new(q{-}) );
-            $element->delete;
+                PPI::Token::Quote::Double->new( q{"} . $_ . q{"} ) );
         }
-        when (/PPI::Token::Cast/xsm) {
-            map_cast($element);
-        }
-        when (/PPI::Token::Operator/xsm) {
-            map_operator($element);
-        }
-        when (/PPI::Token::HereDoc/xsm) {
-            $element->insert_before(
-                PPI::Token::Quote::Double->new(
-                    '"""' . join( q{}, @{ $element->{_heredoc} } ) . '"""'
-                )
-            );
-            $element->delete;
-        }
-        when (/PPI::Token::Label/xsm) {
-            map_label($element);
-        }
-        when (/PPI::Token::Quote::Double/xsm) {
-            map_interpreted_string($element);
-        }
-        when (/PPI::Token::Quote::Literal/xsm) {
-            map_quote($element);
-        }
-        when (/PPI::Token::QuoteLike::Readline/xsm) {
-            map_readline($element);
-        }
-        when (/PPI::Token::QuoteLike::Regexp/xsm) {
-            if ( $element->sprevious_sibling eq q{=~} ) {
-                map_regex_match($element);
-            }
-            else {
-                map_quote( $element, 'r' );
-            }
-        }
-        when (/PPI::Token::QuoteLike::Words/xsm) {
-            my $list =
-              PPI::Structure::List->new( PPI::Token::Structure->new('[') );
-            $list->{finish} = PPI::Token::Structure->new(']');
-            my $string = substr $element->content,
-              $element->{sections}[0]{position}, $element->{sections}[0]{size};
-            for ( split q{ }, $string ) {
-                if ( $list->children ) {
-                    $list->add_element( PPI::Token::Operator->new(q{,}) );
-                }
-                $list->add_element(
-                    PPI::Token::Quote::Double->new( q{"} . $_ . q{"} ) );
-            }
-            $element->insert_after($list);
-            $element->delete;
-        }
-        when (/PPI::Token::Regexp::Match/xsm) {
-            map_regex_match($element)
-        }
-        when (/PPI::Token::Regexp::Substitute/xsm) {
-            map_regex_substitute($element);
-        }
-        when (/PPI::Token::Symbol/xsm) {
-            map_symbol($element);
-        }
-        when (/PPI::Token::Word/xsm) {
-            map_word($element);
-        }
-        when (/PPI::Token::Magic/xsm) {
-            $element = map_magic($element);
-        }
-        when (/PPI::Token::Number/xsm) {
-            if ( $element->{content} =~ /^0+(\d+)$/xsm ) {
-                $element->{content} = $1;
-            }
+        $element->insert_after($list);
+        $element->delete;
+    }
+    elsif ( $ref =~ /PPI::Token::Regexp::Match/xsm ) {
+        map_regex_match($element);
+    }
+    elsif ( $ref =~ /PPI::Token::Regexp::Substitute/xsm ) {
+        map_regex_substitute($element);
+    }
+    elsif ( $ref =~ /PPI::Token::Symbol/xsm ) {
+        map_symbol($element);
+    }
+    elsif ( $ref =~ /PPI::Token::Word/xsm ) {
+        map_word($element);
+    }
+    elsif ( $ref =~ /PPI::Token::Magic/xsm ) {
+        $element = map_magic($element);
+    }
+    elsif ( $ref =~ /PPI::Token::Number/xsm ) {
+        if ( $element->{content} =~ /^0+(\d+)$/xsm ) {
+            $element->{content} = $1;
         }
     }
     if ( exists $element->{children} and $map_children ) {
@@ -1412,38 +1408,35 @@ sub map_gobject_subclass {
                     my $blurb = $nick->snext_sibling->snext_sibling;
                     my ( @min, @max, @default );
 
-                    given ( $type->{content} ) {
-                        when ('boolean') {
-                            @default =
-                              get_argument_for_operator( $blurb->snext_sibling,
-                                1 );
-                            $type->{content} = 'bool';
-                        }
-                        when ('enum') {
-                            my $enum = $blurb->snext_sibling->snext_sibling;
-                            @default =
-                              get_argument_for_operator( $enum->snext_sibling,
-                                1 );
-                            $type->{content} = 'GObject.GEnum';
-                        }
-                        when (/(?:float|int)/xsm) {
-                            @min =
-                              get_argument_for_operator( $blurb->snext_sibling,
-                                1 );
-                            @max = get_argument_for_operator(
-                                $min[-1]->snext_sibling, 1 );
-                            @default = get_argument_for_operator(
-                                $max[-1]->snext_sibling, 1 );
-                        }
-                        when ('scalar') {
-                            $type->{content} = 'object';
-                        }
-                        when ('string') {
-                            @default =
-                              get_argument_for_operator( $blurb->snext_sibling,
-                                1 );
-                            $type->{content} = 'str';
-                        }
+                    my $content = $type->{content};
+                    if ( $content eq 'boolean' ) {
+                        @default =
+                          get_argument_for_operator( $blurb->snext_sibling, 1 );
+                        $type->{content} = 'bool';
+                    }
+                    elsif ( $content eq 'enum' ) {
+                        my $enum = $blurb->snext_sibling->snext_sibling;
+                        @default =
+                          get_argument_for_operator( $enum->snext_sibling, 1 );
+                        $type->{content} = 'GObject.GEnum';
+                    }
+                    elsif ( $content eq 'float' or $content eq 'int' ) {
+                        @min =
+                          get_argument_for_operator( $blurb->snext_sibling, 1 );
+                        @max =
+                          get_argument_for_operator( $min[-1]->snext_sibling,
+                            1 );
+                        @default =
+                          get_argument_for_operator( $max[-1]->snext_sibling,
+                            1 );
+                    }
+                    elsif ( $content eq 'scalar' ) {
+                        $type->{content} = 'object';
+                    }
+                    elsif ( $content eq 'string' ) {
+                        @default =
+                          get_argument_for_operator( $blurb->snext_sibling, 1 );
+                        $type->{content} = 'str';
                     }
                     my $statement = PPI::Statement::Variable->new;
                     $first_child->parent->__insert_before_child( $first_child,
@@ -1655,49 +1648,44 @@ sub map_include {
     my $module    = $element->module;
     my $import    = $element->schild(0);
     my $top       = $element->top;
-    given ($module) {
+    if ( $module =~ /(?:$IGNORED_INCLUDES|^$)/xsm ) {
+        my $whitespace = $element->next_sibling;
+        if (    defined $whitespace
+            and $whitespace->isa('PPI::Token::Whitespace')
+            and $whitespace =~ /\n/xsm )
+        {
+            $whitespace->delete;
+        }
+        $element->delete;
+        return;
+    }
+    elsif ( $module eq 'Glib::Object::Subclass' ) {
+        map_gobject_subclass( $element, $import );
+        return;
+    }
+    elsif ( $module eq 'Test::More' ) {
+        my $def = PPI::Statement::Sub->new;
+        $def->add_element( PPI::Token::Word->new("\ndef") );
+        $def->add_element( PPI::Token::Whitespace->new(q{ }) );
+        $def->add_element( PPI::Token::Word->new('test_1') );
+        my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $list->{finish} = PPI::Token::Structure->new(')');
+        $def->add_element($list);
+        $element->insert_after($def);
+        $element->delete;
 
-        # empty string matches cases like "use 5.008005;"
-        when (/(?:$IGNORED_INCLUDES|^$)/xsm) {
-            my $whitespace = $element->next_sibling;
-            if (    defined $whitespace
-                and $whitespace->isa('PPI::Token::Whitespace')
-                and $whitespace =~ /\n/xsm )
-            {
-                $whitespace->delete;
-            }
-            $element->delete;
-            return;
+        # Add a block to scope and indent things properly
+        my $block =
+          PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
+        $block->{start}->{content} = q{:};
+        $def->add_element($block);
+        while ( my $next = $def->next_sibling ) {
+            $block->add_element( $next->remove );
         }
-        when ('Glib::Object::Subclass') {
-            map_gobject_subclass( $element, $import );
-            return;
-        }
-        when ('Test::More') {
-            my $def = PPI::Statement::Sub->new;
-            $def->add_element( PPI::Token::Word->new("\ndef") );
-            $def->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $def->add_element( PPI::Token::Word->new('test_1') );
-            my $list =
-              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-            $list->{finish} = PPI::Token::Structure->new(')');
-            $def->add_element($list);
-            $element->insert_after($def);
-            $element->delete;
-
-            # Add a block to scope and indent things properly
-            my $block =
-              PPI::Structure::Block->new( PPI::Token::Structure->new('{') );
-            $block->{start}->{content} = q{:};
-            $def->add_element($block);
-            while ( my $next = $def->next_sibling ) {
-                $block->add_element( $next->remove );
-            }
-            return;
-        }
-        default {
-            ensure_include_is_top_level( $element, $top );
-        }
+        return;
+    }
+    else {
+        ensure_include_is_top_level( $element, $top );
     }
     $module =~ s/::/./gsm;
 
@@ -1706,126 +1694,124 @@ sub map_include {
     }
     my $path    = $import->snext_sibling;
     my $symbols = $path->snext_sibling;
-    given ("$path") {
-        when ('Cairo') {
-            $module = 'cairo';
-        }
-        when ('Data::UUID') {
-            $module = 'uuid';
-        }
-        when ('Date::Calc') {
-            $module = 'datetime';
-            $symbols->delete;
-            undef $symbols;
-        }
-        when ('Encode') {
+    my $pathstr = "$path";
+    if ( $pathstr eq 'Cairo' ) {
+        $module = 'cairo';
+    }
+    elsif ( $pathstr eq 'Data::UUID' ) {
+        $module = 'uuid';
+    }
+    elsif ( $pathstr eq 'Date::Calc' ) {
+        $module = 'datetime';
+        $symbols->delete;
+        undef $symbols;
+    }
+    elsif ( $pathstr eq 'Encode' ) {
+        $element->delete;
+    }
+    elsif ( $pathstr eq 'File::Temp' ) {
+        $module = 'tempfile';
+    }
+    elsif ( $pathstr eq 'File::stat' ) {
+        $module = 'os';
+    }
+    elsif ( $pathstr eq 'Glib' ) {
+        if ($symbols) {
             $element->delete;
         }
-        when ('File::Temp') {
-            $module = 'tempfile';
-        }
-        when ('File::stat') {
-            $module = 'os';
-        }
-        when ('Glib') {
-            if ($symbols) {
-                $element->delete;
-            }
-            else {
-                $element->add_element( PPI::Token::Whitespace->new(q{ }) );
-                $symbols = PPI::Token::Quote::Double->new('"GObject"');
-                $element->add_element($symbols);
-                $module = 'gi.repository';
-            }
-        }
-        when ('Gtk3') {
-            add_import( $element, 'gi' );
-            my $parent    = $element->parent;
-            my $statement = PPI::Statement->new;
-            $statement->add_element(
-                PPI::Token::Word->new('gi.require_version("Gtk", "3.0")') );
-            $parent->__insert_before_child( $element, $statement );
-            $parent->__insert_before_child( $element,
-                PPI::Token::Whitespace->new("\n") );
+        else {
             $element->add_element( PPI::Token::Whitespace->new(q{ }) );
-            delete_everything_after($path);
-            $element->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $symbols = PPI::Token::Quote::Double->new('"Gtk"');
+            $symbols = PPI::Token::Quote::Double->new('"GObject"');
             $element->add_element($symbols);
             $module = 'gi.repository';
-            indent_element($statement);
         }
-        when ('Image::Magick') {
-            $module = 'PythonMagick';
+    }
+    elsif ( $pathstr eq 'Gtk3' ) {
+        add_import( $element, 'gi' );
+        my $parent    = $element->parent;
+        my $statement = PPI::Statement->new;
+        $statement->add_element(
+            PPI::Token::Word->new('gi.require_version("Gtk", "3.0")') );
+        $parent->__insert_before_child( $element, $statement );
+        $parent->__insert_before_child( $element,
+            PPI::Token::Whitespace->new("\n") );
+        $element->add_element( PPI::Token::Whitespace->new(q{ }) );
+        delete_everything_after($path);
+        $element->add_element( PPI::Token::Whitespace->new(q{ }) );
+        $symbols = PPI::Token::Quote::Double->new('"Gtk"');
+        $element->add_element($symbols);
+        $module = 'gi.repository';
+        indent_element($statement);
+    }
+    elsif ( $pathstr eq 'Image::Magick' ) {
+        $module = 'PythonMagick';
+    }
+    elsif ( $pathstr eq 'Image::Sane' ) {
+        delete_everything_after($path);
+        $module = 'sane';
+        $symbols->delete;
+        undef $symbols;
+    }
+    elsif ( $pathstr eq 'Locale::gettext' ) {
+        delete_everything_after($path);
+        $module = 'gettext';
+        $symbols->delete;
+        undef $symbols;
+    }
+    elsif ( $pathstr eq 'Log::Log4perl' ) {
+        delete_everything_after($path);
+        $module = 'logging';
+        $symbols->delete;
+        undef $symbols;
+    }
+    elsif ( $pathstr eq 'Set::IntSpan' ) {
+        delete_everything_after($path);
+        $element->add_element( PPI::Token::Whitespace->new(q{ }) );
+        $symbols = PPI::Token::Quote::Double->new('"intspan"');
+        $element->add_element($symbols);
+        $module = 'intspan';
+    }
+    elsif ( $pathstr eq 'Storable' ) {
+        if ( $symbols->{content} =~ s/dclone/deepcopy/xsm ) {
+            $symbols->{sections}[0]{size} += 2;
+            $module = 'copy';
         }
-        when ('Image::Sane') {
-            delete_everything_after($path);
-            $module = 'sane';
-            $symbols->delete;
-            undef $symbols;
-        }
-        when ('Locale::gettext') {
-            delete_everything_after($path);
-            $module = 'gettext';
-            $symbols->delete;
-            undef $symbols;
-        }
-        when ('Log::Log4perl') {
-            delete_everything_after($path);
-            $module = 'logging';
-            $symbols->delete;
-            undef $symbols;
-        }
-        when ('Set::IntSpan') {
-            delete_everything_after($path);
-            $element->add_element( PPI::Token::Whitespace->new(q{ }) );
-            $symbols = PPI::Token::Quote::Double->new('"intspan"');
-            $element->add_element($symbols);
-            $module = 'intspan';
-        }
-        when ('Storable') {
-            if ( $symbols->{content} =~ s/dclone/deepcopy/xsm ) {
-                $symbols->{sections}[0]{size} += 2;
-                $module = 'copy';
+    }
+    elsif ( $pathstr eq 'Thread::Queue' ) {
+        $module = 'queue';
+    }
+    elsif ( $pathstr eq 'base' ) {
+        my $class = $top->find_first(
+            sub {
+                $_[1]->isa('PPI::Statement::Sub')
+                  and $_[1]->schild(0) eq 'class';
             }
-        }
-        when ('Thread::Queue') {
-            $module = 'queue';
-        }
-        when ('base') {
-            my $class = $top->find_first(
-                sub {
-                    $_[1]->isa('PPI::Statement::Sub')
-                      and $_[1]->schild(0) eq 'class';
-                }
-            );
-            if ( not $class ) {
-                $element->delete;
-                return;
-            }
-            my $list = $class->schild(0)->snext_sibling->snext_sibling;
-            my @symbols =
-              map_import_symbols( $import, $path, $module, $symbols );
-            if ( $symbols[0] eq 'Exporter' ) {
-                shift @symbols;
-                if ( @symbols > 0 ) {
-                    shift @symbols;
-                }
-            }
-            for my $symbol (@symbols) {
-                $symbol->{content} =~ s/.*:://xsm;
-                map_element($symbol);
-                $list->add_element( $symbol->remove );
-            }
+        );
+        if ( not $class ) {
             $element->delete;
             return;
         }
-        when ('threads') {
-            $module = 'threading';
+        my $list    = $class->schild(0)->snext_sibling->snext_sibling;
+        my @symbols = map_import_symbols( $import, $path, $module, $symbols );
+        if ( $symbols[0] eq 'Exporter' ) {
+            shift @symbols;
+            if ( @symbols > 0 ) {
+                shift @symbols;
+            }
         }
-        when ('threads::shared') {
-            $element->delete;
+        for my $symbol (@symbols) {
+            $symbol->{content} =~ s/.*:://xsm;
+            map_element($symbol);
+            $list->add_element( $symbol->remove );
         }
+        $element->delete;
+        return;
+    }
+    elsif ( $pathstr eq 'threads' ) {
+        $module = 'threading';
+    }
+    elsif ( $pathstr eq 'threads::shared' ) {
+        $element->delete;
     }
     if ( $symbols and $symbols->isa('PPI::Token::Number') ) {
         $symbols->delete;
@@ -2276,155 +2262,153 @@ sub map_operator {
     my ($element) = @_;
     if ( not $element->{content} ) { return }
     $element->{originally} = $element->{content};
-    given ("$element") {
-        when (q{?}) {
-            my @conditional = get_argument_for_operator( $element, 0 );
-            my @true        = get_argument_for_operator( $element, 1 );
+    my $elementstr = "$element";
+    if ( $elementstr eq q{?} ) {
+        my @conditional = get_argument_for_operator( $element, 0 );
+        my @true        = get_argument_for_operator( $element, 1 );
 
-            # Work around https://github.com/Perl-Critic/PPI/issues/262
-            if ( $true[0]->isa('PPI::Token::Label') ) {
-                my $word = $true[0]->content;
-                $word =~ s/[ ]*:$//xsm;
-                $word = PPI::Token::Word->new($word);
-                $true[0]->insert_before($word);
-                map_word($word);
-                $true[0]->insert_after( PPI::Token::Operator->new(q{:}) );
-                $true[0]->delete;
-                @true = get_argument_for_operator( $element, 1 );
-            }
+        # Work around https://github.com/Perl-Critic/PPI/issues/262
+        if ( $true[0]->isa('PPI::Token::Label') ) {
+            my $word = $true[0]->content;
+            $word =~ s/[ ]*:$//xsm;
+            $word = PPI::Token::Word->new($word);
+            $true[0]->insert_before($word);
+            map_word($word);
+            $true[0]->insert_after( PPI::Token::Operator->new(q{:}) );
+            $true[0]->delete;
+            @true = get_argument_for_operator( $element, 1 );
+        }
 
-            my $operator = $true[-1]->snext_sibling;
-            my @false    = get_argument_for_operator( $operator, 1 );
+        my $operator = $true[-1]->snext_sibling;
+        my @false    = get_argument_for_operator( $operator, 1 );
 
-            # map true/false expressions before mapping ternary in case we
-            # change the precedence in doing so
-            if ( defined $BUILTINS{ $true[0]->content } ) {
-                my $list = map_built_in(@true);
-                @true = ( $true[0], $list );
-            }
-            if ( defined $BUILTINS{ $false[0]->content } ) {
-                my $list = map_built_in(@false);
-                @false = ( $false[0], $list );
-            }
+        # map true/false expressions before mapping ternary in case we
+        # change the precedence in doing so
+        if ( defined $BUILTINS{ $true[0]->content } ) {
+            my $list = map_built_in(@true);
+            @true = ( $true[0], $list );
+        }
+        if ( defined $BUILTINS{ $false[0]->content } ) {
+            my $list = map_built_in(@false);
+            @false = ( $false[0], $list );
+        }
 
-            if ( $operator ne q{:} or not( @true and @false ) ) {
-                croak
+        if ( $operator ne q{:} or not( @true and @false ) ) {
+            croak
 "Error parsing conditional operator: '@conditional $element @true $operator @false'\n";
-            }
-            $element->{content}  = 'if';
-            $operator->{content} = 'else';
-            my $parent = $element->parent;
-            for my $conditional (@conditional) {
-                $parent->__insert_after_child( $element, $conditional->remove );
-            }
-            $parent->__insert_after_child( $element,
-                PPI::Token::Whitespace->new(q{ }) );
-            for my $true (@true) {
-                $parent->__insert_before_child( $element, $true->remove );
-            }
-            $parent->__insert_before_child( $element,
-                PPI::Token::Whitespace->new(q{ }) );
         }
-        when (q{||}) {
-            map_or($element);
+        $element->{content}  = 'if';
+        $operator->{content} = 'else';
+        my $parent = $element->parent;
+        for my $conditional (@conditional) {
+            $parent->__insert_after_child( $element, $conditional->remove );
         }
-        when (q{&&}) {
-            $element->{content} = 'and';
+        $parent->__insert_after_child( $element,
+            PPI::Token::Whitespace->new(q{ }) );
+        for my $true (@true) {
+            $parent->__insert_before_child( $element, $true->remove );
         }
-        when (q{.=}) {
-            $element->{content} = q{+=};
+        $parent->__insert_before_child( $element,
+            PPI::Token::Whitespace->new(q{ }) );
+    }
+    elsif ( $elementstr eq q{||} ) {
+        map_or($element);
+    }
+    elsif ( $elementstr eq q{&&} ) {
+        $element->{content} = 'and';
+    }
+    elsif ( $elementstr eq q{.=} ) {
+        $element->{content} = q{+=};
+    }
+    elsif ( $elementstr =~ /^(?:[+][+]|--)$/xsm ) {
+        map_inc_dec($element);
+    }
+    elsif ( $elementstr eq q{.} ) {
+        $element->{content} = q{+};
+    }
+    elsif ( $elementstr eq q{..} ) {
+        my @start = get_argument_for_operator( $element, 0 );
+        my @stop  = get_argument_for_operator( $element, 1 );
+        $start[0]->insert_before( PPI::Token::Word->new('range') );
+        my $list = PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $list->{finish} = PPI::Token::Structure->new(')');
+        $start[0]->insert_before($list);
+        if ( $start[0] eq '0' ) {
+            $start[0]->delete;
         }
-        when (/^(?:[+][+]|--)$/xsm) {
-            map_inc_dec($element);
-        }
-        when (q{.}) {
-            $element->{content} = q{+};
-        }
-        when (q{..}) {
-            my @start = get_argument_for_operator( $element, 0 );
-            my @stop  = get_argument_for_operator( $element, 1 );
-            $start[0]->insert_before( PPI::Token::Word->new('range') );
-            my $list =
-              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-            $list->{finish} = PPI::Token::Structure->new(')');
-            $start[0]->insert_before($list);
-            if ( $start[0] eq '0' ) {
-                $start[0]->delete;
-            }
-            else {
-                for my $child (@start) {
-                    $list->add_element( $child->remove );
-                }
-                $list->add_element( PPI::Token::Operator->new(q{,}) );
-            }
-            for my $child (@stop) {
+        else {
+            for my $child (@start) {
                 $list->add_element( $child->remove );
             }
-            $list->add_element( PPI::Token::Operator->new(q{+}) );
-            $list->add_element( PPI::Token::Number->new(1) );
-            $element->delete;
+            $list->add_element( PPI::Token::Operator->new(q{,}) );
         }
-        when (q{!}) {
-            $element->{content} = q{not};
+        for my $child (@stop) {
+            $list->add_element( $child->remove );
         }
-        when (q{=>}) {
-            map_fat_comma($element);
-        }
-        when (/^[=!]~$/xsm) {
+        $list->add_element( PPI::Token::Operator->new(q{+}) );
+        $list->add_element( PPI::Token::Number->new(1) );
+        $element->delete;
+    }
+    elsif ( $elementstr eq q{!} ) {
+        $element->{content} = q{not};
+    }
+    elsif ( $elementstr eq q{=>} ) {
+        map_fat_comma($element);
+    }
+    elsif ( $elementstr =~ /^[=!]~$/xsm ) {
 
-            # Most of the logic depends on the regex, so handle it there
-            my $next = $element->snext_sibling;
-            if ( $next->isa('PPI::Token::Symbol') ) {
-                map_regex_match($next);
-            }
+        # Most of the logic depends on the regex, so handle it there
+        my $next = $element->snext_sibling;
+        if ( $next->isa('PPI::Token::Symbol') ) {
+            map_regex_match($next);
         }
-        when (q{->}) {
-            map_arrow_operator($element);
+    }
+    elsif ( $elementstr eq q{->} ) {
+        map_arrow_operator($element);
+    }
+    elsif ( $elementstr =~ /^-[efrs]$/xsm ) {
+        my $parent = $element->parent;
+        my $list   = map_built_in($element);
+        if ( $element eq '-e' ) {
+            add_import( $element, 'pathlib' );
+            $element->{content} = 'pathlib.Path';
+            $list->insert_after( PPI::Token::Word->new('.exists()') );
         }
-        when (/^-[efrs]$/xsm) {
-            my $parent = $element->parent;
-            my $list   = map_built_in($element);
-            if ( $element eq '-e' ) {
-                add_import( $element, 'pathlib' );
-                $element->{content} = 'pathlib.Path';
-                $list->insert_after( PPI::Token::Word->new('.exists()') );
-            }
-            if ( $element eq '-f' ) {
-                add_import( $element, 'os' );
-                $element->{content} = 'os.path.isfile';
-            }
-            elsif ( $element eq '-r' ) {
-                add_import( $element, 'os' );
-                $element->{content} = 'os.access';
-                $list->add_element( PPI::Token::Operator->new(q{,}) );
-                $list->add_element( PPI::Token::Word->new('os.R_OK') );
-            }
-            elsif ( $element eq '-s' ) {
-                add_import( $element, 'os' );
-                $element->{content} = 'os.path.getsize';
-            }
+        if ( $element eq '-f' ) {
+            add_import( $element, 'os' );
+            $element->{content} = 'os.path.isfile';
         }
-        when ('eq') {
-            $element->{content} = q{==};
+        elsif ( $element eq '-r' ) {
+            add_import( $element, 'os' );
+            $element->{content} = 'os.access';
+            $list->add_element( PPI::Token::Operator->new(q{,}) );
+            $list->add_element( PPI::Token::Word->new('os.R_OK') );
         }
-        when ('ge') {
-            $element->{content} = q{>=};
+        elsif ( $element eq '-s' ) {
+            add_import( $element, 'os' );
+            $element->{content} = 'os.path.getsize';
         }
-        when ('gt') {
-            $element->{content} = q{>};
-        }
-        when ('le') {
-            $element->{content} = q{<=};
-        }
-        when ('lt') {
-            $element->{content} = q{<};
-        }
-        when ('ne') {
-            $element->{content} = q{!=};
-        }
-        when ('xor') {
-            $element->{content} = q{^};
-        }
+    }
+    elsif ( $elementstr eq 'eq' ) {
+        $element->{content} = q{==};
+    }
+    elsif ( $elementstr eq 'ge' ) {
+        $element->{content} = q{>=};
+    }
+    elsif ( $elementstr eq 'gt' ) {
+        $element->{content} = q{>};
+    }
+    elsif ( $elementstr eq 'le' ) {
+        $element->{content} = q{<=};
+    }
+    elsif ( $elementstr eq 'lt' ) {
+        $element->{content} = q{<};
+    }
+    elsif ( $elementstr eq 'ne' ) {
+        $element->{content} = q{!=};
+    }
+    elsif ( $elementstr eq 'xor' ) {
+        $element->{content} = q{^};
     }
     return;
 }
@@ -3716,22 +3700,21 @@ sub map_variable {
 
 sub create_variable_definition {
     my ($element) = @_;
-    given ( substr $element->{content}, 0, 1 ) {
-        when (q{$}) {
-            return PPI::Token::Word->new('None');
-        }
-        when (q{@}) {
-            my $arraydef =
-              PPI::Structure::List->new( PPI::Token::Structure->new('[') );
-            $arraydef->{finish} = PPI::Token::Structure->new(']');
-            return $arraydef;
-        }
-        when (q{%}) {
-            my $hashdef =
-              PPI::Structure::List->new( PPI::Token::Structure->new('{') );
-            $hashdef->{finish} = PPI::Token::Structure->new('}');
-            return $hashdef;
-        }
+    my $type      = substr $element->{content}, 0, 1;
+    if ( $type eq q{$} ) {
+        return PPI::Token::Word->new('None');
+    }
+    elsif ( $type eq q{@} ) {
+        my $arraydef =
+          PPI::Structure::List->new( PPI::Token::Structure->new('[') );
+        $arraydef->{finish} = PPI::Token::Structure->new(']');
+        return $arraydef;
+    }
+    elsif ( $type eq q{%} ) {
+        my $hashdef =
+          PPI::Structure::List->new( PPI::Token::Structure->new('{') );
+        $hashdef->{finish} = PPI::Token::Structure->new('}');
+        return $hashdef;
     }
     return;
 }
@@ -3740,446 +3723,444 @@ sub map_word {
     my ($element) = @_;
     if ( not $element->{content} ) { return }
     $element->{content} =~ s/::/./gsm;
-    given ("$element") {
-        when ('FALSE') {    # special-case common bare words
-            $element->{content} = 'False';
+    my $elementstr = "$element";
+    if ( $elementstr eq 'FALSE' ) {    # special-case common bare words
+        $element->{content} = 'False';
+    }
+    elsif ( $elementstr eq 'Data.UUID' ) {
+        map_data_uuid($element);
+    }
+    elsif ( $elementstr eq 'File.Temp' ) {
+        map_file_temp($element);
+    }
+    elsif ( $elementstr eq 'Glib.Type' ) {
+        $element->{content} = 'GObject.TypeModule';
+    }
+    elsif ( $elementstr =~ /Gtk\d[.]Gdk/xsm ) {
+        $element->{content} =~ s/Gtk\d[.]//gsmx;
+        add_import( $element, 'gi.repository', 'Gdk' );
+    }
+    elsif ( $elementstr =~ /Gtk\d[.]EVENT/xsm ) {
+        $element->{content} =~ s/Gtk\d/Gdk/gsmx;
+        add_import( $element, 'gi.repository', 'Gdk' );
+    }
+    elsif ( $elementstr =~ /Gtk\d/xsm ) {
+        $element->{content} =~ s/Gtk\d/Gtk/gsmx;
+    }
+    elsif ( $elementstr eq 'Image.Magick' ) {
+        map_image_magick($element);
+    }
+    elsif ( $elementstr eq 'Locale.gettext' ) {
+        $element->{content} = 'gettext';
+        my $operator = $element->snext_sibling;
+        my $method   = $operator->snext_sibling;
+        if ( $method eq 'domain' ) {
+            $method->{content} = 'translation';
         }
-        when ('Data.UUID') {
-            map_data_uuid($element);
+    }
+    elsif ( $elementstr eq 'POSIX.strftime' ) {
+        map_posix_strftime($element);
+    }
+    elsif ( $elementstr eq 'Readonly' ) {
+        my $operator = $element->parent->find_first('PPI::Token::Operator');
+        if ( $operator ne '=>' ) {
+            croak "Unexpected operator '$operator'\n";
         }
-        when ('File.Temp') {
-            map_file_temp($element);
-        }
-        when ('Glib.Type') {
-            $element->{content} = 'GObject.TypeModule';
-        }
-        when (/Gtk\d[.]Gdk/xsm) {
-            $element->{content} =~ s/Gtk\d[.]//gsmx;
-            add_import( $element, 'gi.repository', 'Gdk' );
-        }
-        when (/Gtk\d[.]EVENT/xsm) {
-            $element->{content} =~ s/Gtk\d/Gdk/gsmx;
-            add_import( $element, 'gi.repository', 'Gdk' );
-        }
-        when (/Gtk\d/xsm) {
-            $element->{content} =~ s/Gtk\d/Gtk/gsmx;
-        }
-        when ('Image.Magick') {
-            map_image_magick($element);
-        }
-        when ('Locale.gettext') {
-            $element->{content} = 'gettext';
-            my $operator = $element->snext_sibling;
-            my $method   = $operator->snext_sibling;
-            if ( $method eq 'domain' ) {
-                $method->{content} = 'translation';
-            }
-        }
-        when ('POSIX.strftime') {
-            map_posix_strftime($element);
-        }
-        when ('Readonly') {
-            my $operator = $element->parent->find_first('PPI::Token::Operator');
-            if ( $operator ne '=>' ) {
-                croak "Unexpected operator '$operator'\n";
-            }
-            $operator->{content} = q{=};
-            $element->delete;
-        }
-        when (/^SANE_/xsm) {
-            map_sane_enums($element);
-        }
-        when ('TRUE') {
-            $element->{content} = 'True';
-        }
-        when ('Time_to_Date') {
-            $element->{content} = 'datetime.datetime.fromtimestamp';
-        }
-        when (/^(?:abs|chr|int|ord)$/xsm) {
-            map_built_in($element);
-        }
-        when ('bless') {
-            $element->parent->delete;
-        }
-        when ('blessed') {    # no equivalent for blessed
-            my $list     = map_built_in($element);
-            my $operator = $list->snext_sibling;
-            $element->delete;
-            $list->delete;
-            if ( $operator->isa('PPI::Token::Operator') ) {
-                $operator->delete;
-            }
-        }
-        when ('can_ok') {
-            my $statement = $element->parent;
-            my $block     = $statement->parent;
-            my $list      = map_built_in($element);
-            my $exp       = $list->schild(0);
-            my $obj       = $exp->schild(0);
-            map_element($obj);
-            my $methods = $exp->schild(2);
-            my $comment = $exp->schild( 2 + 2 );
-            my $string  = substr $methods->content,
-              $methods->{sections}[0]{position}, $methods->{sections}[0]{size};
-
-            for ( split q{ }, $string ) {
-                my $nstatement = PPI::Statement->new();
-                my $str = "assert hasattr($obj,'$_') and callable($obj.$_)";
-                if ( defined $comment ) { $str .= ", $comment" }
-                $nstatement->add_element( PPI::Token::Word->new($str) );
-                $block->__insert_before_child( $statement, $nstatement );
-                indent_element($nstatement);
-            }
-            $statement->delete;
-        }
-        when ('carp') {
-            map_built_in($element);
-            $element->{content} = 'warn';
-        }
-        when ('catch') {
-            $element->{content} = 'except';
-        }
-        when ('chomp') {
-            map_chomp($element);
-        }
-        when ('close') {
-            my $list = map_built_in($element);
-            my $fh   = $list->schild(0);
-            map_element($fh);
-            if ( $fh->isa('PPI::Statement::Expression') ) {
-                $fh = $fh->schild(0);
-            }
-            $fh->{content} .= q{.};
-            $element->insert_before( $fh->remove );
-        }
-        when ('cmp_ok') {
-            $element->{content} = 'assert';
-            my $list = map_built_in($element);
-            map_element($list);
-            my $exp  = $list->schild(0);
-            my $com1 = $exp->schild(1);
-            my $op   = $com1->snext_sibling;
-            my $com2 = $op->snext_sibling;
-            $com1->delete;
-            $com2->delete;
-            $op->{content} = quote2content($op);
-            $list->parent->__insert_after_child( $list, $exp->remove );
-            $list->delete;
-            $element->insert_after( PPI::Token::Whitespace->new(q{ }) );
-        }
-        when ('create_str') {
-            $element->{content} = 'str';
-            my $operator = $element->sprevious_sibling;
-            my $object   = $operator->sprevious_sibling;
-            my $list     = map_built_in($element);
-            $list->add_element( $object->remove );
-            my $list2 =
-              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-            $list2->{finish} = PPI::Token::Structure->new(')');
-            $list->add_element($list2);
+        $operator->{content} = q{=};
+        $element->delete;
+    }
+    elsif ( $elementstr =~ /^SANE_/xsm ) {
+        map_sane_enums($element);
+    }
+    elsif ( $elementstr eq 'TRUE' ) {
+        $element->{content} = 'True';
+    }
+    elsif ( $elementstr eq 'Time_to_Date' ) {
+        $element->{content} = 'datetime.datetime.fromtimestamp';
+    }
+    elsif ( $elementstr =~ /^(?:abs|chr|int|ord)$/xsm ) {
+        map_built_in($element);
+    }
+    elsif ( $elementstr eq 'bless' ) {
+        $element->parent->delete;
+    }
+    elsif ( $elementstr eq 'blessed' ) {    # no equivalent for blessed
+        my $list     = map_built_in($element);
+        my $operator = $list->snext_sibling;
+        $element->delete;
+        $list->delete;
+        if ( $operator->isa('PPI::Token::Operator') ) {
             $operator->delete;
         }
-        when (/^(?:croak|die)$/xsm) {
-            $element->{content} = 'raise';
-        }
-        when ('dclone') {
-            $element->{content} = 'deepcopy';
-        }
-        when ('decode_utf8') {
-            my $list       = map_built_in($element);
-            my $expression = $list->schild(0);
-            my $str        = $expression->schild(0);
-            $element->insert_before( $str->remove );
-            $element->{content} = '.decode';
-            $list->add_element( PPI::Token::Quote::Double->new('"utf8"') )
-        }
-        when ('defined') {
-            map_defined($element);
-        }
-        when ('delete') {
-            if ( not $element->parent->isa('PPI::Statement::Expression') ) {
-                map_built_in($element);
-                $element->{content} = 'del';
-            }
-        }
-        when ('do') {
-            map_do($element);
-        }
-        when ('each') {
-            my $list = map_built_in($element);
-            $element->{content} = '.items';
-            for my $child ( $list->children ) {
-                $element->insert_before( $child->remove );
-            }
-        }
-        when ('elsif') {
-            $element->{content} = 'elif';
-        }
-        when ('eval') {
-            map_eval($element);
-        }
-        when ('first_index') {
-            map_first_index($element);
-        }
-        when ('foreach') {
-            $element->{content} = 'for';
-        }
-        when ('get') {
-            map_get($element);
-        }
-        when ('glob') {
-            add_import( $element, 'glob' );
-            map_built_in($element);
-            $element->{content} = 'glob.glob';
-        }
-        when ('grep') {
-            map_grep($element);
-        }
-        when ('hex') {
-            map_built_in($element);
-        }
-        when (/^(?:if|unless)$/xsm) {
-            map_postfix_if($element);
-        }
-        when (/^(?:is|cmp)(?:_deeply|nt)?$/xsm) {
-            map_is($element);
-        }
-        when ('isa') {
-            map_isa($element);
-        }
-        when ('isa_ok') {
-            my $parent = $element->parent;
-            my $list   = map_built_in($element);
-            $element->insert_before( PPI::Token::Word->new('assert') );
-            $element->insert_before( PPI::Token::Whitespace->new(q{ }) );
-            $element->{content} = 'isinstance';
-            my $type = $list->find_first('PPI::Token::Quote');
-            $type->{content} =~ s/::/./gsm;
-            $type->{content} =~ s/["']//gsmx;
+    }
+    elsif ( $elementstr eq 'can_ok' ) {
+        my $statement = $element->parent;
+        my $block     = $statement->parent;
+        my $list      = map_built_in($element);
+        my $exp       = $list->schild(0);
+        my $obj       = $exp->schild(0);
+        map_element($obj);
+        my $methods = $exp->schild(2);
+        my $comment = $exp->schild( 2 + 2 );
+        my $string  = substr $methods->content,
+          $methods->{sections}[0]{position}, $methods->{sections}[0]{size};
 
-            while ( my $token = $type->next_sibling ) {
-                $parent->add_element( $token->remove );
-            }
+        for ( split q{ }, $string ) {
+            my $nstatement = PPI::Statement->new();
+            my $str        = "assert hasattr($obj,'$_') and callable($obj.$_)";
+            if ( defined $comment ) { $str .= ", $comment" }
+            $nstatement->add_element( PPI::Token::Word->new($str) );
+            $block->__insert_before_child( $statement, $nstatement );
+            indent_element($nstatement);
         }
-        when ('join') {
-            map_join($element);
+        $statement->delete;
+    }
+    elsif ( $elementstr eq 'carp' ) {
+        map_built_in($element);
+        $element->{content} = 'warn';
+    }
+    elsif ( $elementstr eq 'catch' ) {
+        $element->{content} = 'except';
+    }
+    elsif ( $elementstr eq 'chomp' ) {
+        map_chomp($element);
+    }
+    elsif ( $elementstr eq 'close' ) {
+        my $list = map_built_in($element);
+        my $fh   = $list->schild(0);
+        map_element($fh);
+        if ( $fh->isa('PPI::Statement::Expression') ) {
+            $fh = $fh->schild(0);
         }
-        when (/^(?:keys|values)$/xsm) {
-            my $list = map_built_in($element);
-            for my $child ( $list->children ) {
-                $element->insert_before( $child->remove );
-            }
-            $element->insert_before( PPI::Token::Operator->new(q{.}) );
+        $fh->{content} .= q{.};
+        $element->insert_before( $fh->remove );
+    }
+    elsif ( $elementstr eq 'cmp_ok' ) {
+        $element->{content} = 'assert';
+        my $list = map_built_in($element);
+        map_element($list);
+        my $exp  = $list->schild(0);
+        my $com1 = $exp->schild(1);
+        my $op   = $com1->snext_sibling;
+        my $com2 = $op->snext_sibling;
+        $com1->delete;
+        $com2->delete;
+        $op->{content} = quote2content($op);
+        $list->parent->__insert_after_child( $list, $exp->remove );
+        $list->delete;
+        $element->insert_after( PPI::Token::Whitespace->new(q{ }) );
+    }
+    elsif ( $elementstr eq 'create_str' ) {
+        $element->{content} = 'str';
+        my $operator = $element->sprevious_sibling;
+        my $object   = $operator->sprevious_sibling;
+        my $list     = map_built_in($element);
+        $list->add_element( $object->remove );
+        my $list2 =
+          PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $list2->{finish} = PPI::Token::Structure->new(')');
+        $list->add_element($list2);
+        $operator->delete;
+    }
+    elsif ( $elementstr =~ /^(?:croak|die)$/xsm ) {
+        $element->{content} = 'raise';
+    }
+    elsif ( $elementstr eq 'dclone' ) {
+        $element->{content} = 'deepcopy';
+    }
+    elsif ( $elementstr eq 'decode_utf8' ) {
+        my $list       = map_built_in($element);
+        my $expression = $list->schild(0);
+        my $str        = $expression->schild(0);
+        $element->insert_before( $str->remove );
+        $element->{content} = '.decode';
+        $list->add_element( PPI::Token::Quote::Double->new('"utf8"') );
+    }
+    elsif ( $elementstr eq 'defined' ) {
+        map_defined($element);
+    }
+    elsif ( $elementstr eq 'delete' ) {
+        if ( not $element->parent->isa('PPI::Statement::Expression') ) {
+            map_built_in($element);
+            $element->{content} = 'del';
         }
-        when ('keyval') {
-            my $list     = map_built_in($element);
-            my @children = $list->children;
-            if (@children) {
-                $list->insert_before( PPI::Token::Operator->new(q{=}) );
-                for my $child (@children) {
-                    map_element($child);
-                    $element->parent->__insert_after_child( $list,
-                        $child->remove );
-                }
-            }
-            $list->delete;
+    }
+    elsif ( $elementstr eq 'do' ) {
+        map_do($element);
+    }
+    elsif ( $elementstr eq 'each' ) {
+        my $list = map_built_in($element);
+        $element->{content} = '.items';
+        for my $child ( $list->children ) {
+            $element->insert_before( $child->remove );
         }
-        when ('killfam') {
-            add_import( $element, 'os' );
-            $element->{content} = 'os.killpg';
-            my $list   = map_built_in($element);
-            my $sig    = $list->schild(0);
-            my $op     = $list->schild(1);
-            my $pid    = $list->schild(2);
-            my $method = PPI::Token::Word->new('os.getpgid');
-            $pid->insert_before($method);
-            map_built_in($method);
-            $list->add_element( $op->remove );
+    }
+    elsif ( $elementstr eq 'elsif' ) {
+        $element->{content} = 'elif';
+    }
+    elsif ( $elementstr eq 'eval' ) {
+        map_eval($element);
+    }
+    elsif ( $elementstr eq 'first_index' ) {
+        map_first_index($element);
+    }
+    elsif ( $elementstr eq 'foreach' ) {
+        $element->{content} = 'for';
+    }
+    elsif ( $elementstr eq 'get' ) {
+        map_get($element);
+    }
+    elsif ( $elementstr eq 'glob' ) {
+        add_import( $element, 'glob' );
+        map_built_in($element);
+        $element->{content} = 'glob.glob';
+    }
+    elsif ( $elementstr eq 'grep' ) {
+        map_grep($element);
+    }
+    elsif ( $elementstr eq 'hex' ) {
+        map_built_in($element);
+    }
+    elsif ( $elementstr =~ /^(?:if|unless)$/xsm ) {
+        map_postfix_if($element);
+    }
+    elsif ( $elementstr =~ /^(?:is|cmp)(?:_deeply|nt)?$/xsm ) {
+        map_is($element);
+    }
+    elsif ( $elementstr eq 'isa' ) {
+        map_isa($element);
+    }
+    elsif ( $elementstr eq 'isa_ok' ) {
+        my $parent = $element->parent;
+        my $list   = map_built_in($element);
+        $element->insert_before( PPI::Token::Word->new('assert') );
+        $element->insert_before( PPI::Token::Whitespace->new(q{ }) );
+        $element->{content} = 'isinstance';
+        my $type = $list->find_first('PPI::Token::Quote');
+        $type->{content} =~ s/::/./gsm;
+        $type->{content} =~ s/["']//gsmx;
 
-            if ( $sig =~ /KILL/xsm ) {
-                $sig->{content} = 'signal.SIGKILL';
-            }
-            $list->add_element( $sig->remove );
+        while ( my $token = $type->next_sibling ) {
+            $parent->add_element( $token->remove );
         }
-        when ('last') {
-            $element->{content} = 'break';
+    }
+    elsif ( $elementstr eq 'join' ) {
+        map_join($element);
+    }
+    elsif ( $elementstr =~ /^(?:keys|values)$/xsm ) {
+        my $list = map_built_in($element);
+        for my $child ( $list->children ) {
+            $element->insert_before( $child->remove );
         }
-        when ('length') {
-            my $list = map_built_in($element);
-            $element->{content} = 'len';
-        }
-        when ('like') {
-            map_like($element);
-        }
-        when ('local') {    # no equivalent in python
-            $element->delete;
-        }
-        when ('log') {
-            add_import( $element, 'math' );
-            $element->{content} = 'math.log';
-        }
-        when ('map') {
-            map_map($element);
-        }
-        when (/^(?:copy|move)$/xsm) {
-            map_move_copy($element);
-        }
-        when (/^(?:my|our)$/xsm) {
-            map_myour($element);
-        }
-        when ('next') {
-            $element->{content} = 'continue';
-        }
-        when ('new') {
-            map_new($element);
-        }
-        when ('num') {
-            my $list = map_built_in($element);
-            add_import( $element, 'pytest' );
-            $element->{content} = 'pytest.approx';
-        }
-        when ('ok') {
-            map_ok($element);
-        }
-        when ('open') {
-            map_open($element);
-        }
-        when ('pack') {
-            add_import( $element, 'struct' );
-            map_built_in($element);
-            $element->{content} = 'struct.pack';
-        }
-        when (/^(?:pass|fail)$/xsm) {
-            map_pass_fail($element);
-        }
-        when ('pop') {
-            my $list = map_built_in($element);
-            $element->{content} = '.pop';
-            for my $child ( $list->children ) {
-                $element->insert_before( $child->remove );
-            }
-        }
-        when (/^printf?$/xsm) {
-            map_print($element);
-        }
-        when (/^(?:push|unshift)$/xsm) {
-            map_push($element);
-        }
-        when ('ref') {
-            map_ref($element);
-        }
-        when ('reverse') {
-            map_built_in($element);
-            $element->{content} = 'reversed';
-        }
-        when ('rmdir') {
-            my $list = map_built_in($element);
-            add_import( $element, 'os' );
-            $element->{content} = 'os.rmdir';
-        }
-        when ('scalar') {
-            map_scalar($element);
-        }
-        when ('set') {
-            map_set($element);
-        }
-        when ('setlocale') {
-            map_setlocale($element);
-        }
-        when ('share') {
-            my $list = map_built_in($element);
-            $list->insert_after( PPI::Token::Symbol->new('queue.Queue()') );
-            $list->insert_after( PPI::Token::Operator->new(q{=}) );
-            for my $child ( $list->children ) {
-                $list->insert_before( $child->remove );
-            }
-            $element->delete;
-            $list->delete;
-        }
-        when ('shift') {
-            map_shift($element);
-        }
-        when (/^$SIGNAL_PREFIX$SIGNAL_SUFFIX$/xsm) {
-            map_signals( $element, $1 );
-        }
-        when ('sort') {
-            map_sort($element);
-        }
-        when ('splice') {
-            map_splice($element);
-        }
-        when ('split') {
-            map_split($element);
-        }
-        when ('sprintf') {
-            map_sprintf($element);
-        }
-        when ('stat') {
-            $element->{content} = 'os.stat';
-        }
-        when ('sub') {
-            map_anonymous_sub($element);
-        }
-        when ('substr') {
-            my $list = map_built_in($element);
-            $list->{start}->{content}  = q{[};
-            $list->{finish}->{content} = q{]};
-            $list->insert_before( $list->schild(0)->remove );
-            $list->schild(0)->delete;
-            $element->delete;
-            my $comma = $list->find_first('PPI::Token::Operator');
-            $comma->{content} = q{:};
-            $comma->insert_after( PPI::Token::Operator->new(q{+}) );
-            my $offset = $list->schild(0)->clone;
-            map_element($offset);
-            $comma->insert_after($offset);
-        }
-        when ('system') {
-            map_system($element);
-        }
-        when ('threads') {
-            map_threads($element);
-        }
-        when ('ucfirst') {
-            my $list = map_built_in($element);
-            $element->{content} = '.capitalize';
-            for my $child ( $list->children ) {
+        $element->insert_before( PPI::Token::Operator->new(q{.}) );
+    }
+    elsif ( $elementstr eq 'keyval' ) {
+        my $list     = map_built_in($element);
+        my @children = $list->children;
+        if (@children) {
+            $list->insert_before( PPI::Token::Operator->new(q{=}) );
+            for my $child (@children) {
                 map_element($child);
-                $element->insert_before( $child->remove );
+                $element->parent->__insert_after_child( $list, $child->remove );
             }
         }
-        when ('undef') {
-            map_undef($element);
+        $list->delete;
+    }
+    elsif ( $elementstr eq 'killfam' ) {
+        add_import( $element, 'os' );
+        $element->{content} = 'os.killpg';
+        my $list   = map_built_in($element);
+        my $sig    = $list->schild(0);
+        my $op     = $list->schild(1);
+        my $pid    = $list->schild(2);
+        my $method = PPI::Token::Word->new('os.getpgid');
+        $pid->insert_before($method);
+        map_built_in($method);
+        $list->add_element( $op->remove );
+
+        if ( $sig =~ /KILL/xsm ) {
+            $sig->{content} = 'signal.SIGKILL';
         }
-        when ('unlink') {
-            my $list = map_built_in($element);
-            add_import( $element, 'os' );
-            $element->{content} = 'os.remove';
+        $list->add_element( $sig->remove );
+    }
+    elsif ( $elementstr eq 'last' ) {
+        $element->{content} = 'break';
+    }
+    elsif ( $elementstr eq 'length' ) {
+        my $list = map_built_in($element);
+        $element->{content} = 'len';
+    }
+    elsif ( $elementstr eq 'like' ) {
+        map_like($element);
+    }
+    elsif ( $elementstr eq 'local' ) {    # no equivalent in python
+        $element->delete;
+    }
+    elsif ( $elementstr eq 'log' ) {
+        add_import( $element, 'math' );
+        $element->{content} = 'math.log';
+    }
+    elsif ( $elementstr eq 'map' ) {
+        map_map($element);
+    }
+    elsif ( $elementstr =~ /^(?:copy|move)$/xsm ) {
+        map_move_copy($element);
+    }
+    elsif ( $elementstr =~ /^(?:my|our)$/xsm ) {
+        map_myour($element);
+    }
+    elsif ( $elementstr eq 'next' ) {
+        $element->{content} = 'continue';
+    }
+    elsif ( $elementstr eq 'new' ) {
+        map_new($element);
+    }
+    elsif ( $elementstr eq 'num' ) {
+        my $list = map_built_in($element);
+        add_import( $element, 'pytest' );
+        $element->{content} = 'pytest.approx';
+    }
+    elsif ( $elementstr eq 'ok' ) {
+        map_ok($element);
+    }
+    elsif ( $elementstr eq 'open' ) {
+        map_open($element);
+    }
+    elsif ( $elementstr eq 'pack' ) {
+        add_import( $element, 'struct' );
+        map_built_in($element);
+        $element->{content} = 'struct.pack';
+    }
+    elsif ( $elementstr =~ /^(?:pass|fail)$/xsm ) {
+        map_pass_fail($element);
+    }
+    elsif ( $elementstr eq 'pop' ) {
+        my $list = map_built_in($element);
+        $element->{content} = '.pop';
+        for my $child ( $list->children ) {
+            $element->insert_before( $child->remove );
         }
-        when ('unpack') {
-            map_unpack($element);
+    }
+    elsif ( $elementstr =~ /^printf?$/xsm ) {
+        map_print($element);
+    }
+    elsif ( $elementstr =~ /^(?:push|unshift)$/xsm ) {
+        map_push($element);
+    }
+    elsif ( $elementstr eq 'ref' ) {
+        map_ref($element);
+    }
+    elsif ( $elementstr eq 'reverse' ) {
+        map_built_in($element);
+        $element->{content} = 'reversed';
+    }
+    elsif ( $elementstr eq 'rmdir' ) {
+        my $list = map_built_in($element);
+        add_import( $element, 'os' );
+        $element->{content} = 'os.rmdir';
+    }
+    elsif ( $elementstr eq 'scalar' ) {
+        map_scalar($element);
+    }
+    elsif ( $elementstr eq 'set' ) {
+        map_set($element);
+    }
+    elsif ( $elementstr eq 'setlocale' ) {
+        map_setlocale($element);
+    }
+    elsif ( $elementstr eq 'share' ) {
+        my $list = map_built_in($element);
+        $list->insert_after( PPI::Token::Symbol->new('queue.Queue()') );
+        $list->insert_after( PPI::Token::Operator->new(q{=}) );
+        for my $child ( $list->children ) {
+            $list->insert_before( $child->remove );
         }
-        when ('use_ok') {
-            map_use_ok($element);
+        $element->delete;
+        $list->delete;
+    }
+    elsif ( $elementstr eq 'shift' ) {
+        map_shift($element);
+    }
+    elsif ( $elementstr =~ /^$SIGNAL_PREFIX$SIGNAL_SUFFIX$/xsm ) {
+        map_signals( $element, $1 );
+    }
+    elsif ( $elementstr eq 'sort' ) {
+        map_sort($element);
+    }
+    elsif ( $elementstr eq 'splice' ) {
+        map_splice($element);
+    }
+    elsif ( $elementstr eq 'split' ) {
+        map_split($element);
+    }
+    elsif ( $elementstr eq 'sprintf' ) {
+        map_sprintf($element);
+    }
+    elsif ( $elementstr eq 'stat' ) {
+        $element->{content} = 'os.stat';
+    }
+    elsif ( $elementstr eq 'sub' ) {
+        map_anonymous_sub($element);
+    }
+    elsif ( $elementstr eq 'substr' ) {
+        my $list = map_built_in($element);
+        $list->{start}->{content}  = q{[};
+        $list->{finish}->{content} = q{]};
+        $list->insert_before( $list->schild(0)->remove );
+        $list->schild(0)->delete;
+        $element->delete;
+        my $comma = $list->find_first('PPI::Token::Operator');
+        $comma->{content} = q{:};
+        $comma->insert_after( PPI::Token::Operator->new(q{+}) );
+        my $offset = $list->schild(0)->clone;
+        map_element($offset);
+        $comma->insert_after($offset);
+    }
+    elsif ( $elementstr eq 'system' ) {
+        map_system($element);
+    }
+    elsif ( $elementstr eq 'threads' ) {
+        map_threads($element);
+    }
+    elsif ( $elementstr eq 'ucfirst' ) {
+        my $list = map_built_in($element);
+        $element->{content} = '.capitalize';
+        for my $child ( $list->children ) {
+            map_element($child);
+            $element->insert_before( $child->remove );
         }
-        when ('utime') {
-            add_import( $element, 'os' );
-            $element->{content} = 'os.utime';
-            my $list = map_built_in($element);
-            my $tuple =
-              PPI::Structure::List->new( PPI::Token::Structure->new('(') );
-            $tuple->{finish} = PPI::Token::Structure->new(')');
-            for ( 0 .. 2 ) {
-                $tuple->add_element( $list->schild(0)->remove );
-            }
-            $list->add_element( $list->schild(0)->remove );
-            $list->add_element($tuple);
+    }
+    elsif ( $elementstr eq 'undef' ) {
+        map_undef($element);
+    }
+    elsif ( $elementstr eq 'unlink' ) {
+        my $list = map_built_in($element);
+        add_import( $element, 'os' );
+        $element->{content} = 'os.remove';
+    }
+    elsif ( $elementstr eq 'unpack' ) {
+        map_unpack($element);
+    }
+    elsif ( $elementstr eq 'use_ok' ) {
+        map_use_ok($element);
+    }
+    elsif ( $elementstr eq 'utime' ) {
+        add_import( $element, 'os' );
+        $element->{content} = 'os.utime';
+        my $list = map_built_in($element);
+        my $tuple =
+          PPI::Structure::List->new( PPI::Token::Structure->new('(') );
+        $tuple->{finish} = PPI::Token::Structure->new(')');
+        for ( 0 .. 2 ) {
+            $tuple->add_element( $list->schild(0)->remove );
         }
-        when ('waitpid') {
-            add_import( $element, 'os' );
-            my $list = map_built_in($element);
-            $element->{content} = 'os.waitpid';
-        }
+        $list->add_element( $list->schild(0)->remove );
+        $list->add_element($tuple);
+    }
+    elsif ( $elementstr eq 'waitpid' ) {
+        add_import( $element, 'os' );
+        my $list = map_built_in($element);
+        $element->{content} = 'os.waitpid';
     }
     return;
 }
