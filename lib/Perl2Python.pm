@@ -3,7 +3,6 @@ package Perl2Python;
 use warnings;
 use strict;
 use feature 'switch';
-no if $] >= 5.018, warnings => 'experimental::smartmatch';
 use PPI;
 use Exporter ();
 use base qw(Exporter);
@@ -3192,7 +3191,7 @@ sub map_symbol {
         }
         $element->{content} =~ s/^[\$@%&]//smx;
         $element->{content} =~ s/::/./gsmx;
-        if ( $element->{content} ~~ @RESERVED_WORDS ) {
+        if ( grep { $_ eq $element->{content} } @RESERVED_WORDS ) {
             $element->{content} = "_$element->{content}";
         }
     }
