@@ -1324,7 +1324,9 @@ result =  True if result_of_expression else False
 EOS
 
 # https://github.com/Perl-Critic/PPI/issues/262
-is map_document( \$script ), $expected, "workaround PPI bug #262";
+like map_document( \$script ),
+  qr/^result\s=\s+True\sif\sresult_of_expression\s+else\sFalse/xsm,
+  "workaround PPI bug #262";
 
 $script = <<'EOS';
 return $result_of_expression
