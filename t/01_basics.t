@@ -2,7 +2,7 @@ use warnings;
 use strict;
 use English     qw( -no_match_vars );        # for $INPUT_RECORD_SEPARATOR
 use Perl2Python qw(map_document map_path);
-use Test::More tests => 143;
+use Test::More tests => 144;
 
 sub slurp {
     my ($file) = @_;
@@ -2696,6 +2696,16 @@ d = gettext.translation(prog_name)
 EOS
 
 is map_document( \$script ), $expected, "map gettext";
+
+$script = <<'EOS';
+use Locale::gettext;
+EOS
+
+$expected = <<'EOS';
+import gettext
+EOS
+
+is map_document( \$script ), $expected, "map gettext without version";
 
 #########################
 

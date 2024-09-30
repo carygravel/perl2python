@@ -1753,7 +1753,7 @@ sub map_include {
     elsif ( $pathstr eq 'Locale::gettext' ) {
         delete_everything_after($path);
         $module = 'gettext';
-        $symbols->delete;
+        if ($symbols) { $symbols->delete }
         undef $symbols;
     }
     elsif ( $pathstr eq 'Log::Log4perl' ) {
