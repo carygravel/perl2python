@@ -970,7 +970,6 @@ sub map_expression {
                     or $parent->isa('PPI::Structure::Constructor') )
                 {
                     $list = $parent;
-                    break;
                 }
             }
             if ( not $list ) { $newline->delete }
